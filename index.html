@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Иваново · Бомж-симулятор</title>
+    <title>Иваново · Бомж-симулятор · Сохранение</title>
     <style>
         * {
             box-sizing: border-box;
@@ -113,7 +113,6 @@
             margin-top: 10px;
             font-size: 0.85rem;
         }
-        /* Профиль и шкалы */
         .profile-section {
             text-align: center;
             margin-bottom: 24px;
@@ -191,6 +190,10 @@
         .action-btn:active {
             transform: translateY(2px);
         }
+        .danger-btn {
+            background: #c0392b;
+            box-shadow: 0 2px 0 #96281b;
+        }
         .modal {
             display: none;
             position: fixed;
@@ -262,7 +265,7 @@
         <div id="loginForm">
             <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
             <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
-            <button id="loginBtn" class="buy-btn">Войти</button>
+            <button id="loginBtn" class="action-btn" style="width:100%">Войти</button>
             <div class="switch-link" id="showRegisterLink">Нет аккаунта? Зарегистрироваться</div>
             <div id="authError" class="error-msg"></div>
         </div>
@@ -270,7 +273,7 @@
             <input type="text" id="regNick" placeholder="Ваш игровой ник" autocomplete="off">
             <input type="email" id="regEmail" placeholder="Email" autocomplete="email">
             <input type="password" id="regPassword" placeholder="Пароль" autocomplete="new-password">
-            <button id="registerBtn" class="buy-btn">Зарегистрироваться</button>
+            <button id="registerBtn" class="action-btn" style="width:100%">Зарегистрироваться</button>
             <div class="switch-link" id="showLoginLink">Уже есть аккаунт? Войти</div>
             <div id="regError" class="error-msg"></div>
         </div>
@@ -317,16 +320,17 @@
         </div>
 
         <div class="action-buttons">
+            <button class="action-btn" id="eatBtn">🍲 Поесть (30₽)</button>
+            <button class="action-btn" id="warmBtn">🔥 Согреться (20₽)</button>
             <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
             <button class="action-btn" id="mapBtn">🗺️ Карта</button>
-            <button class="action-btn" id="characterBtn">📊 Персонаж</button>
             <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
         </div>
         <div class="settings-item" style="margin-top: 16px;">
             <button id="themeToggle" class="reset-btn" style="background: var(--buy-btn-bg); color: white;">🌓 Тема</button>
         </div>
         <footer style="text-align: center; margin-top: 20px; font-size: 0.7rem; color: var(--text-secondary);">
-            Иваново · Бомж-симулятор | Версия 0.0.1
+            Иваново · Бомж-симулятор | Версия 0.0.2 | Сохранение в облаке
         </footer>
     </div>
 
@@ -345,18 +349,10 @@
             <button class="close-modal">Закрыть</button>
         </div>
     </div>
-    <div id="characterModal" class="modal">
-        <div class="modal-content">
-            <h3>📊 Характеристики</h3>
-            <p>Имя: <span id="modalNick"></span></p>
-            <p>Сила: 10<br>Ловкость: 10<br>Интеллект: 10</p>
-            <button class="close-modal">Закрыть</button>
-        </div>
-    </div>
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.1</p>
+        <p>RPG · Иваново · Альфа 0.0.2</p>
     </div>
 
     <script type="module">
@@ -388,7 +384,6 @@
         const authError = document.getElementById('authError');
         const regError = document.getElementById('regError');
         const playerNickSpan = document.getElementById('playerNick');
-        const modalNickSpan = document.getElementById('modalNick');
         const healthValueSpan = document.getElementById('healthValue');
         const hungerValueSpan = document.getElementById('hungerValue');
         const coldValueSpan = document.getElementById('coldValue');
@@ -398,12 +393,15 @@
         const coldFill = document.getElementById('coldFill');
         const themeToggle = document.getElementById('themeToggle');
         const logoutMenuBtn = document.getElementById('logoutMenuBtn');
+        const eatBtn = document.getElementById('eatBtn');
+        const warmBtn = document.getElementById('warmBtn');
 
-        // Текущие характеристики (временные, позже будут из Firestore)
+        // Текущие характеристики
         let health = 100, maxHealth = 100;
         let hunger = 100, maxHunger = 100;
         let cold = 100, maxCold = 100;
         let money = 500;
+        let currentUserId = null;
 
         function updateUI() {
             healthValueSpan.innerText = `${Math.floor(health)} / ${maxHealth}`;
@@ -415,40 +413,107 @@
             coldFill.style.width = (cold / maxCold) * 100 + '%';
         }
 
-        // Пока заглушка — просто сохраняем ник в Firestore
-        async function saveGameProgress(userId) {
-            if (!userId) return;
-            const docRef = doc(db, 'users', userId);
-            await setDoc(docRef, { 
-                displayName: auth.currentUser?.displayName || 'Игрок',
-                lastUpdated: new Date().toISOString()
-            }, { merge: true });
+        function showMessage(text, bgColor = '#4caf50') {
+            const msg = document.createElement('div');
+            msg.innerText = text;
+            msg.style.position = 'fixed';
+            msg.style.bottom = '70px';
+            msg.style.left = '50%';
+            msg.style.transform = 'translateX(-50%)';
+            msg.style.backgroundColor = bgColor;
+            msg.style.color = 'white';
+            msg.style.padding = '6px 18px';
+            msg.style.borderRadius = '60px';
+            msg.style.fontWeight = 'bold';
+            msg.style.zIndex = '9999';
+            document.body.appendChild(msg);
+            setTimeout(() => msg.remove(), 2000);
         }
 
-        async function loadGameProgress(userId) {
+        // ========== Сохранение и загрузка из Firestore ==========
+        async function saveGameData() {
+            if (!currentUserId) return;
+            const docRef = doc(db, 'users', currentUserId);
+            await setDoc(docRef, {
+                health: health,
+                hunger: hunger,
+                cold: cold,
+                money: money,
+                lastUpdated: new Date().toISOString()
+            }, { merge: true });
+            console.log("Данные сохранены в Firestore");
+        }
+
+        async function loadGameData(userId) {
             if (!userId) return;
+            currentUserId = userId;
             const docRef = doc(db, 'users', userId);
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                if (data.displayName) {
-                    playerNickSpan.innerText = data.displayName;
-                    modalNickSpan.innerText = data.displayName;
-                }
-                // Позже загрузим health, hunger, cold, money, inventory
+                health = data.health ?? 100;
+                hunger = data.hunger ?? 100;
+                cold = data.cold ?? 100;
+                money = data.money ?? 500;
+                updateUI();
+                console.log("Данные загружены из Firestore");
+            } else {
+                // Первый вход — создаём документ с начальными значениями
+                health = 100;
+                hunger = 100;
+                cold = 100;
+                money = 500;
+                updateUI();
+                await saveGameData();
+                console.log("Создан новый документ пользователя");
             }
-            updateUI();
         }
 
+        // ========== Действия игрока ==========
+        async function eat() {
+            const cost = 30;
+            const gain = 20;
+            if (money >= cost) {
+                money -= cost;
+                hunger = Math.min(maxHunger, hunger + gain);
+                updateUI();
+                await saveGameData();
+                showMessage(`🍲 Вы поели! Голод +${gain}, -${cost}₽`, '#4caf50');
+            } else {
+                showMessage(`💰 Не хватает денег! Нужно ${cost}₽`, '#e74c3c');
+            }
+        }
+
+        async function warm() {
+            const cost = 20;
+            const gain = 20;
+            if (money >= cost) {
+                money -= cost;
+                cold = Math.min(maxCold, cold + gain);
+                updateUI();
+                await saveGameData();
+                showMessage(`🔥 Вы согрелись! Тепло +${gain}, -${cost}₽`, '#4caf50');
+            } else {
+                showMessage(`💰 Не хватает денег! Нужно ${cost}₽`, '#e74c3c');
+            }
+        }
+
+        // ========== Авторизация ==========
         async function saveUserNickOnRegister(userId, email, nick) {
             const userDocRef = doc(db, 'users', userId);
-            await setDoc(userDocRef, { displayName: nick, userEmail: email }, { merge: true });
+            await setDoc(userDocRef, { 
+                displayName: nick, 
+                userEmail: email,
+                health: 100,
+                hunger: 100,
+                cold: 100,
+                money: 500
+            }, { merge: true });
             if (auth.currentUser) {
                 await updateProfile(auth.currentUser, { displayName: nick });
             }
         }
 
-        // Авторизация
         showRegisterLink.addEventListener('click', (e) => {
             e.preventDefault();
             loginFormDiv.style.display = 'none';
@@ -488,27 +553,30 @@
                 const userId = userCredential.user.uid;
                 await saveUserNickOnRegister(userId, email, nick);
                 await updateProfile(auth.currentUser, { displayName: nick });
+                showMessage('Регистрация успешна!', '#4caf50');
             } catch (error) {
                 regError.innerText = error.message;
             }
         });
 
-        // Модальные окна (заглушки)
+        logoutMenuBtn.addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        // Модальные окна
         const inventoryModal = document.getElementById('inventoryModal');
         const mapModal = document.getElementById('mapModal');
-        const characterModal = document.getElementById('characterModal');
         document.getElementById('inventoryBtn').addEventListener('click', () => { inventoryModal.style.display = 'flex'; });
         document.getElementById('mapBtn').addEventListener('click', () => { mapModal.style.display = 'flex'; });
-        document.getElementById('characterBtn').addEventListener('click', () => { characterModal.style.display = 'flex'; });
         document.querySelectorAll('.close-modal').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.target.closest('.modal').style.display = 'none';
             });
         });
 
-        logoutMenuBtn.addEventListener('click', async () => {
-            await signOut(auth);
-        });
+        // Кнопки действий
+        eatBtn.addEventListener('click', eat);
+        warmBtn.addEventListener('click', warm);
 
         // Тема
         function initTheme() {
@@ -530,8 +598,7 @@
                 gameContainer.style.display = 'block';
                 const nick = user.displayName || 'Игрок';
                 playerNickSpan.innerText = nick;
-                modalNickSpan.innerText = nick;
-                await loadGameProgress(user.uid);
+                await loadGameData(user.uid);
             } else {
                 gameContainer.style.display = 'none';
                 authContainer.style.display = 'block';
@@ -544,6 +611,7 @@
                 document.getElementById('regNick').value = '';
                 document.getElementById('regEmail').value = '';
                 document.getElementById('regPassword').value = '';
+                currentUserId = null;
             }
         });
 
