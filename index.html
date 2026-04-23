@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Иваново · Бомж-симулятор · Сохранение</title>
+    <title>Иваново · Бомж-симулятор · Инвентарь</title>
     <style>
         * {
             box-sizing: border-box;
@@ -190,10 +190,6 @@
         .action-btn:active {
             transform: translateY(2px);
         }
-        .danger-btn {
-            background: #c0392b;
-            box-shadow: 0 2px 0 #96281b;
-        }
         .modal {
             display: none;
             position: fixed;
@@ -211,13 +207,58 @@
             border-radius: 48px;
             padding: 24px;
             width: 90%;
-            max-width: 400px;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
             text-align: center;
             border: 1px solid var(--card-border);
         }
         .modal-content h3 {
             margin-top: 0;
             color: var(--accent-gold);
+        }
+        .inventory-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 16px 0;
+        }
+        .inventory-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--stat-bg);
+            padding: 10px 16px;
+            border-radius: 40px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .item-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 2;
+        }
+        .item-icon {
+            font-size: 1.6rem;
+        }
+        .item-name {
+            font-weight: bold;
+        }
+        .item-count {
+            background: var(--card-bg);
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        .use-btn {
+            background: var(--buy-btn-bg);
+            border: none;
+            padding: 6px 16px;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
         }
         .close-modal {
             background: var(--reset-bg);
@@ -254,6 +295,8 @@
         @media (max-width: 480px) {
             .avatar { font-size: 4rem; width: 90px; height: 90px; }
             .action-btn { font-size: 0.8rem; padding: 10px 0; }
+            .inventory-item { flex-direction: column; text-align: center; }
+            .item-info { justify-content: center; }
         }
     </style>
 </head>
@@ -320,9 +363,9 @@
         </div>
 
         <div class="action-buttons">
+            <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
             <button class="action-btn" id="eatBtn">🍲 Поесть (30₽)</button>
             <button class="action-btn" id="warmBtn">🔥 Согреться (20₽)</button>
-            <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
             <button class="action-btn" id="mapBtn">🗺️ Карта</button>
             <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
         </div>
@@ -330,18 +373,22 @@
             <button id="themeToggle" class="reset-btn" style="background: var(--buy-btn-bg); color: white;">🌓 Тема</button>
         </div>
         <footer style="text-align: center; margin-top: 20px; font-size: 0.7rem; color: var(--text-secondary);">
-            Иваново · Бомж-симулятор | Версия 0.0.2 | Сохранение в облаке
+            Иваново · Бомж-симулятор | Версия 0.0.3 | Инвентарь
         </footer>
     </div>
 
-    <!-- Модальные окна (заглушки) -->
+    <!-- Модальное окно инвентаря -->
     <div id="inventoryModal" class="modal">
         <div class="modal-content">
             <h3>🎒 Инвентарь</h3>
-            <p>Пока пусто. Скоро здесь появятся предметы.</p>
+            <div id="inventoryList" class="inventory-grid">
+                <p>Загрузка...</p>
+            </div>
             <button class="close-modal">Закрыть</button>
         </div>
     </div>
+
+    <!-- Модальное окно карты (заглушка) -->
     <div id="mapModal" class="modal">
         <div class="modal-content">
             <h3>🗺️ Карта Иваново</h3>
@@ -352,7 +399,7 @@
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.2</p>
+        <p>RPG · Иваново · Альфа 0.0.3</p>
     </div>
 
     <script type="module">
@@ -395,6 +442,8 @@
         const logoutMenuBtn = document.getElementById('logoutMenuBtn');
         const eatBtn = document.getElementById('eatBtn');
         const warmBtn = document.getElementById('warmBtn');
+        const inventoryBtn = document.getElementById('inventoryBtn');
+        const inventoryListDiv = document.getElementById('inventoryList');
 
         // Текущие характеристики
         let health = 100, maxHealth = 100;
@@ -402,6 +451,18 @@
         let cold = 100, maxCold = 100;
         let money = 500;
         let currentUserId = null;
+        
+        // Инвентарь: массив объектов { id, name, type, icon, count, effect }
+        let inventory = [];
+
+        // База предметов (справочник)
+        const itemsDB = {
+            bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25 },
+            vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40 },
+            cigarettes: { id: "cigarettes", name: "Сигареты", type: "drug", icon: "🚬", effect: { hunger: 0, health: -5, cold: 10 }, price: 20 },
+            medkit: { id: "medkit", name: "Аптечка", type: "medicine", icon: "💊", effect: { hunger: 0, health: 30, cold: 0 }, price: 50 },
+            water: { id: "water", name: "Бутылка воды", type: "drink", icon: "💧", effect: { hunger: 10, health: 0, cold: 0 }, price: 15 }
+        };
 
         function updateUI() {
             healthValueSpan.innerText = `${Math.floor(health)} / ${maxHealth}`;
@@ -439,6 +500,7 @@
                 hunger: hunger,
                 cold: cold,
                 money: money,
+                inventory: inventory,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
             console.log("Данные сохранены в Firestore");
@@ -455,17 +517,104 @@
                 hunger = data.hunger ?? 100;
                 cold = data.cold ?? 100;
                 money = data.money ?? 500;
+                inventory = data.inventory ?? [];
                 updateUI();
                 console.log("Данные загружены из Firestore");
             } else {
-                // Первый вход — создаём документ с начальными значениями
+                // Первый вход — создаём документ с начальными значениями и стартовым инвентарём
                 health = 100;
                 hunger = 100;
                 cold = 100;
-                money = 500;
+                money = 200;
+                inventory = [
+                    { id: "bread", count: 2 },
+                    { id: "vodka", count: 1 },
+                    { id: "cigarettes", count: 1 },
+                    { id: "medkit", count: 1 }
+                ];
                 updateUI();
                 await saveGameData();
-                console.log("Создан новый документ пользователя");
+                console.log("Создан новый документ пользователя со стартовым инвентарём");
+            }
+        }
+
+        // ========== Инвентарь ==========
+        function renderInventory() {
+            if (!inventoryListDiv) return;
+            if (inventory.length === 0) {
+                inventoryListDiv.innerHTML = '<p>🧺 Инвентарь пуст</p>';
+                return;
+            }
+            let html = '';
+            for (let item of inventory) {
+                const itemData = itemsDB[item.id];
+                if (!itemData) continue;
+                html += `
+                    <div class="inventory-item">
+                        <div class="item-info">
+                            <span class="item-icon">${itemData.icon}</span>
+                            <span class="item-name">${itemData.name}</span>
+                            <span class="item-count">×${item.count}</span>
+                        </div>
+                        <button class="use-btn" data-id="${item.id}">Использовать</button>
+                    </div>
+                `;
+            }
+            inventoryListDiv.innerHTML = html;
+            
+            // Вешаем обработчики на кнопки "Использовать"
+            document.querySelectorAll('.use-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const itemId = btn.dataset.id;
+                    await useItem(itemId);
+                });
+            });
+        }
+
+        async function useItem(itemId) {
+            const itemIndex = inventory.findIndex(i => i.id === itemId);
+            if (itemIndex === -1 || inventory[itemIndex].count <= 0) {
+                showMessage("Предмета нет в инвентаре!", "#e74c3c");
+                return;
+            }
+            
+            const itemData = itemsDB[itemId];
+            if (!itemData) return;
+            
+            // Применяем эффекты
+            let effectText = "";
+            if (itemData.effect.hunger) {
+                let newHunger = hunger + itemData.effect.hunger;
+                hunger = Math.min(maxHunger, Math.max(0, newHunger));
+                effectText += `Голод ${itemData.effect.hunger > 0 ? '+' : ''}${itemData.effect.hunger}. `;
+            }
+            if (itemData.effect.health) {
+                let newHealth = health + itemData.effect.health;
+                health = Math.min(maxHealth, Math.max(0, newHealth));
+                effectText += `Здоровье ${itemData.effect.health > 0 ? '+' : ''}${itemData.effect.health}. `;
+            }
+            if (itemData.effect.cold) {
+                let newCold = cold + itemData.effect.cold;
+                cold = Math.min(maxCold, Math.max(0, newCold));
+                effectText += `Тепло ${itemData.effect.cold > 0 ? '+' : ''}${itemData.effect.cold}. `;
+            }
+            
+            // Уменьшаем количество предмета
+            if (inventory[itemIndex].count === 1) {
+                inventory.splice(itemIndex, 1);
+            } else {
+                inventory[itemIndex].count--;
+            }
+            
+            updateUI();
+            await saveGameData();
+            renderInventory();
+            showMessage(`🍺 Вы использовали ${itemData.name}. ${effectText}`, "#4caf50");
+            
+            // Проверка на смерть
+            if (health <= 0) {
+                showMessage("💀 Вы погибли... Игра закончена. Обновите страницу.", "#e74c3c");
+                // Здесь позже добавим механику возрождения
             }
         }
 
@@ -507,7 +656,13 @@
                 health: 100,
                 hunger: 100,
                 cold: 100,
-                money: 500
+                money: 200,
+                inventory: [
+                    { id: "bread", count: 2 },
+                    { id: "vodka", count: 1 },
+                    { id: "cigarettes", count: 1 },
+                    { id: "medkit", count: 1 }
+                ]
             }, { merge: true });
             if (auth.currentUser) {
                 await updateProfile(auth.currentUser, { displayName: nick });
@@ -566,7 +721,10 @@
         // Модальные окна
         const inventoryModal = document.getElementById('inventoryModal');
         const mapModal = document.getElementById('mapModal');
-        document.getElementById('inventoryBtn').addEventListener('click', () => { inventoryModal.style.display = 'flex'; });
+        inventoryBtn.addEventListener('click', () => {
+            renderInventory();
+            inventoryModal.style.display = 'flex';
+        });
         document.getElementById('mapBtn').addEventListener('click', () => { mapModal.style.display = 'flex'; });
         document.querySelectorAll('.close-modal').forEach(btn => {
             btn.addEventListener('click', (e) => {
