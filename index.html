@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Иваново · Бомж-симулятор · Инвентарь</title>
+    <title>Иваново · Бомж-симулятор · Инвентарь и экипировка</title>
     <style>
         * {
             box-sizing: border-box;
@@ -207,21 +207,36 @@
             border-radius: 48px;
             padding: 24px;
             width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
+            max-width: 550px;
+            max-height: 85vh;
             overflow-y: auto;
-            text-align: center;
             border: 1px solid var(--card-border);
         }
-        .modal-content h3 {
-            margin-top: 0;
-            color: var(--accent-gold);
+        .modal-header {
+            display: flex;
+            gap: 16px;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+        .tab-btn.active {
+            background: var(--accent-gold);
+            color: #1e2a32;
         }
         .inventory-grid {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            margin: 16px 0;
         }
         .inventory-item {
             display: flex;
@@ -251,7 +266,7 @@
             border-radius: 20px;
             font-size: 0.8rem;
         }
-        .use-btn {
+        .use-btn, .equip-btn, .unequip-btn {
             background: var(--buy-btn-bg);
             border: none;
             padding: 6px 16px;
@@ -260,14 +275,46 @@
             cursor: pointer;
             font-weight: bold;
         }
+        .unequip-btn {
+            background: #7f8c8d;
+        }
+        .equipment-slots {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .slot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--stat-bg);
+            padding: 12px 16px;
+            border-radius: 40px;
+        }
+        .slot-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .slot-icon {
+            font-size: 1.5rem;
+        }
+        .slot-name {
+            font-weight: bold;
+        }
+        .slot-empty {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
         .close-modal {
             background: var(--reset-bg);
-            margin-top: 16px;
+            margin-top: 20px;
             padding: 8px 24px;
             border: none;
             border-radius: 40px;
             cursor: pointer;
             color: var(--text-primary);
+            width: 100%;
         }
         .settings-item {
             margin: 20px 0;
@@ -297,6 +344,7 @@
             .action-btn { font-size: 0.8rem; padding: 10px 0; }
             .inventory-item { flex-direction: column; text-align: center; }
             .item-info { justify-content: center; }
+            .slot { flex-direction: column; text-align: center; gap: 10px; }
         }
     </style>
 </head>
@@ -364,8 +412,6 @@
 
         <div class="action-buttons">
             <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
-            <button class="action-btn" id="eatBtn">🍲 Поесть (30₽)</button>
-            <button class="action-btn" id="warmBtn">🔥 Согреться (20₽)</button>
             <button class="action-btn" id="mapBtn">🗺️ Карта</button>
             <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
         </div>
@@ -373,17 +419,19 @@
             <button id="themeToggle" class="reset-btn" style="background: var(--buy-btn-bg); color: white;">🌓 Тема</button>
         </div>
         <footer style="text-align: center; margin-top: 20px; font-size: 0.7rem; color: var(--text-secondary);">
-            Иваново · Бомж-симулятор | Версия 0.0.3 | Инвентарь
+            Иваново · Бомж-симулятор | Версия 0.0.4 | Экипировка
         </footer>
     </div>
 
-    <!-- Модальное окно инвентаря -->
+    <!-- Модальное окно инвентаря с вкладками -->
     <div id="inventoryModal" class="modal">
         <div class="modal-content">
-            <h3>🎒 Инвентарь</h3>
-            <div id="inventoryList" class="inventory-grid">
-                <p>Загрузка...</p>
+            <div class="modal-header">
+                <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
+                <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
             </div>
+            <div id="itemsTab" class="inventory-grid"></div>
+            <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
             <button class="close-modal">Закрыть</button>
         </div>
     </div>
@@ -399,7 +447,7 @@
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.3</p>
+        <p>RPG · Иваново · Альфа 0.0.4</p>
     </div>
 
     <script type="module">
@@ -440,10 +488,7 @@
         const coldFill = document.getElementById('coldFill');
         const themeToggle = document.getElementById('themeToggle');
         const logoutMenuBtn = document.getElementById('logoutMenuBtn');
-        const eatBtn = document.getElementById('eatBtn');
-        const warmBtn = document.getElementById('warmBtn');
         const inventoryBtn = document.getElementById('inventoryBtn');
-        const inventoryListDiv = document.getElementById('inventoryList');
 
         // Текущие характеристики
         let health = 100, maxHealth = 100;
@@ -452,16 +497,30 @@
         let money = 500;
         let currentUserId = null;
         
-        // Инвентарь: массив объектов { id, name, type, icon, count, effect }
+        // Инвентарь: массив объектов { id, name, type, icon, count, slot, effect }
         let inventory = [];
+        
+        // Экипировка
+        let equipped = {
+            head: null,
+            body: null,
+            legs: null,
+            feet: null
+        };
 
-        // База предметов (справочник)
+        // База предметов
         const itemsDB = {
-            bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25 },
-            vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40 },
-            cigarettes: { id: "cigarettes", name: "Сигареты", type: "drug", icon: "🚬", effect: { hunger: 0, health: -5, cold: 10 }, price: 20 },
-            medkit: { id: "medkit", name: "Аптечка", type: "medicine", icon: "💊", effect: { hunger: 0, health: 30, cold: 0 }, price: 50 },
-            water: { id: "water", name: "Бутылка воды", type: "drink", icon: "💧", effect: { hunger: 10, health: 0, cold: 0 }, price: 15 }
+            // Еда и лекарства
+            bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25, slot: null },
+            vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40, slot: null },
+            cigarettes: { id: "cigarettes", name: "Сигареты", type: "drug", icon: "🚬", effect: { hunger: 0, health: -5, cold: 10 }, price: 20, slot: null },
+            medkit: { id: "medkit", name: "Аптечка", type: "medicine", icon: "💊", effect: { hunger: 0, health: 30, cold: 0 }, price: 50, slot: null },
+            water: { id: "water", name: "Бутылка воды", type: "drink", icon: "💧", effect: { hunger: 10, health: 0, cold: 0 }, price: 15, slot: null },
+            // Одежда
+            ushanka: { id: "ushanka", name: "Шапка-ушанка", type: "clothes", icon: "🧢", effect: { cold: 15 }, price: 80, slot: "head" },
+            puhovik: { id: "puhovik", name: "Пуховик", type: "clothes", icon: "🧥", effect: { cold: 25 }, price: 200, slot: "body" },
+            termo: { id: "termo", name: "Термобельё", type: "clothes", icon: "👖", effect: { cold: 10 }, price: 120, slot: "legs" },
+            bercy: { id: "bercy", name: "Берцы", type: "clothes", icon: "👢", effect: { cold: 10 }, price: 150, slot: "feet" }
         };
 
         function updateUI() {
@@ -491,7 +550,20 @@
             setTimeout(() => msg.remove(), 2000);
         }
 
-        // ========== Сохранение и загрузка из Firestore ==========
+        // Пересчёт тепла от экипировки
+        function recalcColdFromEquipment() {
+            let bonus = 0;
+            if (equipped.head && itemsDB[equipped.head]) bonus += itemsDB[equipped.head].effect.cold || 0;
+            if (equipped.body && itemsDB[equipped.body]) bonus += itemsDB[equipped.body].effect.cold || 0;
+            if (equipped.legs && itemsDB[equipped.legs]) bonus += itemsDB[equipped.legs].effect.cold || 0;
+            if (equipped.feet && itemsDB[equipped.feet]) bonus += itemsDB[equipped.feet].effect.cold || 0;
+            // Базовое тепло 100 + бонус от одежды, но не выше максимума
+            let newCold = Math.min(maxCold, 100 + bonus);
+            cold = newCold;
+            updateUI();
+        }
+
+        // Сохранение всей игры
         async function saveGameData() {
             if (!currentUserId) return;
             const docRef = doc(db, 'users', currentUserId);
@@ -501,6 +573,7 @@
                 cold: cold,
                 money: money,
                 inventory: inventory,
+                equipped: equipped,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
             console.log("Данные сохранены в Firestore");
@@ -516,12 +589,14 @@
                 health = data.health ?? 100;
                 hunger = data.hunger ?? 100;
                 cold = data.cold ?? 100;
-                money = data.money ?? 500;
+                money = data.money ?? 200;
                 inventory = data.inventory ?? [];
+                equipped = data.equipped ?? { head: null, body: null, legs: null, feet: null };
                 updateUI();
+                recalcColdFromEquipment();
                 console.log("Данные загружены из Firestore");
             } else {
-                // Первый вход — создаём документ с начальными значениями и стартовым инвентарём
+                // Первый вход — стартовые данные
                 health = 100;
                 hunger = 100;
                 cold = 100;
@@ -530,47 +605,18 @@
                     { id: "bread", count: 2 },
                     { id: "vodka", count: 1 },
                     { id: "cigarettes", count: 1 },
-                    { id: "medkit", count: 1 }
+                    { id: "medkit", count: 1 },
+                    { id: "ushanka", count: 1 },
+                    { id: "puhovik", count: 1 }
                 ];
+                equipped = { head: null, body: null, legs: null, feet: null };
                 updateUI();
                 await saveGameData();
-                console.log("Создан новый документ пользователя со стартовым инвентарём");
+                console.log("Создан новый документ пользователя");
             }
         }
 
-        // ========== Инвентарь ==========
-        function renderInventory() {
-            if (!inventoryListDiv) return;
-            if (inventory.length === 0) {
-                inventoryListDiv.innerHTML = '<p>🧺 Инвентарь пуст</p>';
-                return;
-            }
-            let html = '';
-            for (let item of inventory) {
-                const itemData = itemsDB[item.id];
-                if (!itemData) continue;
-                html += `
-                    <div class="inventory-item">
-                        <div class="item-info">
-                            <span class="item-icon">${itemData.icon}</span>
-                            <span class="item-name">${itemData.name}</span>
-                            <span class="item-count">×${item.count}</span>
-                        </div>
-                        <button class="use-btn" data-id="${item.id}">Использовать</button>
-                    </div>
-                `;
-            }
-            inventoryListDiv.innerHTML = html;
-            
-            // Вешаем обработчики на кнопки "Использовать"
-            document.querySelectorAll('.use-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const itemId = btn.dataset.id;
-                    await useItem(itemId);
-                });
-            });
-        }
-
+        // Использование предмета (еда, лекарства)
         async function useItem(itemId) {
             const itemIndex = inventory.findIndex(i => i.id === itemId);
             if (itemIndex === -1 || inventory[itemIndex].count <= 0) {
@@ -599,7 +645,7 @@
                 effectText += `Тепло ${itemData.effect.cold > 0 ? '+' : ''}${itemData.effect.cold}. `;
             }
             
-            // Уменьшаем количество предмета
+            // Уменьшаем количество
             if (inventory[itemIndex].count === 1) {
                 inventory.splice(itemIndex, 1);
             } else {
@@ -608,173 +654,148 @@
             
             updateUI();
             await saveGameData();
-            renderInventory();
+            renderItemsTab();
             showMessage(`🍺 Вы использовали ${itemData.name}. ${effectText}`, "#4caf50");
-            
-            // Проверка на смерть
-            if (health <= 0) {
-                showMessage("💀 Вы погибли... Игра закончена. Обновите страницу.", "#e74c3c");
-                // Здесь позже добавим механику возрождения
-            }
         }
 
-        // ========== Действия игрока ==========
-        async function eat() {
-            const cost = 30;
-            const gain = 20;
-            if (money >= cost) {
-                money -= cost;
-                hunger = Math.min(maxHunger, hunger + gain);
-                updateUI();
-                await saveGameData();
-                showMessage(`🍲 Вы поели! Голод +${gain}, -${cost}₽`, '#4caf50');
-            } else {
-                showMessage(`💰 Не хватает денег! Нужно ${cost}₽`, '#e74c3c');
-            }
-        }
-
-        async function warm() {
-            const cost = 20;
-            const gain = 20;
-            if (money >= cost) {
-                money -= cost;
-                cold = Math.min(maxCold, cold + gain);
-                updateUI();
-                await saveGameData();
-                showMessage(`🔥 Вы согрелись! Тепло +${gain}, -${cost}₽`, '#4caf50');
-            } else {
-                showMessage(`💰 Не хватает денег! Нужно ${cost}₽`, '#e74c3c');
-            }
-        }
-
-        // ========== Авторизация ==========
-        async function saveUserNickOnRegister(userId, email, nick) {
-            const userDocRef = doc(db, 'users', userId);
-            await setDoc(userDocRef, { 
-                displayName: nick, 
-                userEmail: email,
-                health: 100,
-                hunger: 100,
-                cold: 100,
-                money: 200,
-                inventory: [
-                    { id: "bread", count: 2 },
-                    { id: "vodka", count: 1 },
-                    { id: "cigarettes", count: 1 },
-                    { id: "medkit", count: 1 }
-                ]
-            }, { merge: true });
-            if (auth.currentUser) {
-                await updateProfile(auth.currentUser, { displayName: nick });
-            }
-        }
-
-        showRegisterLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginFormDiv.style.display = 'none';
-            registerFormDiv.style.display = 'block';
-            authError.innerText = '';
-            regError.innerText = '';
-        });
-        showLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            registerFormDiv.style.display = 'none';
-            loginFormDiv.style.display = 'block';
-            authError.innerText = '';
-            regError.innerText = '';
-        });
-
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            authError.innerText = '';
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                authError.innerText = error.message;
-            }
-        });
-        document.getElementById('registerBtn').addEventListener('click', async () => {
-            const nick = document.getElementById('regNick').value.trim();
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            regError.innerText = '';
-            if (!nick) {
-                regError.innerText = 'Введите игровой ник';
+        // Надеть предмет
+        async function equipItem(itemId) {
+            const itemIndex = inventory.findIndex(i => i.id === itemId);
+            if (itemIndex === -1 || inventory[itemIndex].count <= 0) {
+                showMessage("Предмета нет в инвентаре!", "#e74c3c");
                 return;
             }
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const userId = userCredential.user.uid;
-                await saveUserNickOnRegister(userId, email, nick);
-                await updateProfile(auth.currentUser, { displayName: nick });
-                showMessage('Регистрация успешна!', '#4caf50');
-            } catch (error) {
-                regError.innerText = error.message;
+            
+            const itemData = itemsDB[itemId];
+            if (!itemData || !itemData.slot) {
+                showMessage("Этот предмет нельзя надеть!", "#e74c3c");
+                return;
             }
-        });
-
-        logoutMenuBtn.addEventListener('click', async () => {
-            await signOut(auth);
-        });
-
-        // Модальные окна
-        const inventoryModal = document.getElementById('inventoryModal');
-        const mapModal = document.getElementById('mapModal');
-        inventoryBtn.addEventListener('click', () => {
-            renderInventory();
-            inventoryModal.style.display = 'flex';
-        });
-        document.getElementById('mapBtn').addEventListener('click', () => { mapModal.style.display = 'flex'; });
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.target.closest('.modal').style.display = 'none';
-            });
-        });
-
-        // Кнопки действий
-        eatBtn.addEventListener('click', eat);
-        warmBtn.addEventListener('click', warm);
-
-        // Тема
-        function initTheme() {
-            const saved = localStorage.getItem('rpgTheme');
-            if (saved === 'light') document.body.classList.add('light-theme');
-            else document.body.classList.remove('light-theme');
-        }
-        function toggleTheme() {
-            document.body.classList.toggle('light-theme');
-            const isLight = document.body.classList.contains('light-theme');
-            localStorage.setItem('rpgTheme', isLight ? 'light' : 'dark');
-        }
-        themeToggle.addEventListener('click', toggleTheme);
-
-        // Обработка состояния авторизации
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                authContainer.style.display = 'none';
-                gameContainer.style.display = 'block';
-                const nick = user.displayName || 'Игрок';
-                playerNickSpan.innerText = nick;
-                await loadGameData(user.uid);
+            
+            const slot = itemData.slot;
+            // Если в слоте уже есть предмет, снимаем его обратно в инвентарь
+            if (equipped[slot]) {
+                const oldItemId = equipped[slot];
+                const existingIndex = inventory.findIndex(i => i.id === oldItemId);
+                if (existingIndex !== -1) {
+                    inventory[existingIndex].count++;
+                } else {
+                    inventory.push({ id: oldItemId, count: 1 });
+                }
+            }
+            
+            // Надеваем новый предмет
+            equipped[slot] = itemId;
+            // Убираем предмет из инвентаря
+            if (inventory[itemIndex].count === 1) {
+                inventory.splice(itemIndex, 1);
             } else {
-                gameContainer.style.display = 'none';
-                authContainer.style.display = 'block';
-                loginFormDiv.style.display = 'block';
-                registerFormDiv.style.display = 'none';
-                authError.innerText = '';
-                regError.innerText = '';
-                document.getElementById('loginEmail').value = '';
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('regNick').value = '';
-                document.getElementById('regEmail').value = '';
-                document.getElementById('regPassword').value = '';
-                currentUserId = null;
+                inventory[itemIndex].count--;
             }
-        });
+            
+            await saveGameData();
+            recalcColdFromEquipment();
+            renderItemsTab();
+            renderEquipmentTab();
+            showMessage(`👕 Вы надели ${itemData.name}`, "#4caf50");
+        }
+        
+        // Снять предмет
+        async function unequipItem(slot) {
+            const itemId = equipped[slot];
+            if (!itemId) return;
+            
+            const itemData = itemsDB[itemId];
+            // Добавляем обратно в инвентарь
+            const existingIndex = inventory.findIndex(i => i.id === itemId);
+            if (existingIndex !== -1) {
+                inventory[existingIndex].count++;
+            } else {
+                inventory.push({ id: itemId, count: 1 });
+            }
+            
+            equipped[slot] = null;
+            await saveGameData();
+            recalcColdFromEquipment();
+            renderItemsTab();
+            renderEquipmentTab();
+            showMessage(`🧥 Вы сняли ${itemData.name}`, "#6c757d");
+        }
 
-        initTheme();
-        updateUI();
-    </script>
-</body>
-</html>
+        // Рендер вкладки "Вещи"
+        function renderItemsTab() {
+            const itemsTab = document.getElementById('itemsTab');
+            if (!itemsTab) return;
+            
+            const usableItems = inventory.filter(item => {
+                const data = itemsDB[item.id];
+                return data && (data.type === 'food' || data.type === 'alcohol' || data.type === 'drug' || data.type === 'medicine' || data.type === 'drink');
+            });
+            
+            const equipableItems = inventory.filter(item => {
+                const data = itemsDB[item.id];
+                return data && data.type === 'clothes';
+            });
+            
+            if (usableItems.length === 0 && equipableItems.length === 0) {
+                itemsTab.innerHTML = '<p style="text-align:center;">🧺 Инвентарь пуст</p>';
+                return;
+            }
+            
+            let html = '';
+            if (usableItems.length > 0) {
+                html += '<div style="margin-bottom: 8px;"><strong>📦 Расходуемые предметы</strong></div>';
+                for (let item of usableItems) {
+                    const data = itemsDB[item.id];
+                    html += `
+                        <div class="inventory-item">
+                            <div class="item-info">
+                                <span class="item-icon">${data.icon}</span>
+                                <span class="item-name">${data.name}</span>
+                                <span class="item-count">×${item.count}</span>
+                            </div>
+                            <button class="use-btn" data-id="${item.id}">Использовать</button>
+                        </div>
+                    `;
+                }
+            }
+            if (equipableItems.length > 0) {
+                html += '<div style="margin-bottom: 8px; margin-top: 12px;"><strong>👔 Одежда</strong></div>';
+                for (let item of equipableItems) {
+                    const data = itemsDB[item.id];
+                    html += `
+                        <div class="inventory-item">
+                            <div class="item-info">
+                                <span class="item-icon">${data.icon}</span>
+                                <span class="item-name">${data.name}</span>
+                                <span class="item-count">×${item.count}</span>
+                            </div>
+                            <button class="equip-btn" data-id="${item.id}">Надеть</button>
+                        </div>
+                    `;
+                }
+            }
+            itemsTab.innerHTML = html;
+            
+            document.querySelectorAll('.use-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await useItem(btn.dataset.id);
+                });
+            });
+            document.querySelectorAll('.equip-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await equipItem(btn.dataset.id);
+                });
+            });
+        }
+        
+        // Рендер вкладки "Экипировка"
+        function renderEquipmentTab() {
+            const equipmentTab = document.getElementById('equipmentTab');
+            if (!equipmentTab) return;
+            
+            const slots = [
+                { key: 'head', name: 'Головной убор', icon: '🧢' },
+                { key: 'body', name: 'Верх', icon: '🧥' },
+                { key: 'legs', name: 'Штаны', icon: '👖' },
+                { key: 'feet', name: 'Обу
