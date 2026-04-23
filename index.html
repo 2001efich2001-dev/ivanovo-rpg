@@ -798,4 +798,184 @@
                 { key: 'head', name: 'Головной убор', icon: '🧢' },
                 { key: 'body', name: 'Верх', icon: '🧥' },
                 { key: 'legs', name: 'Штаны', icon: '👖' },
-                { key: 'feet', name: 'Обу
+                { key: 'feet', name: 'Обувь', icon: '👢' }
+            ];
+            
+            let html = '';
+            for (let slot of slots) {
+                const itemId = equipped[slot.key];
+                const itemData = itemId ? itemsDB[itemId] : null;
+                html += `
+                    <div class="slot">
+                        <div class="slot-info">
+                            <span class="slot-icon">${slot.icon}</span>
+                            <span class="slot-name">${slot.name}</span>
+                            ${itemData ? `<span class="item-name">${itemData.name}</span>` : `<span class="slot-empty">— пусто —</span>`}
+                        </div>
+                        ${itemData ? `<button class="unequip-btn" data-slot="${slot.key}">Снять</button>` : ''}
+                    </div>
+                `;
+            }
+            equipmentTab.innerHTML = html;
+            
+            document.querySelectorAll('.unequip-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await unequipItem(btn.dataset.slot);
+                });
+            });
+        }
+
+        // Переключение вкладок в модальном окне
+        function initModalTabs() {
+            const tabs = document.querySelectorAll('.tab-btn');
+            const itemsTab = document.getElementById('itemsTab');
+            const equipmentTab = document.getElementById('equipmentTab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    if (tab.dataset.tab === 'items') {
+                        itemsTab.style.display = 'flex';
+                        equipmentTab.style.display = 'none';
+                        renderItemsTab();
+                    } else {
+                        itemsTab.style.display = 'none';
+                        equipmentTab.style.display = 'flex';
+                        renderEquipmentTab();
+                    }
+                });
+            });
+        }
+
+        // ========== Авторизация ==========
+        async function saveUserNickOnRegister(userId, email, nick) {
+            const userDocRef = doc(db, 'users', userId);
+            await setDoc(userDocRef, { 
+                displayName: nick, 
+                userEmail: email,
+                health: 100,
+                hunger: 100,
+                cold: 100,
+                money: 200,
+                inventory: [
+                    { id: "bread", count: 2 },
+                    { id: "vodka", count: 1 },
+                    { id: "cigarettes", count: 1 },
+                    { id: "medkit", count: 1 },
+                    { id: "ushanka", count: 1 },
+                    { id: "puhovik", count: 1 }
+                ],
+                equipped: { head: null, body: null, legs: null, feet: null }
+            }, { merge: true });
+            if (auth.currentUser) {
+                await updateProfile(auth.currentUser, { displayName: nick });
+            }
+        }
+
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginFormDiv.style.display = 'none';
+            registerFormDiv.style.display = 'block';
+            authError.innerText = '';
+            regError.innerText = '';
+        });
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerFormDiv.style.display = 'none';
+            loginFormDiv.style.display = 'block';
+            authError.innerText = '';
+            regError.innerText = '';
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            authError.innerText = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                authError.innerText = error.message;
+            }
+        });
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            const nick = document.getElementById('regNick').value.trim();
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            regError.innerText = '';
+            if (!nick) {
+                regError.innerText = 'Введите игровой ник';
+                return;
+            }
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const userId = userCredential.user.uid;
+                await saveUserNickOnRegister(userId, email, nick);
+                await updateProfile(auth.currentUser, { displayName: nick });
+                showMessage('Регистрация успешна!', '#4caf50');
+            } catch (error) {
+                regError.innerText = error.message;
+            }
+        });
+
+        logoutMenuBtn.addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        // Модальные окна
+        const inventoryModal = document.getElementById('inventoryModal');
+        const mapModal = document.getElementById('mapModal');
+        inventoryBtn.addEventListener('click', () => {
+            renderItemsTab();
+            renderEquipmentTab();
+            inventoryModal.style.display = 'flex';
+        });
+        document.getElementById('mapBtn').addEventListener('click', () => { mapModal.style.display = 'flex'; });
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.modal').style.display = 'none';
+            });
+        });
+
+        // Тема
+        function initTheme() {
+            const saved = localStorage.getItem('rpgTheme');
+            if (saved === 'light') document.body.classList.add('light-theme');
+            else document.body.classList.remove('light-theme');
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            const isLight = document.body.classList.contains('light-theme');
+            localStorage.setItem('rpgTheme', isLight ? 'light' : 'dark');
+        }
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // Обработка состояния авторизации
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                authContainer.style.display = 'none';
+                gameContainer.style.display = 'block';
+                const nick = user.displayName || 'Игрок';
+                playerNickSpan.innerText = nick;
+                await loadGameData(user.uid);
+                initModalTabs();
+            } else {
+                gameContainer.style.display = 'none';
+                authContainer.style.display = 'block';
+                loginFormDiv.style.display = 'block';
+                registerFormDiv.style.display = 'none';
+                authError.innerText = '';
+                regError.innerText = '';
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('regNick').value = '';
+                document.getElementById('regEmail').value = '';
+                document.getElementById('regPassword').value = '';
+                currentUserId = null;
+            }
+        });
+
+        initTheme();
+        updateUI();
+    </script>
+</body>
+</html>
