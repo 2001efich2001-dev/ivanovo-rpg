@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Иваново · Бомж-симулятор</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            transition: background-color 0.2s ease, border-color 0.2s, box-shadow 0.2s, color 0.2s;
+        }
+        :root {
+            --bg-gradient-start: #1a2634;
+            --bg-gradient-end: #0e1419;
+            --container-bg: rgba(22, 30, 38, 0.85);
+            --panel-bg: #0b1014;
+            --text-primary: #ffffff;
+            --text-secondary: #c0d0e0;
+            --accent-gold: #FFB347;
+            --accent-glow: #ffd966;
+            --card-bg: #1e2a32;
+            --card-border: #3a4a56;
+            --stat-bg: #0f181f;
+            --button-click-bg: radial-gradient(circle at 30% 20%, #ffd966, #e67e22);
+            --button-shadow: #b45f1b;
+            --buy-btn-bg: #3a6b47;
+            --buy-btn-shadow: #1e3a2f;
+            --reset-bg: #3c2e2b;
+            --reset-text: #ffb4a2;
+            --health-color: #e74c3c;
+            --hunger-color: #f39c12;
+            --cold-color: #3498db;
+        }
+        body.light-theme {
+            --bg-gradient-start: #f0f2f5;
+            --bg-gradient-end: #d6dce2;
+            --container-bg: rgba(245, 248, 250, 0.95);
+            --panel-bg: #ffffff;
+            --text-primary: #1e2a32;
+            --text-secondary: #4a6272;
+            --accent-gold: #e67e22;
+            --accent-glow: #f39c12;
+            --card-bg: #ffffff;
+            --card-border: #cfdde6;
+            --stat-bg: #eef2f5;
+            --button-click-bg: radial-gradient(circle at 30% 20%, #ffe0a3, #f0b27a);
+            --button-shadow: #b45f1b;
+            --buy-btn-bg: #2c6e49;
+            --buy-btn-shadow: #1e462f;
+            --reset-bg: #e0cfc9;
+            --reset-text: #b85c3a;
+        }
+        body {
+            background: linear-gradient(145deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: var(--text-primary);
+            flex-direction: column;
+        }
+        .game-container {
+            background: var(--container-bg);
+            backdrop-filter: blur(4px);
+            border-radius: 64px;
+            padding: 24px 24px 32px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+            width: 100%;
+            max-width: 550px;
+            position: relative;
+            display: none;
+        }
+        .auth-container {
+            background: var(--container-bg);
+            backdrop-filter: blur(4px);
+            border-radius: 64px;
+            padding: 30px 25px;
+            width: 100%;
+            max-width: 450px;
+            text-align: center;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3);
+        }
+        .auth-container h2 {
+            margin-top: 0;
+            color: var(--accent-gold);
+        }
+        .auth-container input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 40px;
+            border: 1px solid var(--card-border);
+            background: var(--stat-bg);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        .auth-container button {
+            width: 100%;
+            margin-top: 12px;
+        }
+        .switch-link {
+            color: var(--accent-gold);
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 15px;
+            display: inline-block;
+        }
+        .error-msg {
+            color: #ff8888;
+            margin-top: 10px;
+            font-size: 0.85rem;
+        }
+        /* Профиль и шкалы */
+        .profile-section {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .avatar {
+            font-size: 6rem;
+            background: var(--stat-bg);
+            width: 120px;
+            height: 120px;
+            border-radius: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            border: 3px solid var(--accent-gold);
+        }
+        .stats-panel {
+            background: var(--panel-bg);
+            border-radius: 48px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+        }
+        .stat {
+            margin-bottom: 12px;
+        }
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+        }
+        .stat-bar {
+            height: 12px;
+            background: var(--stat-bg);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .stat-fill {
+            height: 100%;
+            border-radius: 12px;
+            width: 100%;
+            transition: width 0.3s ease;
+        }
+        .health-fill { background: var(--health-color); }
+        .hunger-fill { background: var(--hunger-color); }
+        .cold-fill { background: var(--cold-color); }
+        .money {
+            background: var(--accent-gold);
+            color: #1e2a32;
+            padding: 10px;
+            border-radius: 40px;
+            text-align: center;
+            font-weight: bold;
+            margin-top: 16px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            flex: 1;
+            background: var(--buy-btn-bg);
+            border: none;
+            padding: 12px 0;
+            border-radius: 40px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            box-shadow: 0 2px 0 var(--buy-btn-shadow);
+            transition: 0.05s linear;
+        }
+        .action-btn:active {
+            transform: translateY(2px);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 48px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 1px solid var(--card-border);
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            color: var(--accent-gold);
+        }
+        .close-modal {
+            background: var(--reset-bg);
+            margin-top: 16px;
+            padding: 8px 24px;
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+        .settings-item {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .reset-btn {
+            background: var(--reset-bg);
+            color: var(--reset-text);
+            border: none;
+            padding: 10px 25px;
+            border-radius: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .global-footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+        .global-footer p {
+            margin: 4px 0;
+        }
+        @media (max-width: 480px) {
+            .avatar { font-size: 4rem; width: 90px; height: 90px; }
+            .action-btn { font-size: 0.8rem; padding: 10px 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Блок авторизации -->
+    <div id="authContainer" class="auth-container">
+        <h2>🏙️ Иваново</h2>
+        <div id="loginForm">
+            <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+            <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
+            <button id="loginBtn" class="buy-btn">Войти</button>
+            <div class="switch-link" id="showRegisterLink">Нет аккаунта? Зарегистрироваться</div>
+            <div id="authError" class="error-msg"></div>
+        </div>
+        <div id="registerForm" style="display: none;">
+            <input type="text" id="regNick" placeholder="Ваш игровой ник" autocomplete="off">
+            <input type="email" id="regEmail" placeholder="Email" autocomplete="email">
+            <input type="password" id="regPassword" placeholder="Пароль" autocomplete="new-password">
+            <button id="registerBtn" class="buy-btn">Зарегистрироваться</button>
+            <div class="switch-link" id="showLoginLink">Уже есть аккаунт? Войти</div>
+            <div id="regError" class="error-msg"></div>
+        </div>
+    </div>
+
+    <!-- Игровой контейнер -->
+    <div id="gameContainer" class="game-container">
+        <div class="profile-section">
+            <div class="avatar" id="avatarEmoji">🧔</div>
+            <div id="playerNick" style="font-weight: bold; font-size: 1.2rem; margin-bottom: 8px;">Игрок</div>
+        </div>
+
+        <div class="stats-panel">
+            <div class="stat">
+                <div class="stat-header">
+                    <span>❤️ Здоровье</span>
+                    <span id="healthValue">100 / 100</span>
+                </div>
+                <div class="stat-bar">
+                    <div class="stat-fill health-fill" id="healthFill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="stat">
+                <div class="stat-header">
+                    <span>🍗 Голод</span>
+                    <span id="hungerValue">100 / 100</span>
+                </div>
+                <div class="stat-bar">
+                    <div class="stat-fill hunger-fill" id="hungerFill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="stat">
+                <div class="stat-header">
+                    <span>🔥 Тепло</span>
+                    <span id="coldValue">100 / 100</span>
+                </div>
+                <div class="stat-bar">
+                    <div class="stat-fill cold-fill" id="coldFill" style="width: 100%"></div>
+                </div>
+            </div>
+            <div class="money">
+                💰 Деньги: <span id="moneyValue">500</span> ₽
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
+            <button class="action-btn" id="mapBtn">🗺️ Карта</button>
+            <button class="action-btn" id="characterBtn">📊 Персонаж</button>
+            <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
+        </div>
+        <div class="settings-item" style="margin-top: 16px;">
+            <button id="themeToggle" class="reset-btn" style="background: var(--buy-btn-bg); color: white;">🌓 Тема</button>
+        </div>
+        <footer style="text-align: center; margin-top: 20px; font-size: 0.7rem; color: var(--text-secondary);">
+            Иваново · Бомж-симулятор | Версия 0.0.1
+        </footer>
+    </div>
+
+    <!-- Модальные окна (заглушки) -->
+    <div id="inventoryModal" class="modal">
+        <div class="modal-content">
+            <h3>🎒 Инвентарь</h3>
+            <p>Пока пусто. Скоро здесь появятся предметы.</p>
+            <button class="close-modal">Закрыть</button>
+        </div>
+    </div>
+    <div id="mapModal" class="modal">
+        <div class="modal-content">
+            <h3>🗺️ Карта Иваново</h3>
+            <p>Локации пока в разработке.</p>
+            <button class="close-modal">Закрыть</button>
+        </div>
+    </div>
+    <div id="characterModal" class="modal">
+        <div class="modal-content">
+            <h3>📊 Характеристики</h3>
+            <p>Имя: <span id="modalNick"></span></p>
+            <p>Сила: 10<br>Ловкость: 10<br>Интеллект: 10</p>
+            <button class="close-modal">Закрыть</button>
+        </div>
+    </div>
+
+    <div class="global-footer">
+        <p>developed by Efich</p>
+        <p>RPG · Иваново · Альфа 0.0.1</p>
+    </div>
+
+    <script type="module">
+        // ========== Инициализация Firebase ==========
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCB2rBhMavOvxrd2Wox967_Xm23_oSMX8Y",
+            authDomain: "ivanovo-a6770.firebaseapp.com",
+            projectId: "ivanovo-a6770",
+            storageBucket: "ivanovo-a6770.firebasestorage.app",
+            messagingSenderId: "5386313391",
+            appId: "1:5386313391:web:8ee5528233044dd1603e5a",
+            measurementId: "G-9VSWLN6S5Y"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // DOM элементы
+        const authContainer = document.getElementById('authContainer');
+        const gameContainer = document.getElementById('gameContainer');
+        const loginFormDiv = document.getElementById('loginForm');
+        const registerFormDiv = document.getElementById('registerForm');
+        const showRegisterLink = document.getElementById('showRegisterLink');
+        const showLoginLink = document.getElementById('showLoginLink');
+        const authError = document.getElementById('authError');
+        const regError = document.getElementById('regError');
+        const playerNickSpan = document.getElementById('playerNick');
+        const modalNickSpan = document.getElementById('modalNick');
+        const healthValueSpan = document.getElementById('healthValue');
+        const hungerValueSpan = document.getElementById('hungerValue');
+        const coldValueSpan = document.getElementById('coldValue');
+        const moneyValueSpan = document.getElementById('moneyValue');
+        const healthFill = document.getElementById('healthFill');
+        const hungerFill = document.getElementById('hungerFill');
+        const coldFill = document.getElementById('coldFill');
+        const themeToggle = document.getElementById('themeToggle');
+        const logoutMenuBtn = document.getElementById('logoutMenuBtn');
+
+        // Текущие характеристики (временные, позже будут из Firestore)
+        let health = 100, maxHealth = 100;
+        let hunger = 100, maxHunger = 100;
+        let cold = 100, maxCold = 100;
+        let money = 500;
+
+        function updateUI() {
+            healthValueSpan.innerText = `${Math.floor(health)} / ${maxHealth}`;
+            hungerValueSpan.innerText = `${Math.floor(hunger)} / ${maxHunger}`;
+            coldValueSpan.innerText = `${Math.floor(cold)} / ${maxCold}`;
+            moneyValueSpan.innerText = Math.floor(money);
+            healthFill.style.width = (health / maxHealth) * 100 + '%';
+            hungerFill.style.width = (hunger / maxHunger) * 100 + '%';
+            coldFill.style.width = (cold / maxCold) * 100 + '%';
+        }
+
+        // Пока заглушка — просто сохраняем ник в Firestore
+        async function saveGameProgress(userId) {
+            if (!userId) return;
+            const docRef = doc(db, 'users', userId);
+            await setDoc(docRef, { 
+                displayName: auth.currentUser?.displayName || 'Игрок',
+                lastUpdated: new Date().toISOString()
+            }, { merge: true });
+        }
+
+        async function loadGameProgress(userId) {
+            if (!userId) return;
+            const docRef = doc(db, 'users', userId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                if (data.displayName) {
+                    playerNickSpan.innerText = data.displayName;
+                    modalNickSpan.innerText = data.displayName;
+                }
+                // Позже загрузим health, hunger, cold, money, inventory
+            }
+            updateUI();
+        }
+
+        async function saveUserNickOnRegister(userId, email, nick) {
+            const userDocRef = doc(db, 'users', userId);
+            await setDoc(userDocRef, { displayName: nick, userEmail: email }, { merge: true });
+            if (auth.currentUser) {
+                await updateProfile(auth.currentUser, { displayName: nick });
+            }
+        }
+
+        // Авторизация
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginFormDiv.style.display = 'none';
+            registerFormDiv.style.display = 'block';
+            authError.innerText = '';
+            regError.innerText = '';
+        });
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerFormDiv.style.display = 'none';
+            loginFormDiv.style.display = 'block';
+            authError.innerText = '';
+            regError.innerText = '';
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            authError.innerText = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                authError.innerText = error.message;
+            }
+        });
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            const nick = document.getElementById('regNick').value.trim();
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            regError.innerText = '';
+            if (!nick) {
+                regError.innerText = 'Введите игровой ник';
+                return;
+            }
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const userId = userCredential.user.uid;
+                await saveUserNickOnRegister(userId, email, nick);
+                await updateProfile(auth.currentUser, { displayName: nick });
+            } catch (error) {
+                regError.innerText = error.message;
+            }
+        });
+
+        // Модальные окна (заглушки)
+        const inventoryModal = document.getElementById('inventoryModal');
+        const mapModal = document.getElementById('mapModal');
+        const characterModal = document.getElementById('characterModal');
+        document.getElementById('inventoryBtn').addEventListener('click', () => { inventoryModal.style.display = 'flex'; });
+        document.getElementById('mapBtn').addEventListener('click', () => { mapModal.style.display = 'flex'; });
+        document.getElementById('characterBtn').addEventListener('click', () => { characterModal.style.display = 'flex'; });
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.modal').style.display = 'none';
+            });
+        });
+
+        logoutMenuBtn.addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        // Тема
+        function initTheme() {
+            const saved = localStorage.getItem('rpgTheme');
+            if (saved === 'light') document.body.classList.add('light-theme');
+            else document.body.classList.remove('light-theme');
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('light-theme');
+            const isLight = document.body.classList.contains('light-theme');
+            localStorage.setItem('rpgTheme', isLight ? 'light' : 'dark');
+        }
+        themeToggle.addEventListener('click', toggleTheme);
+
+        // Обработка состояния авторизации
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                authContainer.style.display = 'none';
+                gameContainer.style.display = 'block';
+                const nick = user.displayName || 'Игрок';
+                playerNickSpan.innerText = nick;
+                modalNickSpan.innerText = nick;
+                await loadGameProgress(user.uid);
+            } else {
+                gameContainer.style.display = 'none';
+                authContainer.style.display = 'block';
+                loginFormDiv.style.display = 'block';
+                registerFormDiv.style.display = 'none';
+                authError.innerText = '';
+                regError.innerText = '';
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('regNick').value = '';
+                document.getElementById('regEmail').value = '';
+                document.getElementById('regPassword').value = '';
+            }
+        });
+
+        initTheme();
+        updateUI();
+    </script>
+</body>
+</html>
