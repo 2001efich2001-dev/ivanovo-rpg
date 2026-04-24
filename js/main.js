@@ -4,18 +4,24 @@ import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 
+// Функции управления сплеш-экраном
+function showSplash() {
+    const splash = document.getElementById('splash');
+    if (splash) {
+        splash.style.opacity = '1';
+        splash.style.display = 'flex';
+    }
+}
+
 function hideSplash() {
     const splash = document.getElementById('splash');
     if (splash) {
         splash.style.opacity = '0';
         setTimeout(() => {
             splash.style.display = 'none';
-        }, 500);
+        }, 300);
     }
 }
-
-// Установите таймер на 2.5 секунды, чтобы сплеш гарантированно исчез
-setTimeout(hideSplash, 2500);
 
 // Функция для активации переключения вкладок внутри модального окна инвентаря
 function initInventoryTabs() {
@@ -26,7 +32,6 @@ function initInventoryTabs() {
     const equipmentTab = document.getElementById('equipmentTab');
     if (!tabs.length || !itemsTab || !equipmentTab) return;
 
-    // Удаляем старые обработчики, чтобы не навесить несколько
     tabs.forEach(tab => {
         tab.removeEventListener('click', tab._listener);
     });
@@ -51,7 +56,6 @@ function initInventoryTabs() {
         tab._listener = handler;
     });
 
-    // Активируем первую вкладку, если ни одна не активна
     const activeTab = modal.querySelector('.tab-btn.active');
     if (activeTab) {
         switchTab(activeTab);
@@ -69,16 +73,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerFormDiv = document.getElementById('registerForm');
     const playerNickSpan = document.getElementById('playerNick');
     
+    // Колбэк, вызываемый после успешного входа и загрузки всех данных
     function afterLogin() {
         renderItemsTab();
         renderEquipmentTab();
         recalcColdFromEquipment();
-        // После входа можно проинициализировать вкладки (на случай, если модалка уже открыта)
         initInventoryTabs();
+        // Игра полностью готова – скрываем сплеш
+        hideSplash();
     }
     
+    // Инициализируем авторизацию (она сама вызовет afterLogin при успешном входе)
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
     
+    // Перехватываем события кнопок «Войти» и «Зарегистрироваться», чтобы показать сплеш
+    const loginBtn = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    
+    // Сохраняем оригинальные обработчики (они установлены в initAuth) и добавляем свои, но не удаляя оригинальные.
+    // Просто добавляем дополнительный обработчик, который показывает сплеш.
+    // Так мы не сломаем логику в auth.js.
+    if (loginBtn) {
+        loginBtn.addEventListener('click', () => {
+            showSplash();
+        });
+    }
+    if (registerBtn) {
+        registerBtn.addEventListener('click', () => {
+            showSplash();
+        });
+    }
+    
+    // Кнопки игрового интерфейса
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
     const logoutMenuBtn = document.getElementById('logoutMenuBtn');
@@ -88,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inventoryBtn.addEventListener('click', () => {
             renderItemsTab();
             renderEquipmentTab();
-            initInventoryTabs();   // ОБЯЗАТЕЛЬНО: при открытии инвентаря активируем вкладки
+            initInventoryTabs();
             document.getElementById('inventoryModal').style.display = 'flex';
         });
     }
@@ -101,6 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutMenuBtn) {
         logoutMenuBtn.addEventListener('click', async () => {
             await auth.signOut();
+            // При выходе показываем форму авторизации — сплеш можно скрыть или показать
+            hideSplash();
         });
     }
     if (themeToggle) {
@@ -118,6 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
             e.target.closest('.modal').style.display = 'none';
         });
     });
+    
+    // Если пользователь уже авторизован (например, перезагрузил страницу), то
+    // afterLogin будет вызван из onAuthStateChanged, и сплеш скроется.
+    // Если пользователь не авторизован, то показываем форму входа, а сплеш можно скрыть сразу.
+    // Скрываем сплеш через 0.5 секунды, если нет активного пользователя (форма входа уже видна).
+    // Но лучше дождаться, пока интерфейс авторизации полностью отрисуется.
+    setTimeout(() => {
+        if (!auth.currentUser) {
+            hideSplash();
+        }
+    }, 500);
     
     updateUI();
 });
