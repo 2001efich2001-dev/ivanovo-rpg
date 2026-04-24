@@ -111,18 +111,6 @@ body {
     text-align: center;
     margin-bottom: 24px;
 }
-.avatar {
-    font-size: 6rem;
-    background: var(--stat-bg);
-    width: 120px;
-    height: 120px;
-    border-radius: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 16px;
-    border: 3px solid var(--accent-gold);
-}
 .stats-panel {
     background: var(--panel-bg);
     border-radius: 48px;
@@ -362,6 +350,56 @@ body {
     white-space: nowrap;
     font-weight: bold;
 }
+
+/* Двухколоночный макет */
+.game-container.two-columns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: stretch;
+    max-width: 700px;
+    padding: 20px;
+}
+.hero-col {
+    flex: 1;
+    min-width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--stat-bg);
+    border-radius: 48px;
+    padding: 16px;
+}
+.hero-gif {
+    width: 100%;
+    max-width: 200px;
+    height: auto;
+    border-radius: 32px;
+    background: var(--panel-bg);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    display: block;
+    margin: 0 auto;
+}
+.stats-col {
+    flex: 1.2;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+/* Адаптация для мобильных */
+@media (max-width: 550px) {
+    .game-container.two-columns {
+        flex-direction: column;
+    }
+    .hero-col {
+        padding: 12px;
+    }
+    .hero-gif {
+        max-width: 150px;
+    }
+}
+
 @media (max-width: 480px) {
     .avatar { font-size: 4rem; width: 90px; height: 90px; }
     .action-btn { font-size: 0.8rem; padding: 10px 0; }
