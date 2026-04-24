@@ -3,6 +3,7 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
 
+
 export const locationsDB = {
     railway: {
         id: "railway", name: "Вокзал", description: "Шум, люди, поезда. Можно попросить подаяние или поискать забытые вещи.",
