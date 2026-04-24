@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <!-- Блок авторизации -->
+    <!-- Блок авторизации (пока пользователь не вошёл) -->
     <div id="authContainer" class="auth-container">
         <h2>🏙️ Иваново</h2>
         <div id="loginForm">
@@ -29,13 +29,16 @@
     </div>
 
     <!-- Игровой контейнер (две колонки) -->
-    <div id="gameContainer" class="game-container two-columns">
-        <!-- Левая колонка: GIF персонажа -->
-        <div class="hero-col">
-            <img id="heroGif" class="hero-gif" src="hero.gif" alt="Персонаж">
+    <div id="gameContainer" class="game-container">
+        <!-- Левая колонка: анимация персонажа -->
+        <div class="game-left">
+            <img class="avatar-gif" id="avatarGif" src="hero.gif" alt="Персонаж">
         </div>
-        <!-- Правая колонка: характеристики и кнопки -->
-        <div class="stats-col">
+
+        <!-- Правая колонка: статистика и действия -->
+        <div class="game-right">
+            <div id="playerNick" class="player-nick">Игрок</div>
+
             <div class="stats-panel">
                 <div class="stat">
                     <div class="stat-header"><span>❤️ Здоровье</span><span id="healthValue">100 / 100</span></div>
@@ -54,13 +57,13 @@
 
             <div class="action-buttons">
                 <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
-                <button class="action-btn" id="mapBtn">🗺️ Карта города</button>
+                <button class="action-btn" id="mapBtn">🗺️ Карта</button>
                 <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
             </div>
-            <div class="settings-item" style="margin-top: 16px;">
-                <button id="themeToggle" class="reset-btn" style="background: var(--buy-btn-bg); color: white;">🌓 Тема</button>
+            <div class="settings-item">
+                <button id="themeToggle" class="reset-btn">🌓 Тема</button>
             </div>
-            <footer style="text-align: center; margin-top: 20px; font-size: 0.7rem;">Иваново · Версия 0.0.7 · Модульная структура</footer>
+            <footer class="game-footer">Иваново · Версия 0.0.8</footer>
         </div>
     </div>
 
@@ -91,7 +94,7 @@
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.7</p>
+        <p>RPG · Иваново · Альфа 0.0.8</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
