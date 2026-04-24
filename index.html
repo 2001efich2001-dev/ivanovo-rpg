@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Иваново · Бомж-симулятор · Карта города</title>
     <style>
+        /* --- все стили как в предыдущей версии, без изменений --- */
         * {
             box-sizing: border-box;
             transition: background-color 0.2s ease, border-color 0.2s, box-shadow 0.2s, color 0.2s;
@@ -322,7 +323,6 @@
         .global-footer p {
             margin: 4px 0;
         }
-        /* Стили для карты */
         .map-container {
             background: var(--stat-bg);
             border-radius: 48px;
@@ -376,35 +376,18 @@
 
         <div class="stats-panel">
             <div class="stat">
-                <div class="stat-header">
-                    <span>❤️ Здоровье</span>
-                    <span id="healthValue">100 / 100</span>
-                </div>
-                <div class="stat-bar">
-                    <div class="stat-fill health-fill" id="healthFill" style="width: 100%"></div>
-                </div>
+                <div class="stat-header"><span>❤️ Здоровье</span><span id="healthValue">100 / 100</span></div>
+                <div class="stat-bar"><div class="stat-fill health-fill" id="healthFill" style="width: 100%"></div></div>
             </div>
             <div class="stat">
-                <div class="stat-header">
-                    <span>🍗 Голод</span>
-                    <span id="hungerValue">100 / 100</span>
-                </div>
-                <div class="stat-bar">
-                    <div class="stat-fill hunger-fill" id="hungerFill" style="width: 100%"></div>
-                </div>
+                <div class="stat-header"><span>🍗 Голод</span><span id="hungerValue">100 / 100</span></div>
+                <div class="stat-bar"><div class="stat-fill hunger-fill" id="hungerFill" style="width: 100%"></div></div>
             </div>
             <div class="stat">
-                <div class="stat-header">
-                    <span>🔥 Тепло</span>
-                    <span id="coldValue">100 / 100</span>
-                </div>
-                <div class="stat-bar">
-                    <div class="stat-fill cold-fill" id="coldFill" style="width: 100%"></div>
-                </div>
+                <div class="stat-header"><span>🔥 Тепло</span><span id="coldValue">100 / 100</span></div>
+                <div class="stat-bar"><div class="stat-fill cold-fill" id="coldFill" style="width: 100%"></div></div>
             </div>
-            <div class="money">
-                💰 Деньги: <span id="moneyValue">500</span> ₽
-            </div>
+            <div class="money">💰 Деньги: <span id="moneyValue">500</span> ₽</div>
         </div>
 
         <div class="action-buttons">
@@ -412,6 +395,7 @@
             <button class="action-btn" id="mapBtn">🗺️ Карта города</button>
             <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
         </div>
+
         <div class="settings-item" style="margin-top: 16px;">
             <button id="themeToggle" class="reset-btn" style="background: var(--buy-btn-bg); color: white;">🌓 Тема</button>
         </div>
@@ -438,21 +422,14 @@
         <div class="modal-content" style="max-width: 800px;">
             <h3>🗺️ Карта города Иваново</h3>
             <div class="map-container">
-                <!-- ВАЖНО: Замените "map.png" на путь к вашей картинке. Размер картинки ориентировочно 800x600 -->
-                <img src="map.png" alt="Карта Иваново" class="map-image" usemap="#cityMap" style="width:100%; height:auto;">
-                <map name="cityMap">
-                    <!-- Координаты: (x1,y1, x2,y2, x3,y3...). Для прямоугольников: left,top,right,bottom -->
-                    <!-- Вокзал (примерный прямоугольник) -->
+                <!-- Замените "map.png" на путь к вашей картинке. Размер картинки ориентировочно 800x600 -->
+                <img src="map.png" alt="Карта Иваново" id="cityMapImage" class="map-image" style="width:100%; height:auto;" usemap="#cityMap">
+                <map name="cityMap" id="cityMap">
                     <area shape="rect" coords="50,50,200,150" data-location="railway" alt="Вокзал" title="Вокзал">
-                    <!-- Рынок -->
                     <area shape="rect" coords="300,40,450,160" data-location="market" alt="Рынок" title="Рынок">
-                    <!-- Ночлежка -->
                     <area shape="rect" coords="550,60,700,170" data-location="shelter" alt="Ночлежка" title="Ночлежка">
-                    <!-- Свалка -->
                     <area shape="rect" coords="80,300,230,420" data-location="dump" alt="Свалка" title="Свалка">
-                    <!-- Церковь -->
                     <area shape="rect" coords="320,300,470,420" data-location="church" alt="Церковь" title="Церковь">
-                    <!-- Бар -->
                     <area shape="rect" coords="580,320,730,430" data-location="bar" alt="Бар" title="Бар">
                 </map>
             </div>
@@ -462,9 +439,7 @@
 
     <!-- Модальное окно локации (действия) -->
     <div id="locationModal" class="modal">
-        <div class="modal-content" id="locationModalContent">
-            <!-- Динамическое содержимое -->
-        </div>
+        <div class="modal-content" id="locationModalContent"></div>
     </div>
 
     <div class="global-footer">
@@ -473,7 +448,6 @@
     </div>
 
     <script type="module">
-        // ========== Инициализация Firebase ==========
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
         import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
@@ -522,7 +496,7 @@
         let inventory = [];
         let equipped = { head: null, body: null, legs: null, feet: null };
 
-        // База предметов (та же, что и ранее, плюс новые для действий)
+        // База предметов (словарь)
         const itemsDB = {
             bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25, slot: null },
             vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40, slot: null },
@@ -533,12 +507,11 @@
             puhovik: { id: "puhovik", name: "Пуховик", type: "clothes", icon: "🧥", effect: { cold: 25 }, price: 200, slot: "body" },
             termo: { id: "termo", name: "Термобельё", type: "clothes", icon: "👖", effect: { cold: 10 }, price: 120, slot: "legs" },
             bercy: { id: "bercy", name: "Берцы", type: "clothes", icon: "👢", effect: { cold: 10 }, price: 150, slot: "feet" },
-            // Предметы для находок
             empty_bottle: { id: "empty_bottle", name: "Пустая бутылка", type: "junk", icon: "🍾", effect: {}, price: 5, slot: null },
             old_hat: { id: "old_hat", name: "Старая шапка", type: "clothes", icon: "🧢", effect: { cold: 5 }, price: 20, slot: "head" }
         };
 
-        // База локаций и действий
+        // База локаций
         const locationsDB = {
             railway: {
                 id: "railway",
@@ -638,12 +611,7 @@
             if (!currentUserId) return;
             const docRef = doc(db, 'users', currentUserId);
             await setDoc(docRef, {
-                health: health,
-                hunger: hunger,
-                cold: cold,
-                money: money,
-                inventory: inventory,
-                equipped: equipped,
+                health, hunger, cold, money, inventory, equipped,
                 lastUpdated: new Date().toISOString()
             }, { merge: true });
             console.log("Данные сохранены в Firestore");
@@ -677,160 +645,7 @@
             }
         }
 
-        // --- Инвентарь и экипировка (функции упрощены, из предыдущей версии) ---
-        async function useItem(itemId) { /* для краткости - аналогично предыдущей версии */ }
-        async function equipItem(itemId) { /* аналогично */ }
-        async function unequipItem(slot) { /* аналогично */ }
-        function renderItemsTab() { /* будет в полном коде, но здесь опускаю для краткости */ }
-        function renderEquipmentTab() { /* опускаю */ }
-        
-        // --- Действия в локациях ---
-        async function executeAction(locationId, action) {
-            let success = true;
-            let msg = "";
-            // Проверка на наличие требуемого предмета
-            if (action.needsItem) {
-                const hasItem = inventory.find(i => i.id === action.needsItem && i.count > 0);
-                if (!hasItem) {
-                    showMessage(`❌ У вас нет ${itemsDB[action.needsItem]?.name || action.needsItem}`, "#e74c3c");
-                    return;
-                }
-            }
-            // Проверка на деньги
-            if (action.cost && action.cost > 0) {
-                if (money < action.cost) {
-                    showMessage(`💰 Не хватает денег! Нужно ${action.cost}₽`, "#e74c3c");
-                    return;
-                }
-                money -= action.cost;
-            }
-            // Учёт риска
-            if (action.risk && action.risk > 0) {
-                const r = Math.random() * 100;
-                if (r < action.risk) {
-                    success = false;
-                    msg = `❌ Неудача! `;
-                    if (action.riskEffect) {
-                        if (action.riskEffect.money) money += action.riskEffect.money;
-                        if (action.riskEffect.health) health = Math.min(maxHealth, Math.max(0, health + action.riskEffect.health));
-                        if (action.riskEffect.hunger) hunger = Math.min(maxHunger, Math.max(0, hunger + action.riskEffect.hunger));
-                        if (action.riskEffect.items) {
-                            // не добавляем предметы при неудаче
-                        }
-                        msg += `${action.riskEffect.health ? `Здоровье ${action.riskEffect.health>0?'+':''}${action.riskEffect.health}. ` : ''}`;
-                        msg += `${action.riskEffect.money ? `Деньги ${action.riskEffect.money>0?'+':''}${action.riskEffect.money}. ` : ''}`;
-                    }
-                }
-            }
-            if (success) {
-                msg = `✅ Успех! `;
-                // Применяем эффекты
-                if (action.effect) {
-                    if (action.effect.money) {
-                        let add = Array.isArray(action.effect.money) ? Math.floor(Math.random() * (action.effect.money[1] - action.effect.money[0] + 1) + action.effect.money[0]) : action.effect.money;
-                        money += add;
-                        msg += `+${add}₽. `;
-                    }
-                    if (action.effect.health) {
-                        let add = Array.isArray(action.effect.health) ? Math.floor(Math.random() * (action.effect.health[1] - action.effect.health[0] + 1) + action.effect.health[0]) : action.effect.health;
-                        health = Math.min(maxHealth, Math.max(0, health + add));
-                        msg += `Здоровье ${add>0?'+':''}${add}. `;
-                    }
-                    if (action.effect.hunger) {
-                        let add = Array.isArray(action.effect.hunger) ? Math.floor(Math.random() * (action.effect.hunger[1] - action.effect.hunger[0] + 1) + action.effect.hunger[0]) : action.effect.hunger;
-                        hunger = Math.min(maxHunger, Math.max(0, hunger + add));
-                        msg += `Голод ${add>0?'+':''}${add}. `;
-                    }
-                    if (action.effect.items) {
-                        let items = Array.isArray(action.effect.items) ? action.effect.items : [action.effect.items];
-                        items.forEach(itemId => {
-                            const existing = inventory.find(i => i.id === itemId);
-                            if (existing) existing.count++;
-                            else inventory.push({ id: itemId, count: 1 });
-                            msg += `+1 ${itemsDB[itemId]?.name || itemId}. `;
-                        });
-                    }
-                }
-                if (action.needsItem) {
-                    const idx = inventory.findIndex(i => i.id === action.needsItem);
-                    if (idx !== -1) {
-                        if (inventory[idx].count === 1) inventory.splice(idx,1);
-                        else inventory[idx].count--;
-                        msg += `Израсходован ${itemsDB[action.needsItem]?.name}. `;
-                    }
-                }
-            }
-            updateUI();
-            await saveGameData();
-            showMessage(msg, success ? "#4caf50" : "#e74c3c");
-            // Закрыть модальное окно локации
-            document.getElementById('locationModal').style.display = 'none';
-            // Обновить инвентарь, если нужно
-            if (document.getElementById('inventoryModal').style.display === 'flex') {
-                renderItemsTab();
-                renderEquipmentTab();
-            }
-        }
-
-        function openLocationModal(locationId) {
-            const loc = locationsDB[locationId];
-            if (!loc) return;
-            const modalContent = document.getElementById('locationModalContent');
-            let actionsHtml = '';
-            loc.actions.forEach(action => {
-                actionsHtml += `
-                    <div class="inventory-item" style="margin-bottom: 8px;">
-                        <div class="item-info">
-                            <div><strong>${action.name}</strong><br><small>${action.desc}</small></div>
-                        </div>
-                        <button class="action-location-btn" data-location="${locationId}" data-action-id="${action.id}">Выбрать</button>
-                    </div>
-                `;
-            });
-            modalContent.innerHTML = `
-                <h3>${loc.name}</h3>
-                <p>${loc.description}</p>
-                <div class="inventory-grid">${actionsHtml}</div>
-                <button class="close-modal">Закрыть</button>
-            `;
-            document.getElementById('locationModal').style.display = 'flex';
-            // Обработчики кнопок действий
-            document.querySelectorAll('.action-location-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const locId = btn.dataset.location;
-                    const actionId = btn.dataset.actionId;
-                    const action = locationsDB[locId].actions.find(a => a.id === actionId);
-                    if (action) executeAction(locId, action);
-                });
-            });
-            document.querySelector('#locationModal .close-modal').addEventListener('click', () => {
-                document.getElementById('locationModal').style.display = 'none';
-            });
-        }
-
-        // Карта: обработчик кликов по area
-        function initMap() {
-            const areas = document.querySelectorAll('map area');
-            areas.forEach(area => {
-                area.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const locationId = area.dataset.location;
-                    if (locationId && locationsDB[locationId]) {
-                        openLocationModal(locationId);
-                    } else {
-                        showMessage("Эта локация ещё не добавлена", "#f0ad4e");
-                    }
-                });
-            });
-        }
-
-        // --- Авторизация и прочее (сокращённо) ---
-        // ... (здесь вставьте весь код авторизации из предыдущей версии, но адаптированный)
-
-        // Для краткости я добавлю только основные моменты, предполагая, что остальное уже есть
-        // В финальном коде будет всё полностью.
-
-        // Пропущенные функции инвентаря (для полноты кода)
+        // Инвентарь и экипировка (полные функции)
         function renderItemsTab() {
             const itemsTab = document.getElementById('itemsTab');
             if (!itemsTab) return;
@@ -953,43 +768,228 @@
             });
         }
 
-        // --- Авторизация (полная) ---
+        // Действия в локациях
+        async function executeAction(locationId, action) {
+            let success = true;
+            let msg = "";
+            if (action.needsItem) {
+                const hasItem = inventory.find(i => i.id === action.needsItem && i.count > 0);
+                if (!hasItem) { showMessage(`❌ У вас нет ${itemsDB[action.needsItem]?.name || action.needsItem}`, "#e74c3c"); return; }
+            }
+            if (action.cost && action.cost > 0) {
+                if (money < action.cost) { showMessage(`💰 Не хватает денег! Нужно ${action.cost}₽`, "#e74c3c"); return; }
+                money -= action.cost;
+            }
+            if (action.risk && action.risk > 0) {
+                const r = Math.random() * 100;
+                if (r < action.risk) {
+                    success = false;
+                    msg = `❌ Неудача! `;
+                    if (action.riskEffect) {
+                        if (action.riskEffect.money) money += action.riskEffect.money;
+                        if (action.riskEffect.health) health = Math.min(maxHealth, Math.max(0, health + action.riskEffect.health));
+                        if (action.riskEffect.hunger) hunger = Math.min(maxHunger, Math.max(0, hunger + action.riskEffect.hunger));
+                        msg += `${action.riskEffect.health ? `Здоровье ${action.riskEffect.health>0?'+':''}${action.riskEffect.health}. ` : ''}`;
+                        msg += `${action.riskEffect.money ? `Деньги ${action.riskEffect.money>0?'+':''}${action.riskEffect.money}. ` : ''}`;
+                    }
+                }
+            }
+            if (success) {
+                msg = `✅ Успех! `;
+                if (action.effect) {
+                    if (action.effect.money) {
+                        let add = Array.isArray(action.effect.money) ? Math.floor(Math.random() * (action.effect.money[1] - action.effect.money[0] + 1) + action.effect.money[0]) : action.effect.money;
+                        money += add;
+                        msg += `+${add}₽. `;
+                    }
+                    if (action.effect.health) {
+                        let add = Array.isArray(action.effect.health) ? Math.floor(Math.random() * (action.effect.health[1] - action.effect.health[0] + 1) + action.effect.health[0]) : action.effect.health;
+                        health = Math.min(maxHealth, Math.max(0, health + add));
+                        msg += `Здоровье ${add>0?'+':''}${add}. `;
+                    }
+                    if (action.effect.hunger) {
+                        let add = Array.isArray(action.effect.hunger) ? Math.floor(Math.random() * (action.effect.hunger[1] - action.effect.hunger[0] + 1) + action.effect.hunger[0]) : action.effect.hunger;
+                        hunger = Math.min(maxHunger, Math.max(0, hunger + add));
+                        msg += `Голод ${add>0?'+':''}${add}. `;
+                    }
+                    if (action.effect.items) {
+                        let items = Array.isArray(action.effect.items) ? action.effect.items : [action.effect.items];
+                        items.forEach(itemId => {
+                            const existing = inventory.find(i => i.id === itemId);
+                            if (existing) existing.count++;
+                            else inventory.push({ id: itemId, count: 1 });
+                            msg += `+1 ${itemsDB[itemId]?.name || itemId}. `;
+                        });
+                    }
+                    if (action.effect.money !== undefined && action.effect.money < 0) msg += `${action.effect.money}₽. `;
+                }
+                if (action.needsItem) {
+                    const idx = inventory.findIndex(i => i.id === action.needsItem);
+                    if (idx !== -1) {
+                        if (inventory[idx].count === 1) inventory.splice(idx,1);
+                        else inventory[idx].count--;
+                        msg += `Израсходован ${itemsDB[action.needsItem]?.name}. `;
+                    }
+                }
+            }
+            updateUI();
+            await saveGameData();
+            showMessage(msg, success ? "#4caf50" : "#e74c3c");
+            document.getElementById('locationModal').style.display = 'none';
+            if (document.getElementById('inventoryModal').style.display === 'flex') {
+                renderItemsTab(); renderEquipmentTab();
+            }
+        }
+
+        function openLocationModal(locationId) {
+            const loc = locationsDB[locationId];
+            if (!loc) return;
+            const modalContent = document.getElementById('locationModalContent');
+            let actionsHtml = '';
+            loc.actions.forEach(action => {
+                actionsHtml += `
+                    <div class="inventory-item" style="margin-bottom: 8px;">
+                        <div class="item-info">
+                            <div><strong>${action.name}</strong><br><small>${action.desc}</small></div>
+                        </div>
+                        <button class="action-location-btn" data-location="${locationId}" data-action-id="${action.id}">Выбрать</button>
+                    </div>
+                `;
+            });
+            modalContent.innerHTML = `
+                <h3>${loc.name}</h3>
+                <p>${loc.description}</p>
+                <div class="inventory-grid">${actionsHtml}</div>
+                <button class="close-modal">Закрыть</button>
+            `;
+            document.getElementById('locationModal').style.display = 'flex';
+            document.querySelectorAll('.action-location-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const locId = btn.dataset.location;
+                    const actionId = btn.dataset.actionId;
+                    const action = locationsDB[locId].actions.find(a => a.id === actionId);
+                    if (action) executeAction(locId, action);
+                });
+            });
+            modalContent.querySelector('.close-modal').addEventListener('click', () => {
+                document.getElementById('locationModal').style.display = 'none';
+            });
+        }
+
+        function initMap() {
+            const areas = document.querySelectorAll('map area');
+            areas.forEach(area => {
+                // Убираем старые обработчики, чтобы не навешивать повторно
+                area.removeEventListener('click', area.clickHandler);
+                const handler = (e) => {
+                    e.preventDefault();
+                    const locationId = area.dataset.location;
+                    if (locationId && locationsDB[locationId]) openLocationModal(locationId);
+                    else showMessage("Эта локация ещё не добавлена", "#f0ad4e");
+                };
+                area.addEventListener('click', handler);
+                area.clickHandler = handler;
+            });
+        }
+
+        // Авторизация и регистрация
         async function saveUserNickOnRegister(userId, email, nick) {
             const userDocRef = doc(db, 'users', userId);
-            await setDoc(userDocRef, { 
-                displayName: nick, userEmail: email, health: 100, hunger: 100, cold: 100, money: 200,
-                inventory: [{ id: "bread", count: 2 },{ id: "vodka", count: 1 },{ id: "cigarettes", count: 1 },{ id: "medkit", count: 1 },{ id: "ushanka", count: 1 },{ id: "puhovik", count: 1 }],
+            await setDoc(userDocRef, {
+                displayName: nick, userEmail: email,
+                health: 100, hunger: 100, cold: 100, money: 200,
+                inventory: [
+                    { id: "bread", count: 2 }, { id: "vodka", count: 1 }, { id: "cigarettes", count: 1 },
+                    { id: "medkit", count: 1 }, { id: "ushanka", count: 1 }, { id: "puhovik", count: 1 }
+                ],
                 equipped: { head: null, body: null, legs: null, feet: null }
             }, { merge: true });
             if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: nick });
         }
 
-        showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginFormDiv.style.display = 'none'; registerFormDiv.style.display = 'block'; authError.innerText = ''; regError.innerText = ''; });
-        showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerFormDiv.style.display = 'none'; loginFormDiv.style.display = 'block'; authError.innerText = ''; regError.innerText = ''; });
-        document.getElementById('loginBtn').addEventListener('click', async () => { const email = document.getElementById('loginEmail').value, password = document.getElementById('loginPassword').value; authError.innerText = ''; try { await signInWithEmailAndPassword(auth, email, password); } catch (error) { authError.innerText = error.message; } });
-        document.getElementById('registerBtn').addEventListener('click', async () => { const nick = document.getElementById('regNick').value.trim(), email = document.getElementById('regEmail').value, password = document.getElementById('regPassword').value; regError.innerText = ''; if (!nick) { regError.innerText = 'Введите игровой ник'; return; } try { const userCredential = await createUserWithEmailAndPassword(auth, email, password); await saveUserNickOnRegister(userCredential.user.uid, email, nick); await updateProfile(auth.currentUser, { displayName: nick }); showMessage('Регистрация успешна!', '#4caf50'); } catch (error) { regError.innerText = error.message; } });
-        logoutMenuBtn.addEventListener('click', async () => { await signOut(auth); });
-        inventoryBtn.addEventListener('click', () => { renderItemsTab(); renderEquipmentTab(); inventoryModal.style.display = 'flex'; });
-        mapBtn.addEventListener('click', () => { mapModal.style.display = 'flex'; initMap(); });
-        document.querySelectorAll('.close-modal').forEach(btn => { btn.addEventListener('click', (e) => { e.target.closest('.modal').style.display = 'none'; }); });
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginFormDiv.style.display = 'none';
+            registerFormDiv.style.display = 'block';
+            authError.innerText = ''; regError.innerText = '';
+        });
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerFormDiv.style.display = 'none';
+            loginFormDiv.style.display = 'block';
+            authError.innerText = ''; regError.innerText = '';
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            authError.innerText = '';
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                authError.innerText = error.message;
+            }
+        });
+        document.getElementById('registerBtn').addEventListener('click', async () => {
+            const nick = document.getElementById('regNick').value.trim();
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            regError.innerText = '';
+            if (!nick) { regError.innerText = 'Введите игровой ник'; return; }
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await saveUserNickOnRegister(userCredential.user.uid, email, nick);
+                await updateProfile(auth.currentUser, { displayName: nick });
+                showMessage('Регистрация успешна!', '#4caf50');
+            } catch (error) {
+                regError.innerText = error.message;
+            }
+        });
+
+        logoutMenuBtn.addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        inventoryBtn.addEventListener('click', () => {
+            renderItemsTab(); renderEquipmentTab();
+            inventoryModal.style.display = 'flex';
+        });
+        mapBtn.addEventListener('click', () => {
+            mapModal.style.display = 'flex';
+            initMap();
+        });
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.target.closest('.modal').style.display = 'none';
+            });
+        });
+
         function initTheme() { const saved = localStorage.getItem('rpgTheme'); if (saved === 'light') document.body.classList.add('light-theme'); else document.body.classList.remove('light-theme'); }
         function toggleTheme() { document.body.classList.toggle('light-theme'); const isLight = document.body.classList.contains('light-theme'); localStorage.setItem('rpgTheme', isLight ? 'light' : 'dark'); }
         themeToggle.addEventListener('click', toggleTheme);
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                authContainer.style.display = 'none'; gameContainer.style.display = 'block';
+                authContainer.style.display = 'none';
+                gameContainer.style.display = 'block';
                 playerNickSpan.innerText = user.displayName || 'Игрок';
                 await loadGameData(user.uid);
                 initModalTabs();
             } else {
-                gameContainer.style.display = 'none'; authContainer.style.display = 'block';
-                loginFormDiv.style.display = 'block'; registerFormDiv.style.display = 'none';
+                gameContainer.style.display = 'none';
+                authContainer.style.display = 'block';
+                loginFormDiv.style.display = 'block';
+                registerFormDiv.style.display = 'none';
                 authError.innerText = ''; regError.innerText = '';
-                document.getElementById('loginEmail').value = ''; document.getElementById('loginPassword').value = '';
-                document.getElementById('regNick').value = ''; document.getElementById('regEmail').value = ''; document.getElementById('regPassword').value = '';
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('regNick').value = '';
+                document.getElementById('regEmail').value = '';
+                document.getElementById('regPassword').value = '';
                 currentUserId = null;
             }
         });
+
         initTheme();
         updateUI();
     </script>
