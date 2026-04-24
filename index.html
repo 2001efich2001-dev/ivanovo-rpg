@@ -376,6 +376,15 @@
             .item-info { justify-content: center; }
             .slot { flex-direction: column; text-align: center; gap: 10px; }
         }
+        .map-modal-fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    margin: 0;
+    padding: 16px;
+}
     </style>
 </head>
 <body>
@@ -863,14 +872,14 @@
             const container = document.getElementById('mapContainer');
             if (!container) return;
             // Координаты зон (под вашу карту размером 800x600). При необходимости подправьте.
-            const zones = [
-                { id: "railway", name: "Вокзал", x: 50, y: 50, w: 150, h: 100 },
-                { id: "market", name: "Рынок", x: 300, y: 40, w: 150, h: 120 },
-                { id: "shelter", name: "Ночлежка", x: 550, y: 60, w: 150, h: 110 },
-                { id: "dump", name: "Свалка", x: 80, y: 300, w: 150, h: 120 },
-                { id: "church", name: "Церковь", x: 320, y: 300, w: 150, h: 120 },
-                { id: "bar", name: "Бар", x: 580, y: 320, w: 150, h: 110 }
-            ];
+           const zones = [
+    { id: "railway", name: "Вокзал", cx: 125, cy: 100, r: 45 },
+    { id: "market", name: "Рынок", cx: 375, cy: 100, r: 50 },
+    { id: "shelter", name: "Ночлежка", cx: 625, cy: 115, r: 48 },
+    { id: "dump", name: "Свалка", cx: 155, cy: 360, r: 50 },
+    { id: "church", name: "Церковь", cx: 395, cy: 360, r: 48 },
+    { id: "bar", name: "Бар", cx: 655, cy: 375, r: 45 }
+];
             container.innerHTML = `
                 <div style="position: relative; display: inline-block; width: 100%;">
                     <img src="map.png" alt="Карта Иваново" class="map-image" style="width:100%; height:auto;">
@@ -919,8 +928,17 @@
         document.getElementById('registerBtn').addEventListener('click', async () => { const nick=document.getElementById('regNick').value.trim(), email=document.getElementById('regEmail').value, pass=document.getElementById('regPassword').value; regError.innerText=''; if(!nick){ regError.innerText='Введите ник'; return; } try{ const uc=await createUserWithEmailAndPassword(auth, email, pass); await saveUserNickOnRegister(uc.user.uid, email, nick); await updateProfile(auth.currentUser, { displayName: nick }); showMessage('Регистрация успешна!', '#4caf50'); } catch(e){ regError.innerText=e.message; } });
         logoutMenuBtn.addEventListener('click', async () => { await signOut(auth); });
         inventoryBtn.addEventListener('click', () => { renderItemsTab(); renderEquipmentTab(); document.getElementById('inventoryModal').style.display='flex'; });
-        mapBtn.addEventListener('click', () => { renderInteractiveMap(); document.getElementById('mapModal').style.display='flex'; });
-        document.querySelectorAll('.close-modal').forEach(btn => { btn.addEventListener('click', (e) => { e.target.closest('.modal').style.display='none'; }); });
+       mapBtn.addEventListener('click', () => {   renderInteractiveMap();  const modal = document.getElementById('mapModal'); modal.style.display = 'flex';  modal.querySelector('.modal-content').classList.add('map-modal-fullscreen');});
+        document.querySelectorAll('.close-modal').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const modal = e.target.closest('.modal');
+        if (modal) {
+            modal.style.display = 'none';
+            const content = modal.querySelector('.modal-content');
+            if (content) content.classList.remove('map-modal-fullscreen');
+        }
+    });
+});
         function initTheme() { const saved = localStorage.getItem('rpgTheme'); if (saved === 'light') document.body.classList.add('light-theme'); else document.body.classList.remove('light-theme'); }
         function toggleTheme() { document.body.classList.toggle('light-theme'); localStorage.setItem('rpgTheme', document.body.classList.contains('light-theme') ? 'light' : 'dark'); }
         themeToggle.addEventListener('click', toggleTheme);
