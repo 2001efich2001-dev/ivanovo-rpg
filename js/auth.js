@@ -1,9 +1,8 @@
-// js/auth.js
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { showMessage } from './utils.js';
-import { loadGameData, saveGameData } from './firestore.js';
+import { initFirestore, loadGameData, saveGameData } from './firestore.js';
 import { initDOM, updateUI, inventory, equipped } from './gameState.js';
 
 const firebaseConfig = {
@@ -18,6 +17,9 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+initFirestore(auth); // инициализируем Firestore с нашим auth
+window.auth = auth; // делаем глобальный доступ для firestore.js
+
 const db = getFirestore(app);
 
 async function saveUserNickOnRegister(userId, email, nick) {
@@ -87,7 +89,7 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
             gameContainer.style.display = 'block';
             playerNickSpan.innerText = user.displayName || 'Игрок';
             await loadGameData(user.uid);
-            if (onLoginCallback) onLoginCallback(); // вызовем из main.js для обновления инвентаря
+            if (onLoginCallback) onLoginCallback();
         } else {
             gameContainer.style.display = 'none';
             authContainer.style.display = 'block';
