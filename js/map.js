@@ -1,6 +1,7 @@
 import { openLocationModal } from './locations.js';
 import { showMessage } from './utils.js';
 
+
 export function renderInteractiveMap() {
     const container = document.getElementById('mapContainer');
     if (!container) return;
