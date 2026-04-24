@@ -2,7 +2,7 @@ import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger,
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
 
-// База предметов (справочник)
+//  База предметов (справочник)
 export const itemsDB = {
     bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25, slot: null },
     vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40, slot: null },
