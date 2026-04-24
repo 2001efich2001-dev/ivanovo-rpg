@@ -1,4 +1,4 @@
-// js/gameState.js
+//  js/gameState.js
 export let health = 100;
 export let maxHealth = 100;
 export let hunger = 100;
