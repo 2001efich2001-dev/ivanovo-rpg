@@ -1,7 +1,7 @@
+// js/firestore.js
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { auth } from './auth.js';
 import { health, hunger, cold, money, inventory, equipped, setStats, updateUI } from './gameState.js';
-import { recalcColdFromEquipment } from './inventory.js'; // будет объявлена позже, но пока импортируем
 import { showMessage } from './utils.js';
 
 const db = getFirestore(auth.app);
@@ -33,10 +33,9 @@ export async function loadGameData(userId) {
         inventory.push(...(data.inventory ?? []));
         Object.assign(equipped, data.equipped ?? { head: null, body: null, legs: null, feet: null });
         updateUI();
-        if (typeof recalcColdFromEquipment === 'function') recalcColdFromEquipment();
+        // recalcColdFromEquipment вызовем из main.js после загрузки
         console.log("Данные загружены");
     } else {
-        // начальные значения уже установлены в gameState
         setStats(100, 100, 100, 200);
         inventory.push(
             { id: "bread", count: 2 }, { id: "vodka", count: 1 }, { id: "cigarettes", count: 1 },
