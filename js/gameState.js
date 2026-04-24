@@ -1,4 +1,4 @@
-// Игровые переменные и обновление UI
+// js/gameState.js
 export let health = 100;
 export let maxHealth = 100;
 export let hunger = 100;
@@ -10,7 +10,6 @@ export let money = 500;
 export let inventory = [];
 export let equipped = { head: null, body: null, legs: null, feet: null };
 
-// DOM элементы (устанавливаются при инициализации)
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 
