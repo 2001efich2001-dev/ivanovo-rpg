@@ -1,10 +1,10 @@
+// js/auth.js
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { showMessage } from './utils.js';
 import { loadGameData, saveGameData } from './firestore.js';
-import { initDOM, updateUI, inventory, equipped, setStats } from './gameState.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
+import { initDOM, updateUI, inventory, equipped } from './gameState.js';
 
 const firebaseConfig = {
     apiKey: "AIzaSyCB2rBhMavOvxrd2Wox967_Xm23_oSMX8Y",
@@ -29,7 +29,7 @@ async function saveUserNickOnRegister(userId, email, nick) {
     if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: nick });
 }
 
-export function initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan) {
+export function initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, onLoginCallback) {
     const showRegisterLink = document.getElementById('showRegisterLink');
     const showLoginLink = document.getElementById('showLoginLink');
     const authError = document.getElementById('authError');
@@ -87,9 +87,7 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
             gameContainer.style.display = 'block';
             playerNickSpan.innerText = user.displayName || 'Игрок';
             await loadGameData(user.uid);
-            if (typeof renderItemsTab === 'function') renderItemsTab();
-            if (typeof renderEquipmentTab === 'function') renderEquipmentTab();
-            if (typeof recalcColdFromEquipment === 'function') recalcColdFromEquipment();
+            if (onLoginCallback) onLoginCallback(); // вызовем из main.js для обновления инвентаря
         } else {
             gameContainer.style.display = 'none';
             authContainer.style.display = 'block';
