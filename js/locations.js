@@ -49,6 +49,8 @@ export const locationsDB = {
 };
 
 async function executeAction(locationId, action) {
+    // в начале функции executeAction:
+    playClick();
     let success = true;
     let msg = "";
     if (action.needsItem) {
