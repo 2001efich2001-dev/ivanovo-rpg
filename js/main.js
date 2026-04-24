@@ -4,6 +4,19 @@ import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 
+function hideSplash() {
+    const splash = document.getElementById('splash');
+    if (splash) {
+        splash.style.opacity = '0';
+        setTimeout(() => {
+            splash.style.display = 'none';
+        }, 500);
+    }
+}
+
+// Установите таймер на 2.5 секунды, чтобы сплеш гарантированно исчез
+setTimeout(hideSplash, 2500);
+
 // Функция для активации переключения вкладок внутри модального окна инвентаря
 function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
