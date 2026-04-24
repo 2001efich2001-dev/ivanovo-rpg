@@ -1,7 +1,51 @@
+// js/main.js
 import { initDOM, updateUI } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
+
+// Функция для активации переключения вкладок внутри модального окна инвентаря
+function initInventoryTabs() {
+    const modal = document.getElementById('inventoryModal');
+    if (!modal) return;
+    const tabs = modal.querySelectorAll('.tab-btn');
+    const itemsTab = document.getElementById('itemsTab');
+    const equipmentTab = document.getElementById('equipmentTab');
+    if (!tabs.length || !itemsTab || !equipmentTab) return;
+
+    // Удаляем старые обработчики, чтобы не навесить несколько
+    tabs.forEach(tab => {
+        tab.removeEventListener('click', tab._listener);
+    });
+
+    const switchTab = (tab) => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        if (tab.dataset.tab === 'items') {
+            itemsTab.style.display = 'flex';
+            equipmentTab.style.display = 'none';
+            renderItemsTab();
+        } else {
+            itemsTab.style.display = 'none';
+            equipmentTab.style.display = 'flex';
+            renderEquipmentTab();
+        }
+    };
+
+    tabs.forEach(tab => {
+        const handler = () => switchTab(tab);
+        tab.addEventListener('click', handler);
+        tab._listener = handler;
+    });
+
+    // Активируем первую вкладку, если ни одна не активна
+    const activeTab = modal.querySelector('.tab-btn.active');
+    if (activeTab) {
+        switchTab(activeTab);
+    } else {
+        switchTab(tabs[0]);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     initDOM();
@@ -16,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderItemsTab();
         renderEquipmentTab();
         recalcColdFromEquipment();
+        // После входа можно проинициализировать вкладки (на случай, если модалка уже открыта)
+        initInventoryTabs();
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
@@ -29,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inventoryBtn.addEventListener('click', () => {
             renderItemsTab();
             renderEquipmentTab();
+            initInventoryTabs();   // ОБЯЗАТЕЛЬНО: при открытии инвентаря активируем вкладки
             document.getElementById('inventoryModal').style.display = 'flex';
         });
     }
