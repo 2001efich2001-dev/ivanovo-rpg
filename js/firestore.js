@@ -1,29 +1,26 @@
-// js/firestore.js
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { auth } from './auth.js';
 import { health, hunger, cold, money, inventory, equipped, setStats, updateUI } from './gameState.js';
 import { showMessage } from './utils.js';
 
-const db = getFirestore(auth.app);
+let db = null;
+
+export function initFirestore(auth) {
+    db = getFirestore(auth.app);
+}
 
 export async function saveGameData() {
-    const user = auth.currentUser;
-    if (!user) return;
+    const user = window.auth?.currentUser;
+    if (!user || !db) return;
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
-        health: health,
-        hunger: hunger,
-        cold: cold,
-        money: money,
-        inventory: inventory,
-        equipped: equipped,
+        health, hunger, cold, money, inventory, equipped,
         lastUpdated: new Date().toISOString()
     }, { merge: true });
     console.log("Данные сохранены");
 }
 
 export async function loadGameData(userId) {
-    if (!userId) return;
+    if (!userId || !db) return;
     const docRef = doc(db, 'users', userId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
@@ -33,7 +30,6 @@ export async function loadGameData(userId) {
         inventory.push(...(data.inventory ?? []));
         Object.assign(equipped, data.equipped ?? { head: null, body: null, legs: null, feet: null });
         updateUI();
-        // recalcColdFromEquipment вызовем из main.js после загрузки
         console.log("Данные загружены");
     } else {
         setStats(100, 100, 100, 200);
