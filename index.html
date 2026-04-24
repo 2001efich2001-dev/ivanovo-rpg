@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Иваново · Бомж-симулятор · Инвентарь и экипировка</title>
+    <title>Иваново · Бомж-симулятор · Карта города</title>
     <style>
         * {
             box-sizing: border-box;
@@ -207,31 +207,14 @@
             border-radius: 48px;
             padding: 24px;
             width: 90%;
-            max-width: 550px;
+            max-width: 500px;
             max-height: 85vh;
             overflow-y: auto;
             border: 1px solid var(--card-border);
         }
-        .modal-header {
-            display: flex;
-            gap: 16px;
-            border-bottom: 1px solid var(--card-border);
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-        }
-        .tab-btn {
-            background: none;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: bold;
-            cursor: pointer;
-            color: var(--text-secondary);
-            font-size: 1rem;
-        }
-        .tab-btn.active {
-            background: var(--accent-gold);
-            color: #1e2a32;
+        .modal-content h3 {
+            margin-top: 0;
+            color: var(--accent-gold);
         }
         .inventory-grid {
             display: flex;
@@ -266,7 +249,7 @@
             border-radius: 20px;
             font-size: 0.8rem;
         }
-        .use-btn, .equip-btn, .unequip-btn {
+        .use-btn, .equip-btn, .unequip-btn, .action-location-btn {
             background: var(--buy-btn-bg);
             border: none;
             padding: 6px 16px;
@@ -339,12 +322,26 @@
         .global-footer p {
             margin: 4px 0;
         }
+        /* Стили для карты */
+        .map-container {
+            background: var(--stat-bg);
+            border-radius: 48px;
+            padding: 16px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .map-image {
+            max-width: 100%;
+            border-radius: 32px;
+            cursor: pointer;
+        }
         @media (max-width: 480px) {
             .avatar { font-size: 4rem; width: 90px; height: 90px; }
             .action-btn { font-size: 0.8rem; padding: 10px 0; }
             .inventory-item { flex-direction: column; text-align: center; }
             .item-info { justify-content: center; }
             .slot { flex-direction: column; text-align: center; gap: 10px; }
+            .map-container { padding: 8px; }
         }
     </style>
 </head>
@@ -412,21 +409,21 @@
 
         <div class="action-buttons">
             <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
-            <button class="action-btn" id="mapBtn">🗺️ Карта</button>
+            <button class="action-btn" id="mapBtn">🗺️ Карта города</button>
             <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
         </div>
         <div class="settings-item" style="margin-top: 16px;">
             <button id="themeToggle" class="reset-btn" style="background: var(--buy-btn-bg); color: white;">🌓 Тема</button>
         </div>
         <footer style="text-align: center; margin-top: 20px; font-size: 0.7rem; color: var(--text-secondary);">
-            Иваново · Бомж-симулятор | Версия 0.0.4 | Экипировка
+            Иваново · Бомж-симулятор | Версия 0.0.5 | Карта города
         </footer>
     </div>
 
-    <!-- Модальное окно инвентаря с вкладками -->
+    <!-- Модальное окно инвентаря (вкладки) -->
     <div id="inventoryModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header" style="display: flex; gap: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; margin-bottom: 16px;">
                 <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
                 <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
             </div>
@@ -436,18 +433,43 @@
         </div>
     </div>
 
-    <!-- Модальное окно карты (заглушка) -->
+    <!-- Модальное окно карты -->
     <div id="mapModal" class="modal">
-        <div class="modal-content">
-            <h3>🗺️ Карта Иваново</h3>
-            <p>Локации пока в разработке.</p>
+        <div class="modal-content" style="max-width: 800px;">
+            <h3>🗺️ Карта города Иваново</h3>
+            <div class="map-container">
+                <!-- ВАЖНО: Замените "map.png" на путь к вашей картинке. Размер картинки ориентировочно 800x600 -->
+                <img src="map.png" alt="Карта Иваново" class="map-image" usemap="#cityMap" style="width:100%; height:auto;">
+                <map name="cityMap">
+                    <!-- Координаты: (x1,y1, x2,y2, x3,y3...). Для прямоугольников: left,top,right,bottom -->
+                    <!-- Вокзал (примерный прямоугольник) -->
+                    <area shape="rect" coords="50,50,200,150" data-location="railway" alt="Вокзал" title="Вокзал">
+                    <!-- Рынок -->
+                    <area shape="rect" coords="300,40,450,160" data-location="market" alt="Рынок" title="Рынок">
+                    <!-- Ночлежка -->
+                    <area shape="rect" coords="550,60,700,170" data-location="shelter" alt="Ночлежка" title="Ночлежка">
+                    <!-- Свалка -->
+                    <area shape="rect" coords="80,300,230,420" data-location="dump" alt="Свалка" title="Свалка">
+                    <!-- Церковь -->
+                    <area shape="rect" coords="320,300,470,420" data-location="church" alt="Церковь" title="Церковь">
+                    <!-- Бар -->
+                    <area shape="rect" coords="580,320,730,430" data-location="bar" alt="Бар" title="Бар">
+                </map>
+            </div>
             <button class="close-modal">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно локации (действия) -->
+    <div id="locationModal" class="modal">
+        <div class="modal-content" id="locationModalContent">
+            <!-- Динамическое содержимое -->
         </div>
     </div>
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.4</p>
+        <p>RPG · Иваново · Альфа 0.0.5</p>
     </div>
 
     <script type="module">
@@ -489,40 +511,91 @@
         const themeToggle = document.getElementById('themeToggle');
         const logoutMenuBtn = document.getElementById('logoutMenuBtn');
         const inventoryBtn = document.getElementById('inventoryBtn');
+        const mapBtn = document.getElementById('mapBtn');
 
-        // Текущие характеристики
+        // Игровые переменные
         let health = 100, maxHealth = 100;
         let hunger = 100, maxHunger = 100;
         let cold = 100, maxCold = 100;
         let money = 500;
         let currentUserId = null;
-        
-        // Инвентарь: массив объектов { id, name, type, icon, count, slot, effect }
         let inventory = [];
-        
-        // Экипировка
-        let equipped = {
-            head: null,
-            body: null,
-            legs: null,
-            feet: null
-        };
+        let equipped = { head: null, body: null, legs: null, feet: null };
 
-        // База предметов
+        // База предметов (та же, что и ранее, плюс новые для действий)
         const itemsDB = {
-            // Еда и лекарства
             bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25, slot: null },
             vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40, slot: null },
             cigarettes: { id: "cigarettes", name: "Сигареты", type: "drug", icon: "🚬", effect: { hunger: 0, health: -5, cold: 10 }, price: 20, slot: null },
             medkit: { id: "medkit", name: "Аптечка", type: "medicine", icon: "💊", effect: { hunger: 0, health: 30, cold: 0 }, price: 50, slot: null },
             water: { id: "water", name: "Бутылка воды", type: "drink", icon: "💧", effect: { hunger: 10, health: 0, cold: 0 }, price: 15, slot: null },
-            // Одежда
             ushanka: { id: "ushanka", name: "Шапка-ушанка", type: "clothes", icon: "🧢", effect: { cold: 15 }, price: 80, slot: "head" },
             puhovik: { id: "puhovik", name: "Пуховик", type: "clothes", icon: "🧥", effect: { cold: 25 }, price: 200, slot: "body" },
             termo: { id: "termo", name: "Термобельё", type: "clothes", icon: "👖", effect: { cold: 10 }, price: 120, slot: "legs" },
-            bercy: { id: "bercy", name: "Берцы", type: "clothes", icon: "👢", effect: { cold: 10 }, price: 150, slot: "feet" }
+            bercy: { id: "bercy", name: "Берцы", type: "clothes", icon: "👢", effect: { cold: 10 }, price: 150, slot: "feet" },
+            // Предметы для находок
+            empty_bottle: { id: "empty_bottle", name: "Пустая бутылка", type: "junk", icon: "🍾", effect: {}, price: 5, slot: null },
+            old_hat: { id: "old_hat", name: "Старая шапка", type: "clothes", icon: "🧢", effect: { cold: 5 }, price: 20, slot: "head" }
         };
 
+        // База локаций и действий
+        const locationsDB = {
+            railway: {
+                id: "railway",
+                name: "Вокзал",
+                description: "Шум, люди, поезда. Можно попросить подаяние или поискать забытые вещи.",
+                actions: [
+                    { id: "beg", name: "Попросить подаяние", desc: "Риск: 30% получить отказ", effect: { money: [10, 50], health: 0, hunger: 0 }, risk: 30, riskEffect: { money: -10, health: -5 } },
+                    { id: "search", name: "Поискать забытые вещи", desc: "Риск: 20% найти мусор", effect: { items: ["bread", "water"] }, risk: 20, riskEffect: { health: -10, hunger: -5 } }
+                ]
+            },
+            market: {
+                id: "market",
+                name: "Центральный рынок",
+                description: "Оживлённое место, можно обменять вещи или украсть еду.",
+                actions: [
+                    { id: "trade", name: "Обменять пустые бутылки", desc: "Требуется пустая бутылка", needsItem: "empty_bottle", effect: { money: [5, 15] }, risk: 0 },
+                    { id: "steal", name: "Украсть еду", desc: "Риск: 50% поймают", effect: { items: ["bread"] }, risk: 50, riskEffect: { money: -30, health: -15 } }
+                ]
+            },
+            shelter: {
+                id: "shelter",
+                name: "Ночлежка",
+                description: "Тёплое место для ночлега. Восстанавливает здоровье, но просит пожертвование.",
+                actions: [
+                    { id: "sleep", name: "Переночевать", desc: "Восстановить здоровье за 20₽", effect: { health: 30 }, cost: 20, risk: 0 },
+                    { id: "eat", name: "Поесть в столовой", desc: "Восстановить голод за 25₽", effect: { hunger: 30 }, cost: 25, risk: 0 }
+                ]
+            },
+            dump: {
+                id: "dump",
+                name: "Свалка",
+                description: "Опасно, но можно найти ценные вещи.",
+                actions: [
+                    { id: "scavenge", name: "Покопаться в мусоре", desc: "Риск: 40% получить инфекцию", effect: { items: ["empty_bottle", "old_hat"] }, risk: 40, riskEffect: { health: -15, hunger: -5 } }
+                ]
+            },
+            church: {
+                id: "church",
+                name: "Церковь",
+                description: "Место покоя. Можно получить еду и исцеление.",
+                actions: [
+                    { id: "pray", name: "Помолиться", desc: "Восстановить здоровье (бесплатно, раз в час)", effect: { health: 20 }, cost: 0, risk: 0, cooldown: 3600 },
+                    { id: "get_food", name: "Попросить еду", desc: "Дадут хлеб", effect: { items: ["bread"] }, risk: 0 }
+                ]
+            },
+            bar: {
+                id: "bar",
+                name: "Бар",
+                description: "Можно выпить, подраться или найти работу.",
+                actions: [
+                    { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, деньги -40", effect: { health: 10, hunger: -5, money: -40 }, risk: 0 },
+                    { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
+                ]
+            }
+        };
+
+        // Вспомогательные функции
         function updateUI() {
             healthValueSpan.innerText = `${Math.floor(health)} / ${maxHealth}`;
             hungerValueSpan.innerText = `${Math.floor(hunger)} / ${maxHunger}`;
@@ -550,20 +623,17 @@
             setTimeout(() => msg.remove(), 2000);
         }
 
-        // Пересчёт тепла от экипировки
         function recalcColdFromEquipment() {
             let bonus = 0;
             if (equipped.head && itemsDB[equipped.head]) bonus += itemsDB[equipped.head].effect.cold || 0;
             if (equipped.body && itemsDB[equipped.body]) bonus += itemsDB[equipped.body].effect.cold || 0;
             if (equipped.legs && itemsDB[equipped.legs]) bonus += itemsDB[equipped.legs].effect.cold || 0;
             if (equipped.feet && itemsDB[equipped.feet]) bonus += itemsDB[equipped.feet].effect.cold || 0;
-            // Базовое тепло 100 + бонус от одежды, но не выше максимума
             let newCold = Math.min(maxCold, 100 + bonus);
             cold = newCold;
             updateUI();
         }
 
-        // Сохранение всей игры
         async function saveGameData() {
             if (!currentUserId) return;
             const docRef = doc(db, 'users', currentUserId);
@@ -596,238 +666,274 @@
                 recalcColdFromEquipment();
                 console.log("Данные загружены из Firestore");
             } else {
-                // Первый вход — стартовые данные
-                health = 100;
-                hunger = 100;
-                cold = 100;
-                money = 200;
+                health = 100; hunger = 100; cold = 100; money = 200;
                 inventory = [
-                    { id: "bread", count: 2 },
-                    { id: "vodka", count: 1 },
-                    { id: "cigarettes", count: 1 },
-                    { id: "medkit", count: 1 },
-                    { id: "ushanka", count: 1 },
-                    { id: "puhovik", count: 1 }
+                    { id: "bread", count: 2 }, { id: "vodka", count: 1 }, { id: "cigarettes", count: 1 },
+                    { id: "medkit", count: 1 }, { id: "ushanka", count: 1 }, { id: "puhovik", count: 1 }
                 ];
                 equipped = { head: null, body: null, legs: null, feet: null };
                 updateUI();
                 await saveGameData();
-                console.log("Создан новый документ пользователя");
             }
         }
 
-        // Использование предмета (еда, лекарства)
-        async function useItem(itemId) {
-            const itemIndex = inventory.findIndex(i => i.id === itemId);
-            if (itemIndex === -1 || inventory[itemIndex].count <= 0) {
-                showMessage("Предмета нет в инвентаре!", "#e74c3c");
-                return;
-            }
-            
-            const itemData = itemsDB[itemId];
-            if (!itemData) return;
-            
-            // Применяем эффекты
-            let effectText = "";
-            if (itemData.effect.hunger) {
-                let newHunger = hunger + itemData.effect.hunger;
-                hunger = Math.min(maxHunger, Math.max(0, newHunger));
-                effectText += `Голод ${itemData.effect.hunger > 0 ? '+' : ''}${itemData.effect.hunger}. `;
-            }
-            if (itemData.effect.health) {
-                let newHealth = health + itemData.effect.health;
-                health = Math.min(maxHealth, Math.max(0, newHealth));
-                effectText += `Здоровье ${itemData.effect.health > 0 ? '+' : ''}${itemData.effect.health}. `;
-            }
-            if (itemData.effect.cold) {
-                let newCold = cold + itemData.effect.cold;
-                cold = Math.min(maxCold, Math.max(0, newCold));
-                effectText += `Тепло ${itemData.effect.cold > 0 ? '+' : ''}${itemData.effect.cold}. `;
-            }
-            
-            // Уменьшаем количество
-            if (inventory[itemIndex].count === 1) {
-                inventory.splice(itemIndex, 1);
-            } else {
-                inventory[itemIndex].count--;
-            }
-            
-            updateUI();
-            await saveGameData();
-            renderItemsTab();
-            showMessage(`🍺 Вы использовали ${itemData.name}. ${effectText}`, "#4caf50");
-        }
-
-        // Надеть предмет
-        async function equipItem(itemId) {
-            const itemIndex = inventory.findIndex(i => i.id === itemId);
-            if (itemIndex === -1 || inventory[itemIndex].count <= 0) {
-                showMessage("Предмета нет в инвентаре!", "#e74c3c");
-                return;
-            }
-            
-            const itemData = itemsDB[itemId];
-            if (!itemData || !itemData.slot) {
-                showMessage("Этот предмет нельзя надеть!", "#e74c3c");
-                return;
-            }
-            
-            const slot = itemData.slot;
-            // Если в слоте уже есть предмет, снимаем его обратно в инвентарь
-            if (equipped[slot]) {
-                const oldItemId = equipped[slot];
-                const existingIndex = inventory.findIndex(i => i.id === oldItemId);
-                if (existingIndex !== -1) {
-                    inventory[existingIndex].count++;
-                } else {
-                    inventory.push({ id: oldItemId, count: 1 });
+        // --- Инвентарь и экипировка (функции упрощены, из предыдущей версии) ---
+        async function useItem(itemId) { /* для краткости - аналогично предыдущей версии */ }
+        async function equipItem(itemId) { /* аналогично */ }
+        async function unequipItem(slot) { /* аналогично */ }
+        function renderItemsTab() { /* будет в полном коде, но здесь опускаю для краткости */ }
+        function renderEquipmentTab() { /* опускаю */ }
+        
+        // --- Действия в локациях ---
+        async function executeAction(locationId, action) {
+            let success = true;
+            let msg = "";
+            // Проверка на наличие требуемого предмета
+            if (action.needsItem) {
+                const hasItem = inventory.find(i => i.id === action.needsItem && i.count > 0);
+                if (!hasItem) {
+                    showMessage(`❌ У вас нет ${itemsDB[action.needsItem]?.name || action.needsItem}`, "#e74c3c");
+                    return;
                 }
             }
-            
-            // Надеваем новый предмет
-            equipped[slot] = itemId;
-            // Убираем предмет из инвентаря
-            if (inventory[itemIndex].count === 1) {
-                inventory.splice(itemIndex, 1);
-            } else {
-                inventory[itemIndex].count--;
+            // Проверка на деньги
+            if (action.cost && action.cost > 0) {
+                if (money < action.cost) {
+                    showMessage(`💰 Не хватает денег! Нужно ${action.cost}₽`, "#e74c3c");
+                    return;
+                }
+                money -= action.cost;
             }
-            
-            await saveGameData();
-            recalcColdFromEquipment();
-            renderItemsTab();
-            renderEquipmentTab();
-            showMessage(`👕 Вы надели ${itemData.name}`, "#4caf50");
-        }
-        
-        // Снять предмет
-        async function unequipItem(slot) {
-            const itemId = equipped[slot];
-            if (!itemId) return;
-            
-            const itemData = itemsDB[itemId];
-            // Добавляем обратно в инвентарь
-            const existingIndex = inventory.findIndex(i => i.id === itemId);
-            if (existingIndex !== -1) {
-                inventory[existingIndex].count++;
-            } else {
-                inventory.push({ id: itemId, count: 1 });
+            // Учёт риска
+            if (action.risk && action.risk > 0) {
+                const r = Math.random() * 100;
+                if (r < action.risk) {
+                    success = false;
+                    msg = `❌ Неудача! `;
+                    if (action.riskEffect) {
+                        if (action.riskEffect.money) money += action.riskEffect.money;
+                        if (action.riskEffect.health) health = Math.min(maxHealth, Math.max(0, health + action.riskEffect.health));
+                        if (action.riskEffect.hunger) hunger = Math.min(maxHunger, Math.max(0, hunger + action.riskEffect.hunger));
+                        if (action.riskEffect.items) {
+                            // не добавляем предметы при неудаче
+                        }
+                        msg += `${action.riskEffect.health ? `Здоровье ${action.riskEffect.health>0?'+':''}${action.riskEffect.health}. ` : ''}`;
+                        msg += `${action.riskEffect.money ? `Деньги ${action.riskEffect.money>0?'+':''}${action.riskEffect.money}. ` : ''}`;
+                    }
+                }
             }
-            
-            equipped[slot] = null;
+            if (success) {
+                msg = `✅ Успех! `;
+                // Применяем эффекты
+                if (action.effect) {
+                    if (action.effect.money) {
+                        let add = Array.isArray(action.effect.money) ? Math.floor(Math.random() * (action.effect.money[1] - action.effect.money[0] + 1) + action.effect.money[0]) : action.effect.money;
+                        money += add;
+                        msg += `+${add}₽. `;
+                    }
+                    if (action.effect.health) {
+                        let add = Array.isArray(action.effect.health) ? Math.floor(Math.random() * (action.effect.health[1] - action.effect.health[0] + 1) + action.effect.health[0]) : action.effect.health;
+                        health = Math.min(maxHealth, Math.max(0, health + add));
+                        msg += `Здоровье ${add>0?'+':''}${add}. `;
+                    }
+                    if (action.effect.hunger) {
+                        let add = Array.isArray(action.effect.hunger) ? Math.floor(Math.random() * (action.effect.hunger[1] - action.effect.hunger[0] + 1) + action.effect.hunger[0]) : action.effect.hunger;
+                        hunger = Math.min(maxHunger, Math.max(0, hunger + add));
+                        msg += `Голод ${add>0?'+':''}${add}. `;
+                    }
+                    if (action.effect.items) {
+                        let items = Array.isArray(action.effect.items) ? action.effect.items : [action.effect.items];
+                        items.forEach(itemId => {
+                            const existing = inventory.find(i => i.id === itemId);
+                            if (existing) existing.count++;
+                            else inventory.push({ id: itemId, count: 1 });
+                            msg += `+1 ${itemsDB[itemId]?.name || itemId}. `;
+                        });
+                    }
+                }
+                if (action.needsItem) {
+                    const idx = inventory.findIndex(i => i.id === action.needsItem);
+                    if (idx !== -1) {
+                        if (inventory[idx].count === 1) inventory.splice(idx,1);
+                        else inventory[idx].count--;
+                        msg += `Израсходован ${itemsDB[action.needsItem]?.name}. `;
+                    }
+                }
+            }
+            updateUI();
             await saveGameData();
-            recalcColdFromEquipment();
-            renderItemsTab();
-            renderEquipmentTab();
-            showMessage(`🧥 Вы сняли ${itemData.name}`, "#6c757d");
+            showMessage(msg, success ? "#4caf50" : "#e74c3c");
+            // Закрыть модальное окно локации
+            document.getElementById('locationModal').style.display = 'none';
+            // Обновить инвентарь, если нужно
+            if (document.getElementById('inventoryModal').style.display === 'flex') {
+                renderItemsTab();
+                renderEquipmentTab();
+            }
         }
 
-        // Рендер вкладки "Вещи"
+        function openLocationModal(locationId) {
+            const loc = locationsDB[locationId];
+            if (!loc) return;
+            const modalContent = document.getElementById('locationModalContent');
+            let actionsHtml = '';
+            loc.actions.forEach(action => {
+                actionsHtml += `
+                    <div class="inventory-item" style="margin-bottom: 8px;">
+                        <div class="item-info">
+                            <div><strong>${action.name}</strong><br><small>${action.desc}</small></div>
+                        </div>
+                        <button class="action-location-btn" data-location="${locationId}" data-action-id="${action.id}">Выбрать</button>
+                    </div>
+                `;
+            });
+            modalContent.innerHTML = `
+                <h3>${loc.name}</h3>
+                <p>${loc.description}</p>
+                <div class="inventory-grid">${actionsHtml}</div>
+                <button class="close-modal">Закрыть</button>
+            `;
+            document.getElementById('locationModal').style.display = 'flex';
+            // Обработчики кнопок действий
+            document.querySelectorAll('.action-location-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const locId = btn.dataset.location;
+                    const actionId = btn.dataset.actionId;
+                    const action = locationsDB[locId].actions.find(a => a.id === actionId);
+                    if (action) executeAction(locId, action);
+                });
+            });
+            document.querySelector('#locationModal .close-modal').addEventListener('click', () => {
+                document.getElementById('locationModal').style.display = 'none';
+            });
+        }
+
+        // Карта: обработчик кликов по area
+        function initMap() {
+            const areas = document.querySelectorAll('map area');
+            areas.forEach(area => {
+                area.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const locationId = area.dataset.location;
+                    if (locationId && locationsDB[locationId]) {
+                        openLocationModal(locationId);
+                    } else {
+                        showMessage("Эта локация ещё не добавлена", "#f0ad4e");
+                    }
+                });
+            });
+        }
+
+        // --- Авторизация и прочее (сокращённо) ---
+        // ... (здесь вставьте весь код авторизации из предыдущей версии, но адаптированный)
+
+        // Для краткости я добавлю только основные моменты, предполагая, что остальное уже есть
+        // В финальном коде будет всё полностью.
+
+        // Пропущенные функции инвентаря (для полноты кода)
         function renderItemsTab() {
             const itemsTab = document.getElementById('itemsTab');
             if (!itemsTab) return;
-            
             const usableItems = inventory.filter(item => {
                 const data = itemsDB[item.id];
                 return data && (data.type === 'food' || data.type === 'alcohol' || data.type === 'drug' || data.type === 'medicine' || data.type === 'drink');
             });
-            
             const equipableItems = inventory.filter(item => {
                 const data = itemsDB[item.id];
                 return data && data.type === 'clothes';
             });
-            
             if (usableItems.length === 0 && equipableItems.length === 0) {
                 itemsTab.innerHTML = '<p style="text-align:center;">🧺 Инвентарь пуст</p>';
                 return;
             }
-            
             let html = '';
             if (usableItems.length > 0) {
                 html += '<div style="margin-bottom: 8px;"><strong>📦 Расходуемые предметы</strong></div>';
                 for (let item of usableItems) {
                     const data = itemsDB[item.id];
-                    html += `
-                        <div class="inventory-item">
-                            <div class="item-info">
-                                <span class="item-icon">${data.icon}</span>
-                                <span class="item-name">${data.name}</span>
-                                <span class="item-count">×${item.count}</span>
-                            </div>
-                            <button class="use-btn" data-id="${item.id}">Использовать</button>
-                        </div>
-                    `;
+                    html += `<div class="inventory-item"><div class="item-info"><span class="item-icon">${data.icon}</span><span class="item-name">${data.name}</span><span class="item-count">×${item.count}</span></div><button class="use-btn" data-id="${item.id}">Использовать</button></div>`;
                 }
             }
             if (equipableItems.length > 0) {
                 html += '<div style="margin-bottom: 8px; margin-top: 12px;"><strong>👔 Одежда</strong></div>';
                 for (let item of equipableItems) {
                     const data = itemsDB[item.id];
-                    html += `
-                        <div class="inventory-item">
-                            <div class="item-info">
-                                <span class="item-icon">${data.icon}</span>
-                                <span class="item-name">${data.name}</span>
-                                <span class="item-count">×${item.count}</span>
-                            </div>
-                            <button class="equip-btn" data-id="${item.id}">Надеть</button>
-                        </div>
-                    `;
+                    html += `<div class="inventory-item"><div class="item-info"><span class="item-icon">${data.icon}</span><span class="item-name">${data.name}</span><span class="item-count">×${item.count}</span></div><button class="equip-btn" data-id="${item.id}">Надеть</button></div>`;
                 }
             }
             itemsTab.innerHTML = html;
-            
-            document.querySelectorAll('.use-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    await useItem(btn.dataset.id);
-                });
-            });
-            document.querySelectorAll('.equip-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    await equipItem(btn.dataset.id);
-                });
-            });
+            document.querySelectorAll('.use-btn').forEach(btn => { btn.addEventListener('click', async () => { await useItem(btn.dataset.id); }); });
+            document.querySelectorAll('.equip-btn').forEach(btn => { btn.addEventListener('click', async () => { await equipItem(btn.dataset.id); }); });
         }
-        
-        // Рендер вкладки "Экипировка"
+
         function renderEquipmentTab() {
             const equipmentTab = document.getElementById('equipmentTab');
             if (!equipmentTab) return;
-            
             const slots = [
                 { key: 'head', name: 'Головной убор', icon: '🧢' },
                 { key: 'body', name: 'Верх', icon: '🧥' },
                 { key: 'legs', name: 'Штаны', icon: '👖' },
                 { key: 'feet', name: 'Обувь', icon: '👢' }
             ];
-            
             let html = '';
             for (let slot of slots) {
                 const itemId = equipped[slot.key];
                 const itemData = itemId ? itemsDB[itemId] : null;
-                html += `
-                    <div class="slot">
-                        <div class="slot-info">
-                            <span class="slot-icon">${slot.icon}</span>
-                            <span class="slot-name">${slot.name}</span>
-                            ${itemData ? `<span class="item-name">${itemData.name}</span>` : `<span class="slot-empty">— пусто —</span>`}
-                        </div>
-                        ${itemData ? `<button class="unequip-btn" data-slot="${slot.key}">Снять</button>` : ''}
-                    </div>
-                `;
+                html += `<div class="slot"><div class="slot-info"><span class="slot-icon">${slot.icon}</span><span class="slot-name">${slot.name}</span>${itemData ? `<span class="item-name">${itemData.name}</span>` : `<span class="slot-empty">— пусто —</span>`}</div>${itemData ? `<button class="unequip-btn" data-slot="${slot.key}">Снять</button>` : ''}</div>`;
             }
             equipmentTab.innerHTML = html;
-            
-            document.querySelectorAll('.unequip-btn').forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    await unequipItem(btn.dataset.slot);
-                });
-            });
+            document.querySelectorAll('.unequip-btn').forEach(btn => { btn.addEventListener('click', async () => { await unequipItem(btn.dataset.slot); }); });
         }
 
-        // Переключение вкладок в модальном окне
+        async function useItem(itemId) {
+            const itemIndex = inventory.findIndex(i => i.id === itemId);
+            if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Предмета нет в инвентаре!", "#e74c3c"); return; }
+            const itemData = itemsDB[itemId];
+            if (!itemData) return;
+            let effectText = "";
+            if (itemData.effect.hunger) { let newHunger = hunger + itemData.effect.hunger; hunger = Math.min(maxHunger, Math.max(0, newHunger)); effectText += `Голод ${itemData.effect.hunger > 0 ? '+' : ''}${itemData.effect.hunger}. `; }
+            if (itemData.effect.health) { let newHealth = health + itemData.effect.health; health = Math.min(maxHealth, Math.max(0, newHealth)); effectText += `Здоровье ${itemData.effect.health > 0 ? '+' : ''}${itemData.effect.health}. `; }
+            if (itemData.effect.cold) { let newCold = cold + itemData.effect.cold; cold = Math.min(maxCold, Math.max(0, newCold)); effectText += `Тепло ${itemData.effect.cold > 0 ? '+' : ''}${itemData.effect.cold}. `; }
+            if (inventory[itemIndex].count === 1) inventory.splice(itemIndex, 1);
+            else inventory[itemIndex].count--;
+            updateUI();
+            await saveGameData();
+            renderItemsTab(); renderEquipmentTab();
+            showMessage(`🍺 Вы использовали ${itemData.name}. ${effectText}`, "#4caf50");
+        }
+
+        async function equipItem(itemId) {
+            const itemIndex = inventory.findIndex(i => i.id === itemId);
+            if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Предмета нет в инвентаре!", "#e74c3c"); return; }
+            const itemData = itemsDB[itemId];
+            if (!itemData || !itemData.slot) { showMessage("Этот предмет нельзя надеть!", "#e74c3c"); return; }
+            const slot = itemData.slot;
+            if (equipped[slot]) { const oldItemId = equipped[slot]; const existingIndex = inventory.findIndex(i => i.id === oldItemId); if (existingIndex !== -1) inventory[existingIndex].count++; else inventory.push({ id: oldItemId, count: 1 }); }
+            equipped[slot] = itemId;
+            if (inventory[itemIndex].count === 1) inventory.splice(itemIndex, 1);
+            else inventory[itemIndex].count--;
+            await saveGameData();
+            recalcColdFromEquipment();
+            renderItemsTab(); renderEquipmentTab();
+            showMessage(`👕 Вы надели ${itemData.name}`, "#4caf50");
+        }
+
+        async function unequipItem(slot) {
+            const itemId = equipped[slot];
+            if (!itemId) return;
+            const itemData = itemsDB[itemId];
+            const existingIndex = inventory.findIndex(i => i.id === itemId);
+            if (existingIndex !== -1) inventory[existingIndex].count++;
+            else inventory.push({ id: itemId, count: 1 });
+            equipped[slot] = null;
+            await saveGameData();
+            recalcColdFromEquipment();
+            renderItemsTab(); renderEquipmentTab();
+            showMessage(`🧥 Вы сняли ${itemData.name}`, "#6c757d");
+        }
+
         function initModalTabs() {
-            const tabs = document.querySelectorAll('.tab-btn');
+            const tabs = document.querySelectorAll('#inventoryModal .tab-btn');
             const itemsTab = document.getElementById('itemsTab');
             const equipmentTab = document.getElementById('equipmentTab');
             tabs.forEach(tab => {
@@ -847,133 +953,43 @@
             });
         }
 
-        // ========== Авторизация ==========
+        // --- Авторизация (полная) ---
         async function saveUserNickOnRegister(userId, email, nick) {
             const userDocRef = doc(db, 'users', userId);
             await setDoc(userDocRef, { 
-                displayName: nick, 
-                userEmail: email,
-                health: 100,
-                hunger: 100,
-                cold: 100,
-                money: 200,
-                inventory: [
-                    { id: "bread", count: 2 },
-                    { id: "vodka", count: 1 },
-                    { id: "cigarettes", count: 1 },
-                    { id: "medkit", count: 1 },
-                    { id: "ushanka", count: 1 },
-                    { id: "puhovik", count: 1 }
-                ],
+                displayName: nick, userEmail: email, health: 100, hunger: 100, cold: 100, money: 200,
+                inventory: [{ id: "bread", count: 2 },{ id: "vodka", count: 1 },{ id: "cigarettes", count: 1 },{ id: "medkit", count: 1 },{ id: "ushanka", count: 1 },{ id: "puhovik", count: 1 }],
                 equipped: { head: null, body: null, legs: null, feet: null }
             }, { merge: true });
-            if (auth.currentUser) {
-                await updateProfile(auth.currentUser, { displayName: nick });
-            }
+            if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: nick });
         }
 
-        showRegisterLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            loginFormDiv.style.display = 'none';
-            registerFormDiv.style.display = 'block';
-            authError.innerText = '';
-            regError.innerText = '';
-        });
-        showLoginLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            registerFormDiv.style.display = 'none';
-            loginFormDiv.style.display = 'block';
-            authError.innerText = '';
-            regError.innerText = '';
-        });
-
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            authError.innerText = '';
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-            } catch (error) {
-                authError.innerText = error.message;
-            }
-        });
-        document.getElementById('registerBtn').addEventListener('click', async () => {
-            const nick = document.getElementById('regNick').value.trim();
-            const email = document.getElementById('regEmail').value;
-            const password = document.getElementById('regPassword').value;
-            regError.innerText = '';
-            if (!nick) {
-                regError.innerText = 'Введите игровой ник';
-                return;
-            }
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const userId = userCredential.user.uid;
-                await saveUserNickOnRegister(userId, email, nick);
-                await updateProfile(auth.currentUser, { displayName: nick });
-                showMessage('Регистрация успешна!', '#4caf50');
-            } catch (error) {
-                regError.innerText = error.message;
-            }
-        });
-
-        logoutMenuBtn.addEventListener('click', async () => {
-            await signOut(auth);
-        });
-
-        // Модальные окна
-        const inventoryModal = document.getElementById('inventoryModal');
-        const mapModal = document.getElementById('mapModal');
-        inventoryBtn.addEventListener('click', () => {
-            renderItemsTab();
-            renderEquipmentTab();
-            inventoryModal.style.display = 'flex';
-        });
-        document.getElementById('mapBtn').addEventListener('click', () => { mapModal.style.display = 'flex'; });
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.target.closest('.modal').style.display = 'none';
-            });
-        });
-
-        // Тема
-        function initTheme() {
-            const saved = localStorage.getItem('rpgTheme');
-            if (saved === 'light') document.body.classList.add('light-theme');
-            else document.body.classList.remove('light-theme');
-        }
-        function toggleTheme() {
-            document.body.classList.toggle('light-theme');
-            const isLight = document.body.classList.contains('light-theme');
-            localStorage.setItem('rpgTheme', isLight ? 'light' : 'dark');
-        }
+        showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginFormDiv.style.display = 'none'; registerFormDiv.style.display = 'block'; authError.innerText = ''; regError.innerText = ''; });
+        showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerFormDiv.style.display = 'none'; loginFormDiv.style.display = 'block'; authError.innerText = ''; regError.innerText = ''; });
+        document.getElementById('loginBtn').addEventListener('click', async () => { const email = document.getElementById('loginEmail').value, password = document.getElementById('loginPassword').value; authError.innerText = ''; try { await signInWithEmailAndPassword(auth, email, password); } catch (error) { authError.innerText = error.message; } });
+        document.getElementById('registerBtn').addEventListener('click', async () => { const nick = document.getElementById('regNick').value.trim(), email = document.getElementById('regEmail').value, password = document.getElementById('regPassword').value; regError.innerText = ''; if (!nick) { regError.innerText = 'Введите игровой ник'; return; } try { const userCredential = await createUserWithEmailAndPassword(auth, email, password); await saveUserNickOnRegister(userCredential.user.uid, email, nick); await updateProfile(auth.currentUser, { displayName: nick }); showMessage('Регистрация успешна!', '#4caf50'); } catch (error) { regError.innerText = error.message; } });
+        logoutMenuBtn.addEventListener('click', async () => { await signOut(auth); });
+        inventoryBtn.addEventListener('click', () => { renderItemsTab(); renderEquipmentTab(); inventoryModal.style.display = 'flex'; });
+        mapBtn.addEventListener('click', () => { mapModal.style.display = 'flex'; initMap(); });
+        document.querySelectorAll('.close-modal').forEach(btn => { btn.addEventListener('click', (e) => { e.target.closest('.modal').style.display = 'none'; }); });
+        function initTheme() { const saved = localStorage.getItem('rpgTheme'); if (saved === 'light') document.body.classList.add('light-theme'); else document.body.classList.remove('light-theme'); }
+        function toggleTheme() { document.body.classList.toggle('light-theme'); const isLight = document.body.classList.contains('light-theme'); localStorage.setItem('rpgTheme', isLight ? 'light' : 'dark'); }
         themeToggle.addEventListener('click', toggleTheme);
-
-        // Обработка состояния авторизации
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                authContainer.style.display = 'none';
-                gameContainer.style.display = 'block';
-                const nick = user.displayName || 'Игрок';
-                playerNickSpan.innerText = nick;
+                authContainer.style.display = 'none'; gameContainer.style.display = 'block';
+                playerNickSpan.innerText = user.displayName || 'Игрок';
                 await loadGameData(user.uid);
                 initModalTabs();
             } else {
-                gameContainer.style.display = 'none';
-                authContainer.style.display = 'block';
-                loginFormDiv.style.display = 'block';
-                registerFormDiv.style.display = 'none';
-                authError.innerText = '';
-                regError.innerText = '';
-                document.getElementById('loginEmail').value = '';
-                document.getElementById('loginPassword').value = '';
-                document.getElementById('regNick').value = '';
-                document.getElementById('regEmail').value = '';
-                document.getElementById('regPassword').value = '';
+                gameContainer.style.display = 'none'; authContainer.style.display = 'block';
+                loginFormDiv.style.display = 'block'; registerFormDiv.style.display = 'none';
+                authError.innerText = ''; regError.innerText = '';
+                document.getElementById('loginEmail').value = ''; document.getElementById('loginPassword').value = '';
+                document.getElementById('regNick').value = ''; document.getElementById('regEmail').value = ''; document.getElementById('regPassword').value = '';
                 currentUserId = null;
             }
         });
-
         initTheme();
         updateUI();
     </script>
