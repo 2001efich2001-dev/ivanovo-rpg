@@ -1,7 +1,6 @@
-// js/main.js
-import { initDOM, updateUI, cold, maxCold, setStats } from './gameState.js';
+import { initDOM, updateUI } from './gameState.js';
 import { initAuth, auth } from './auth.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB } from './inventory.js';
+import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,7 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerFormDiv = document.getElementById('registerForm');
     const playerNickSpan = document.getElementById('playerNick');
     
-    // Колбэк после успешного входа
     function afterLogin() {
         renderItemsTab();
         renderEquipmentTab();
@@ -22,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
     
-    // Кнопки
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
     const logoutMenuBtn = document.getElementById('logoutMenuBtn');
@@ -56,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saved === 'light') document.body.classList.add('light-theme');
     }
     
-    // Закрытие модалок
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.target.closest('.modal').style.display = 'none';
