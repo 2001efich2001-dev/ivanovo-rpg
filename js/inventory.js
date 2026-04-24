@@ -2,7 +2,15 @@ import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger,
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
 
-//  База предметов (справочник)
+// Локальные функции для вызова звуков (если они определены в main.js)
+function playClick() {
+    if (typeof window.playClickSound === 'function') window.playClickSound();
+}
+function playPurchase() {
+    if (typeof window.playPurchaseSound === 'function') window.playPurchaseSound();
+}
+
+// База предметов (справочник)
 export const itemsDB = {
     bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25, slot: null },
     vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40, slot: null },
@@ -23,11 +31,8 @@ export function recalcColdFromEquipment() {
     if (equipped.body && itemsDB[equipped.body]) bonus += itemsDB[equipped.body].effect.cold || 0;
     if (equipped.legs && itemsDB[equipped.legs]) bonus += itemsDB[equipped.legs].effect.cold || 0;
     if (equipped.feet && itemsDB[equipped.feet]) bonus += itemsDB[equipped.feet].effect.cold || 0;
-    // cold – глобальная переменная, но её изменение должно проходить через setStats
     const newCold = Math.min(maxCold, 100 + bonus);
     if (newCold !== cold) {
-        // обновляем cold в gameState (прямое присвоение нежелательно, но пока так)
-        // В реальности нужно изменить gameState, но для простоты сделаем так:
         import('./gameState.js').then(module => {
             module.cold = newCold;
             module.updateUI();
@@ -36,6 +41,7 @@ export function recalcColdFromEquipment() {
 }
 
 async function useItem(itemId) {
+    playClick(); // звук при использовании
     const itemIndex = inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Нет предмета!", "#e74c3c"); return; }
     const itemData = itemsDB[itemId];
@@ -65,6 +71,7 @@ async function useItem(itemId) {
 }
 
 async function equipItem(itemId) {
+    playClick(); // звук при надевании
     const itemIndex = inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Нет предмета!", "#e74c3c"); return; }
     const itemData = itemsDB[itemId];
@@ -86,6 +93,7 @@ async function equipItem(itemId) {
 }
 
 async function unequipItem(slot) {
+    playClick(); // звук при снятии
     const itemId = equipped[slot];
     if (!itemId) return;
     const itemData = itemsDB[itemId];
