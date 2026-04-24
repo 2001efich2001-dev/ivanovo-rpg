@@ -1,4 +1,4 @@
-// Вспомогательные функции
+// js/utils.js
 export function showMessage(text, bgColor = '#4caf50') {
     const msg = document.createElement('div');
     msg.innerText = text;
