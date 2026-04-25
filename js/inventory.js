@@ -1,6 +1,6 @@
 import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats } from './gameState.js';
 import { saveGameData } from './firestore.js';
-import { showMessage } from './utils.js';
+import { showMessage, logAction } from './utils.js';
 
 // Локальные функции для вызова звуков (если они определены в main.js)
 function playClick() {
@@ -68,6 +68,7 @@ async function useItem(itemId) {
     await saveGameData();
     renderItemsTab(); renderEquipmentTab();
     showMessage(`🍺 Использовали ${itemData.name}. ${effText}`, "#4caf50");
+    logAction(`Использован предмет: ${itemData.name} (${effText.trim()})`, 'item');
 }
 
 async function equipItem(itemId) {
@@ -82,6 +83,7 @@ async function equipItem(itemId) {
         const exist = inventory.findIndex(i => i.id === oldId);
         if (exist !== -1) inventory[exist].count++;
         else inventory.push({ id: oldId, count: 1 });
+        logAction(`Снят предмет: ${itemsDB[oldId]?.name}`, 'item');
     }
     equipped[slot] = itemId;
     if (inventory[itemIndex].count === 1) inventory.splice(itemIndex,1);
@@ -90,6 +92,7 @@ async function equipItem(itemId) {
     recalcColdFromEquipment();
     renderItemsTab(); renderEquipmentTab();
     showMessage(`👕 Надели ${itemData.name}`, "#4caf50");
+    logAction(`Надет предмет: ${itemData.name}`, 'item');
 }
 
 async function unequipItem(slot) {
@@ -105,6 +108,7 @@ async function unequipItem(slot) {
     recalcColdFromEquipment();
     renderItemsTab(); renderEquipmentTab();
     showMessage(`🧥 Сняли ${itemData.name}`, "#6c757d");
+    logAction(`Снят предмет: ${itemData.name}`, 'item');
 }
 
 export function renderItemsTab() {
