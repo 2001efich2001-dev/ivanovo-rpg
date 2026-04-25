@@ -246,7 +246,7 @@ body {
     max-width: 300px;
     height: auto;
     border-radius: 32px;
-    background: var(--stat-bg);
+    background: transparent; /* ← вместо var(--stat-bg) */
     border: 3px solid var(--accent-gold);
     object-fit: contain;
     align-self: center;
