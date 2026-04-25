@@ -16,8 +16,8 @@ export const locationsDB = {
         description: "Шум, люди, поезда. Можно попросить подаяние или поискать забытые вещи.",
         bgImage: "images/railway_bg.jpg",
         zones: [
-            { id: "beg_zone", name: "Площадь у вокзала", cx: 150, cy: 200, r: 50, actionId: "beg" },
-            { id: "search_zone", name: "Зал ожидания", cx: 400, cy: 180, r: 45, actionId: "search" }
+            { id: "beg_zone", name: "Площадь у вокзала", description: "Попросить подаяние: получить 10-50₽ (риск 30%)", cx: 150, cy: 200, r: 50, actionId: "beg" },
+            { id: "search_zone", name: "Зал ожидания", description: "Поискать вещи: хлеб или вода (риск 20%)", cx: 400, cy: 180, r: 45, actionId: "search" }
         ],
         actions: [
             { id: "beg", name: "Попросить подаяние", desc: "Риск: 30% получить отказ", effect: { money: [10, 50] }, risk: 30, riskEffect: { money: -10, health: -5 } },
@@ -30,8 +30,8 @@ export const locationsDB = {
         description: "Оживлённое место, можно обменять вещи или украсть еду.",
         bgImage: "images/market_bg.jpg",
         zones: [
-            { id: "trade_zone", name: "Прилавок", cx: 200, cy: 150, r: 50, actionId: "trade" },
-            { id: "steal_zone", name: "Лотки с едой", cx: 450, cy: 200, r: 55, actionId: "steal" }
+            { id: "trade_zone", name: "Прилавок", description: "Обменять пустые бутылки: 5-15₽", cx: 200, cy: 150, r: 50, actionId: "trade" },
+            { id: "steal_zone", name: "Лотки с едой", description: "Украсть еду: +1 хлеб (риск 50%)", cx: 450, cy: 200, r: 55, actionId: "steal" }
         ],
         actions: [
             { id: "trade", name: "Обменять пустые бутылки", desc: "Требуется пустая бутылка", needsItem: "empty_bottle", effect: { money: [5, 15] }, risk: 0 },
@@ -44,8 +44,8 @@ export const locationsDB = {
         description: "Тёплое место для ночлега.",
         bgImage: "images/shelter_bg.jpg",
         zones: [
-            { id: "sleep_zone", name: "Койка", cx: 250, cy: 180, r: 60, actionId: "sleep" },
-            { id: "eat_zone", name: "Столовая", cx: 400, cy: 220, r: 45, actionId: "eat" }
+            { id: "sleep_zone", name: "Койка", description: "Переночевать: +30 здоровья (20₽)", cx: 250, cy: 180, r: 60, actionId: "sleep" },
+            { id: "eat_zone", name: "Столовая", description: "Поесть: +30 голода (25₽)", cx: 400, cy: 220, r: 45, actionId: "eat" }
         ],
         actions: [
             { id: "sleep", name: "Переночевать", desc: "Восстановить здоровье за 20₽", effect: { health: 30 }, cost: 20, risk: 0 },
@@ -58,7 +58,7 @@ export const locationsDB = {
         description: "Опасно, но можно найти ценные вещи.",
         bgImage: "images/dump_bg.jpg",
         zones: [
-            { id: "scavenge_zone", name: "Куча мусора", cx: 200, cy: 200, r: 70, actionId: "scavenge" }
+            { id: "scavenge_zone", name: "Куча мусора", description: "Покопаться: найти бутылку или старую шапку (риск 40%)", cx: 200, cy: 200, r: 70, actionId: "scavenge" }
         ],
         actions: [
             { id: "scavenge", name: "Покопаться в мусоре", desc: "Риск: 40% получить инфекцию", effect: { items: ["empty_bottle", "old_hat"] }, risk: 40, riskEffect: { health: -15, hunger: -5 } }
@@ -70,8 +70,8 @@ export const locationsDB = {
         description: "Место покоя. Можно помолиться или попросить еду.",
         bgImage: "images/church_bg.jpg",
         zones: [
-            { id: "pray_zone", name: "Алтарь", cx: 200, cy: 150, r: 60, actionId: "pray" },
-            { id: "food_zone", name: "Трапезная", cx: 450, cy: 180, r: 50, actionId: "get_food" }
+            { id: "pray_zone", name: "Алтарь", description: "Помолиться: +20 здоровья", cx: 200, cy: 150, r: 60, actionId: "pray" },
+            { id: "food_zone", name: "Трапезная", description: "Попросить еду: +1 хлеб", cx: 450, cy: 180, r: 50, actionId: "get_food" }
         ],
         actions: [
             { id: "pray", name: "Помолиться", desc: "Восстановить здоровье", effect: { health: 20 }, cost: 0, risk: 0 },
@@ -84,8 +84,8 @@ export const locationsDB = {
         description: "Можно выпить, подраться или найти работу.",
         bgImage: "images/bar_bg.jpg",
         zones: [
-            { id: "drink_zone", name: "Стойка", cx: 150, cy: 200, r: 50, actionId: "drink" },
-            { id: "fight_zone", name: "Танцпол", cx: 400, cy: 220, r: 65, actionId: "fight" }
+            { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, -40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
+            { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" }
         ],
         actions: [
             { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, деньги -40", effect: { health: 10, hunger: -5, money: -40 }, risk: 0 },
@@ -102,33 +102,29 @@ export function renderLocation(locationId) {
         return;
     }
     
-    // Меняем фоновое изображение
     const bgImg = document.getElementById('locationBgImg');
     if (bgImg) {
         bgImg.src = loc.bgImage || 'images/default_bg.jpg';
     }
     
-    // Меняем название локации
     const locName = document.getElementById('locationName');
     if (locName) {
         locName.textContent = loc.name;
     }
     
-    // Отрисовываем кликабельные зоны
     const zonesContainer = document.getElementById('locationZones');
     if (!zonesContainer) return;
     
-    // Создаём SVG с кругами
     const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-svg.setAttribute("viewBox", "0 0 800 600");
-svg.setAttribute("preserveAspectRatio", "xMidYMid meet"); // ← важно!
-svg.style.width = "100%";
-svg.style.height = "100%";
-svg.style.position = "absolute";
-svg.style.top = "0";
-svg.style.left = "0";
-svg.style.pointerEvents = "none";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 800 600");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    svg.style.position = "absolute";
+    svg.style.top = "0";
+    svg.style.left = "0";
+    svg.style.pointerEvents = "none";
     
     loc.zones.forEach(zone => {
         const circle = document.createElementNS(svgNS, "circle");
@@ -139,6 +135,7 @@ svg.style.pointerEvents = "none";
         circle.setAttribute("data-action-id", zone.actionId);
         circle.setAttribute("data-location-id", locationId);
         circle.setAttribute("data-name", zone.name);
+        circle.setAttribute("data-description", zone.description || '');
         circle.style.pointerEvents = "visible";
         circle.style.cursor = "pointer";
         circle.style.fill = "rgba(0, 200, 0, 0.25)";
@@ -149,7 +146,9 @@ svg.style.pointerEvents = "none";
         circle.addEventListener('mouseenter', (e) => {
             circle.style.fill = "rgba(0, 200, 0, 0.5)";
             circle.style.stroke = "rgba(0, 200, 0, 1)";
-            showTooltip(e, zone.name);
+            let tip = zone.name;
+            if (zone.description) tip += ': ' + zone.description;
+            showTooltip(e, tip);
         });
         circle.addEventListener('mouseleave', () => {
             circle.style.fill = "rgba(0, 200, 0, 0.25)";
@@ -169,7 +168,6 @@ svg.style.pointerEvents = "none";
         svg.appendChild(circle);
     });
     
-    // Очищаем контейнер и добавляем новый SVG
     zonesContainer.innerHTML = '';
     zonesContainer.appendChild(svg);
 }
@@ -191,7 +189,7 @@ function hideTooltip() {
     if (tooltipElement) tooltipElement.style.display = 'none';
 }
 
-// Функции для действий (executeAction и openLocationModal остаются без изменений, они уже есть)
+// Функции для действий
 async function executeAction(locationId, action) {
     playClick();
     let success = true;
