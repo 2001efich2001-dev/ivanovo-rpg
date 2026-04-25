@@ -145,22 +145,23 @@ body {
     backdrop-filter: blur(4px);
     border-radius: 64px;
     box-shadow: 0 25px 45px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-    width: 100%;
-    max-width: 1100px;
+    width: 95%;                 /* ширина 95% от родителя */
+    max-width: 1600px;          /* но не больше 1600px на огромных экранах */
     display: none;
     gap: 24px;
     padding: 24px;
+    margin: 0 auto;             /* центрирование */
 }
 
 /* Левая колонка (локация) */
 .game-left {
     flex: 2;
-    min-width: 260px;
+    min-width: 300px;           /* минимальная ширина, чтобы не сжималась слишком */
     position: relative;
     background: var(--stat-bg);
     border-radius: 48px;
     overflow: hidden;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 4 / 3;        /* высота автоматически подстроится */
 }
 
 /* Контейнер для фона локации */
@@ -226,8 +227,8 @@ body {
 
 /* Правая колонка (персонаж) */
 .game-right {
-    flex: 1.2;
-    min-width: 260px;
+    flex: 1;
+    min-width: 280px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -535,4 +536,39 @@ body {
     .inventory-item { flex-direction: column; text-align: center; }
     .item-info { justify-content: center; }
     .slot { flex-direction: column; text-align: center; gap: 10px; }
+}
+/* Для очень больших экранов (ультраширокие) */
+@media (min-width: 2000px) {
+    .game-container {
+        width: 80%;
+        max-width: 1800px;
+    }
+}
+
+/* Для средних экранов (ноутбуки) */
+@media (max-width: 1200px) {
+    .game-container {
+        width: 98%;
+        padding: 16px;
+        gap: 16px;
+    }
+    .location-name {
+        font-size: 1.1rem;
+        top: 8px;
+        left: 8px;
+        right: 8px;
+    }
+}
+
+/* Для планшетов и телефонов (уже есть) */
+@media (max-width: 768px) {
+    .game-container {
+        flex-direction: column;
+        width: 100%;
+        padding: 12px;
+    }
+    .game-left {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+    }
 }
