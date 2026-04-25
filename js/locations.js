@@ -1,7 +1,7 @@
 import { inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
-import { showMessage } from './utils.js';
+import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
@@ -110,7 +110,7 @@ export function renderLocation(locationId) {
     removeWeatherLayers();
     
     const bgUrl = loc.bgImage || 'images/default_bg.jpg';
-document.documentElement.style.setProperty('--location-bg', `url(${bgUrl})`);
+    document.documentElement.style.setProperty('--location-bg', `url(${bgUrl})`);
     
     const locName = document.getElementById('locationName');
     if (locName) {
@@ -212,6 +212,8 @@ async function executeAction(locationId, action) {
     playClick();
     let success = true;
     let msg = "";
+    let actionLogMessage = '';
+    
     if (action.needsItem) {
         const has = inventory.find(i => i.id === action.needsItem && i.count > 0);
         if (!has) { showMessage(`Нет ${itemsDB[action.needsItem]?.name || action.needsItem}`, "#e74c3c"); return; }
@@ -219,6 +221,7 @@ async function executeAction(locationId, action) {
     if (action.cost && action.cost > 0) {
         if (money < action.cost) { showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); return; }
         setStats(health, hunger, cold, money - action.cost);
+        actionLogMessage += `-${action.cost}₽. `;
     }
     if (action.risk && action.risk > 0) {
         if (Math.random() * 100 < action.risk) {
@@ -230,6 +233,7 @@ async function executeAction(locationId, action) {
                 let newHunger = hunger + (action.riskEffect.hunger || 0);
                 setStats(Math.min(maxHealth, Math.max(0, newHealth)), Math.min(maxHunger, Math.max(0, newHunger)), cold, Math.max(0, newMoney));
                 msg += `${action.riskEffect.health ? `Здоровье ${action.riskEffect.health>0?'+':''}${action.riskEffect.health}. ` : ''}${action.riskEffect.money ? `Деньги ${action.riskEffect.money>0?'+':''}${action.riskEffect.money}. ` : ''}`;
+                actionLogMessage = `Неудача в действии "${action.name}"! ${msg}`;
             }
         }
     }
@@ -240,18 +244,21 @@ async function executeAction(locationId, action) {
                 let add = Array.isArray(action.effect.money) ? Math.floor(Math.random()*(action.effect.money[1]-action.effect.money[0]+1)+action.effect.money[0]) : action.effect.money;
                 setStats(health, hunger, cold, money + add);
                 msg += `+${add}₽. `;
+                actionLogMessage += `+${add}₽. `;
             }
             if (action.effect.health) {
                 let add = Array.isArray(action.effect.health) ? Math.floor(Math.random()*(action.effect.health[1]-action.effect.health[0]+1)+action.effect.health[0]) : action.effect.health;
                 let newHealth = health + add;
                 setStats(Math.min(maxHealth, Math.max(0, newHealth)), hunger, cold, money);
                 msg += `Здоровье ${add>0?'+':''}${add}. `;
+                actionLogMessage += `Здоровье ${add>0?'+':''}${add}. `;
             }
             if (action.effect.hunger) {
                 let add = Array.isArray(action.effect.hunger) ? Math.floor(Math.random()*(action.effect.hunger[1]-action.effect.hunger[0]+1)+action.effect.hunger[0]) : action.effect.hunger;
                 let newHunger = hunger + add;
                 setStats(health, Math.min(maxHunger, Math.max(0, newHunger)), cold, money);
                 msg += `Голод ${add>0?'+':''}${add}. `;
+                actionLogMessage += `Голод ${add>0?'+':''}${add}. `;
             }
             if (action.effect.items) {
                 let items = Array.isArray(action.effect.items) ? action.effect.items : [action.effect.items];
@@ -260,6 +267,7 @@ async function executeAction(locationId, action) {
                     if (idx !== -1) inventory[idx].count++;
                     else inventory.push({ id: it, count: 1 });
                     msg += `+1 ${itemsDB[it]?.name}. `;
+                    actionLogMessage += `+1 ${itemsDB[it]?.name}. `;
                 });
             }
         }
@@ -269,12 +277,23 @@ async function executeAction(locationId, action) {
                 if (inventory[idx].count === 1) inventory.splice(idx,1);
                 else inventory[idx].count--;
                 msg += `Израсходован ${itemsDB[action.needsItem]?.name}. `;
+                actionLogMessage += `Израсходован ${itemsDB[action.needsItem]?.name}. `;
             }
         }
     }
     updateUI();
     await saveGameData();
     showMessage(msg, success ? "#4caf50" : "#e74c3c");
+    
+    // Логируем действие
+    if (actionLogMessage) {
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
+    } else if (success) {
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} (успех)`, 'location');
+    } else {
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} (неудача)`, 'location');
+    }
+    
     document.getElementById('locationModal').style.display = 'none';
     if (document.getElementById('inventoryModal').style.display === 'flex') {
         import('./inventory.js').then(m => { m.renderItemsTab(); m.renderEquipmentTab(); });
