@@ -6,10 +6,10 @@ export function renderInteractiveMap() {
     if (!container) return;
     
     const zones = [
-        { id: "railway", name: "Вокзал", cx: 328, cy: 79, r: 20 },
+        { id: "railway", name: "Вокзал", cx: 328, cy: 30, r: 20 },
         { id: "market", name: "Рынок", cx: 271, cy: 277, r: 20 },
         { id: "shelter", name: "Ночлежка", cx: 355, cy: 185, r: 20 },
-        { id: "dump", name: "Свалка", cx: 272, cy: 15, r: 20 },
+        { id: "dump", name: "Свалка", cx: 300, cy: 1, r: 20 },
         { id: "church", name: "Церковь", cx: 304, cy: 243, r: 20 },
         { id: "bar", name: "Бар", cx: 331, cy: 215, r: 20 }
     ];
