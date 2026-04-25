@@ -546,7 +546,87 @@ body {
 .location-zones {
     z-index: 6 !important;
 }
+/* ===== ЛОГ ДЕЙСТВИЙ (ИСТОРИЯ) ===== */
+.log-container {
+    background: var(--panel-bg);
+    border-radius: 48px;
+    padding: 12px 16px;
+    margin: 8px 0;
+}
 
+.log-header {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--accent-gold);
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.log-panel {
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 4px;
+}
+
+/* Стили для отдельных записей лога */
+.log-entry {
+    padding: 4px 8px;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-left: 3px solid var(--accent-gold);
+    color: var(--text-secondary);
+    transition: 0.1s;
+}
+
+.log-entry:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* Цвета для разных типов сообщений */
+.log-entry.location {
+    border-left-color: #3498db;
+}
+.log-entry.item {
+    border-left-color: #2ecc71;
+}
+.log-entry.combat {
+    border-left-color: #e74c3c;
+}
+.log-entry.economy {
+    border-left-color: #f1c40f;
+}
+.log-entry.weather {
+    border-left-color: #9b59b6;
+}
+.log-entry.system {
+    border-left-color: #95a5a6;
+}
+
+/* Время в логе */
+.log-time {
+    color: var(--accent-gold);
+    font-size: 0.65rem;
+    margin-right: 8px;
+    font-weight: bold;
+}
+
+/* Скроллбар для лога */
+.log-panel::-webkit-scrollbar {
+    width: 4px;
+}
+.log-panel::-webkit-scrollbar-track {
+    background: var(--stat-bg);
+    border-radius: 4px;
+}
+.log-panel::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border-radius: 4px;
+}
 /* ========== ГОРИЗОНТАЛЬНОЕ РАСПОЛОЖЕНИЕ ========== */
 @media (min-width: 769px) {
     .game-container {
