@@ -7,6 +7,16 @@ let animationId = null;
 let particles = [];
 let currentEffectType = null;
 
+// Принудительное обновление размеров canvas
+function resizeCanvas() {
+    if (!particlesCanvas) return;
+    const container = particlesCanvas.parentElement;
+    if (container) {
+        particlesCanvas.width = container.clientWidth;
+        particlesCanvas.height = container.clientHeight;
+    }
+}
+
 // Создание слоёв (вызывается из renderLocation)
 export function createWeatherLayers(container) {
     // Удаляем старые, если есть
@@ -38,12 +48,21 @@ export function createWeatherLayers(container) {
     particlesCanvas.style.zIndex = '5';
     container.appendChild(particlesCanvas);
     
+    // Устанавливаем размеры canvas
+    resizeCanvas();
+    
     // Обновляем размеры canvas при ресайзе
     window.addEventListener('resize', () => {
         if (particlesCanvas && particlesCanvas.parentElement) {
             resizeCanvas();
         }
     });
+    
+    // Принудительно обновляем эффекты после создания слоёв
+    setTimeout(() => {
+        updateDarkness();
+        updateWeatherEffects();
+    }, 30);
 }
 
 // Удаление слоёв
@@ -55,34 +74,22 @@ export function removeWeatherLayers() {
     particlesCanvas = null;
 }
 
-// Обновление размеров canvas
-function resizeCanvas() {
-    if (!particlesCanvas) return;
-    const container = particlesCanvas.parentElement;
-    if (container) {
-        particlesCanvas.width = container.clientWidth;
-        particlesCanvas.height = container.clientHeight;
-    }
+// Обновление размеров canvas (экспортируем для внешнего вызова)
+export function updateCanvasSize() {
+    resizeCanvas();
 }
 
 // Расчёт затемнения по часам
 function calculateDarkness(hours) {
-    // Нормализуем часы от 0 до 24
     let h = hours % 24;
-    if (h >= 6 && h <= 18) return 0; // день – без затемнения
-    if (h > 18 && h <= 22) {
-        // вечер: от 0 до 0.4 (40%)
-        return ((h - 18) / 4) * 0.4;
-    }
-    if (h > 22 || h < 4) return 0.5; // ночь: 50%
-    if (h >= 4 && h < 6) {
-        // утро: от 0.4 до 0
-        return ((6 - h) / 2) * 0.4;
-    }
+    if (h >= 6 && h <= 18) return 0;
+    if (h > 18 && h <= 22) return ((h - 18) / 4) * 0.4;
+    if (h > 22 || h < 4) return 0.5;
+    if (h >= 4 && h < 6) return ((6 - h) / 2) * 0.4;
     return 0;
 }
 
-// Обновление затемнения (вызывается из timeWeather.js)
+// Обновление затемнения
 export function updateDarkness() {
     if (!darkOverlay) return;
     const totalMinutes = accumulatedMinutes;
@@ -91,7 +98,6 @@ export function updateDarkness() {
     darkOverlay.style.opacity = Math.min(0.5, Math.max(0, darkness));
 }
 
-// Управление частицами
 function stopParticleAnimation() {
     if (animationId) {
         cancelAnimationFrame(animationId);
@@ -124,14 +130,12 @@ function startParticleAnimation(weather) {
             color = 'rgba(200, 220, 255, 0.9)';
             break;
         default:
-            // Нет частиц
             return;
     }
     
     const ctx = particlesCanvas.getContext('2d');
     if (!ctx) return;
     
-    // Создаём частицы
     for (let i = 0; i < count; i++) {
         particles.push({
             x: Math.random() * particlesCanvas.width,
@@ -150,10 +154,8 @@ function startParticleAnimation(weather) {
             return;
         }
         
-        // Проверяем, видна ли левая колонка
         const container = particlesCanvas.parentElement;
         if (container && container.offsetParent === null) {
-            // Контейнер скрыт
             requestAnimationFrame(draw);
             return;
         }
@@ -165,13 +167,11 @@ function startParticleAnimation(weather) {
             ctx.fillStyle = p.color;
             ctx.fillText(p.char, p.x, p.y);
             
-            // Движение
             p.y += p.speed;
             if (weather === 'snow') {
                 p.x += p.sway;
             }
             
-            // Сброс вверх
             if (p.y > particlesCanvas.height + 50) {
                 p.y = -30;
                 p.x = Math.random() * particlesCanvas.width;
