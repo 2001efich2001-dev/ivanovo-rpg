@@ -627,6 +627,46 @@ body {
     background: var(--accent-gold);
     border-radius: 4px;
 }
+
+/* ===== БЛОК ОПЫТА И УРОВНЯ ===== */
+.exp-panel {
+    background: var(--panel-bg);
+    border-radius: 48px;
+    padding: 12px 16px;
+    margin: 8px 0;
+}
+
+.exp-header {
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-align: center;
+    color: var(--accent-gold);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+}
+
+.exp-bar {
+    height: 12px;
+    background: var(--stat-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 6px 0;
+}
+
+.exp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #9b59b6, #8e44ad);
+    border-radius: 12px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.exp-text {
+    font-size: 0.7rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
 /* ========== ГОРИЗОНТАЛЬНОЕ РАСПОЛОЖЕНИЕ ========== */
 @media (min-width: 769px) {
     .game-container {
