@@ -71,13 +71,14 @@
             <div class="action-buttons">
                 <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
                 <button class="action-btn" id="mapBtn">🗺️ Карта</button>
+                <button class="action-btn" id="shopBtn">🏪 Магазин</button>
                 <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
             </div>
             <div class="settings-item">
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
             </div>
-            <footer class="game-footer">Иваново · Версия 0.0.9</footer>
+            <footer class="game-footer">Иваново · Версия 0.0.10</footer>
         </div>
     </div>
 
@@ -106,9 +107,22 @@
         <div class="modal-content" id="locationModalContent"></div>
     </div>
 
+    <!-- Модальное окно магазина -->
+    <div id="shopModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header" style="display:flex; gap:16px; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <button class="tab-btn active" data-shop-tab="buy">🛍️ Купить</button>
+                <button class="tab-btn" data-shop-tab="sell">💰 Продать</button>
+            </div>
+            <div id="shopBuyTab" class="inventory-grid"></div>
+            <div id="shopSellTab" class="inventory-grid" style="display: none;"></div>
+            <button class="close-modal">Закрыть</button>
+        </div>
+    </div>
+
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.9</p>
+        <p>RPG · Иваново · Альфа 0.0.10</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
