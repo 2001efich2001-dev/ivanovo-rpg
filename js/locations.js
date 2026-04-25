@@ -184,6 +184,12 @@ export function renderLocation(locationId) {
     // Обновляем затемнение и погодные эффекты
     updateDarkness();
     updateWeatherEffects();
+    
+    // Принудительно обновляем canvas после небольшой задержки (чтобы размеры успели установиться)
+    setTimeout(() => {
+        updateDarkness();
+        updateWeatherEffects();
+    }, 50);
 }
 
 // Всплывающая подсказка
