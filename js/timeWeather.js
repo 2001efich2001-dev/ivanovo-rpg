@@ -2,6 +2,7 @@
 import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
+import { updateDarkness, updateWeatherEffects } from './weatherEffects.js';
 
 // Константы
 const MINUTES_PER_REAL_MINUTE = 10;     // 1 реальная минута = 10 игровых минут
@@ -86,6 +87,12 @@ export function updateTimeWeather() {
     // Обновляем глобальные переменные
     setTimeWeather(newMinutes, newWeather, newTemp);
     
+    // Обновляем затемнение (в зависимости от времени суток)
+    updateDarkness();
+    
+    // Обновляем погодные эффекты (дождь/снег)
+    updateWeatherEffects();
+    
     // Обновляем интерфейс
     updateTimeWeatherUI();
     
@@ -95,8 +102,7 @@ export function updateTimeWeather() {
         showMessage(`🌦️ Погода изменилась: ${weatherNames[newWeather]}`, '#4caf50');
     }
     
-    // Сохраняем в Firestore (не каждое обновление, а раз в 5 минут, чтобы не перегружать)
-    // Но для простоты будем сохранять при каждом изменении времени (но с throttling)
+    // Сохраняем в Firestore (не каждое обновление, а раз в 30 секунд)
     throttledSave();
 }
 
