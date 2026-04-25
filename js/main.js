@@ -1,8 +1,9 @@
 // js/main.js
-import { initDOM, updateUI } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
+import { renderLocation } from './locations.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -55,25 +56,16 @@ function playPurchase() { playTone(660, 0.12, 0.12); }
 // --- Фоновая музыка через MP3 ---
 function initMusic() {
     if (bgMusic) return;
-    bgMusic = new Audio('background.mp3'); // файл должен лежать в корне сайта
+    bgMusic = new Audio('background.mp3');
     bgMusic.loop = true;
     bgMusic.volume = 0.3;
 
-    // Загружаем сохранённое состояние
     const saved = localStorage.getItem('musicEnabled');
-    if (saved !== null) {
-        isMusicEnabled = saved === 'true';
-    } else {
-        isMusicEnabled = true; // по умолчанию включена
-    }
+    isMusicEnabled = saved !== null ? saved === 'true' : true;
 
     const btn = document.getElementById('musicToggle');
     if (btn) {
         btn.textContent = isMusicEnabled ? '🎵 Музыка Вкл' : '🔇 Музыка Выкл';
-    }
-
-    if (isMusicEnabled) {
-        // Не запускаем сразу – дождёмся первого клика пользователя (autoplay policy)
     }
 }
 
@@ -81,14 +73,12 @@ function startMusic() {
     if (!isMusicEnabled) return;
     if (!bgMusic) initMusic();
     if (bgMusic && bgMusic.paused) {
-        bgMusic.play().catch(e => console.log('Автозапуск музыки заблокирован, нужен клик', e));
+        bgMusic.play().catch(e => console.log('Автозапуск музыки заблокирован', e));
     }
 }
 
 function stopMusic() {
-    if (bgMusic && !bgMusic.paused) {
-        bgMusic.pause();
-    }
+    if (bgMusic && !bgMusic.paused) bgMusic.pause();
 }
 
 function toggleMusic() {
@@ -96,11 +86,8 @@ function toggleMusic() {
     localStorage.setItem('musicEnabled', isMusicEnabled);
     const btn = document.getElementById('musicToggle');
     if (btn) btn.textContent = isMusicEnabled ? '🎵 Музыка Вкл' : '🔇 Музыка Выкл';
-    if (isMusicEnabled) {
-        startMusic();
-    } else {
-        stopMusic();
-    }
+    if (isMusicEnabled) startMusic();
+    else stopMusic();
 }
 
 // --- Сплеш-экран ---
@@ -122,7 +109,7 @@ function hideSplash() {
     }
 }
 
-// --- Вкладки инвентаря с звуками ---
+// --- Вкладки инвентаря ---
 function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
     if (!modal) return;
@@ -161,6 +148,12 @@ function initInventoryTabs() {
     else if (tabs[0]) switchTab(tabs[0]);
 }
 
+// --- Обработчик смены локации ---
+function onLocationChanged(newLocationId) {
+    console.log(`Смена локации на: ${newLocationId}`);
+    renderLocation(newLocationId);
+}
+
 // --- Инициализация ---
 document.addEventListener('DOMContentLoaded', () => {
     initDOM();
@@ -176,14 +169,18 @@ document.addEventListener('DOMContentLoaded', () => {
         renderEquipmentTab();
         recalcColdFromEquipment();
         initInventoryTabs();
+        // Отрисовываем стартовую локацию (церковь)
+        renderLocation(currentLocation);
         hideSplash();
-        // Если музыка включена, запускаем её после входа (ещё не запущена)
         if (isMusicEnabled && bgMusic && bgMusic.paused) {
             startMusic();
         }
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
+    
+    // Подписываемся на изменение локации
+    setLocationChangeCallback(onLocationChanged);
     
     // Обработчики кнопок
     const loginBtn = document.getElementById('loginBtn');
@@ -231,7 +228,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (savedTheme === 'light') document.body.classList.add('light-theme');
     }
     
-    // Кнопка музыки
     if (musicToggle) {
         musicToggle.addEventListener('click', () => {
             playClick();
@@ -247,7 +243,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Инициализация музыки и запуск после первого клика пользователя (autoplay)
     initMusic();
     const startMusicOnFirstClick = () => {
         if (isMusicEnabled && bgMusic && bgMusic.paused) {
@@ -257,7 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.body.addEventListener('click', startMusicOnFirstClick);
     
-    // Если пользователь не авторизован, всё равно скрываем сплеш через полсекунды
     setTimeout(() => {
         if (!auth.currentUser) hideSplash();
     }, 500);
