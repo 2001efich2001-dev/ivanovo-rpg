@@ -49,7 +49,7 @@
 
         <!-- Правая колонка: персонаж и управление -->
         <div class="game-right">
-        <img class="avatar-gif" id="avatarGif" src="hero.gif" alt="Персонаж"> 
+            <img class="avatar-gif" id="avatarGif" src="hero.gif" alt="Персонаж"> 
             <div id="playerNick" class="player-nick">Игрок</div>
 
             <!-- Блок времени и погоды -->
@@ -71,6 +71,12 @@
                 <div class="money">💰 Деньги: <span id="moneyValue">500</span> ₽</div>
             </div>
 
+            <!-- Лог действий -->
+            <div class="log-container">
+                <div class="log-header">📋 История действий</div>
+                <div id="logPanel" class="log-panel"></div>
+            </div>
+
             <div class="action-buttons">
                 <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
                 <button class="action-btn" id="mapBtn">🗺️ Карта</button>
@@ -81,7 +87,7 @@
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
             </div>
-            <footer class="game-footer">Иваново · Версия 0.0.11</footer>
+            <footer class="game-footer">Иваново · Версия 0.0.12</footer>
         </div>
     </div>
 
@@ -125,7 +131,7 @@
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.11</p>
+        <p>RPG · Иваново · Альфа 0.0.12</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
