@@ -1,5 +1,5 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
@@ -168,7 +168,6 @@ function renderLogPanel() {
     }
     
     let html = '';
-    // Показываем последние 30 записей (или все, если меньше)
     const logsToShow = actionLog.slice(-30);
     for (const entry of logsToShow) {
         html += `
@@ -179,7 +178,6 @@ function renderLogPanel() {
         `;
     }
     container.innerHTML = html;
-    // Прокручиваем вниз
     container.scrollTop = container.scrollHeight;
 }
 
@@ -208,6 +206,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLogPanel();
     });
     
+    // Подписываемся на обновление опыта (перерисовываем UI)
+    setExpUpdateCallback(() => {
+        updateUI(); // updateUI уже обновляет отображение уровня и опыта
+    });
+    
     function afterLogin() {
         renderItemsTab();
         renderEquipmentTab();
@@ -216,8 +219,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLocation(currentLocation);
         updateTimeWeatherUI();
         startTimeWeatherUpdates();
-        renderLogPanel(); // отображаем лог после загрузки
-        hideSplash(); // Сплеш скрывается только после полной загрузки
+        renderLogPanel();
+        updateUI(); // обновляем UI опыта после загрузки
+        hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) {
             startMusic();
         }
@@ -225,10 +229,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
     
-    // Подписываемся на изменение локации
     setLocationChangeCallback(onLocationChanged);
     
-    // Обработчики кнопок
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const inventoryBtn = document.getElementById('inventoryBtn');
@@ -321,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Закрытие модальных окон
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', (e) => {
             playClick();
