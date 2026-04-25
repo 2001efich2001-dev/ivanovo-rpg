@@ -98,6 +98,7 @@ body {
     margin-top: 10px;
     font-size: 0.85rem;
 }
+
 /* Splash screen */
 #splash {
     position: fixed;
@@ -110,7 +111,7 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 10001;  /* больше, чем у модалок (10000) */
+    z-index: 10001;
     transition: opacity 0.3s ease;
 }
 #splash img {
@@ -122,7 +123,7 @@ body {
 .splash-text {
     margin-top: 20px;
     padding: 10px 24px;
-    background: rgba(0, 0, 0, 0.8); /* чёрный полупрозрачный фон */
+    background: rgba(0, 0, 0, 0.8);
     color: #ffffff;
     font-size: 1.2rem;
     font-weight: bold;
@@ -130,7 +131,6 @@ body {
     letter-spacing: 1px;
     backdrop-filter: blur(4px);
     box-shadow: 0 0 10px rgba(0,0,0,0.5);
-    /* Лёгкая анимация пульсации (опционально) */
     animation: pulse 1.5s infinite;
 }
 @keyframes pulse {
@@ -138,7 +138,8 @@ body {
     50% { opacity: 1; transform: scale(1.02); }
     100% { opacity: 0.7; transform: scale(1); }
 }
-/* Игровой контейнер – двухколоночная сетка */
+
+/* Игровой контейнер – две колонки */
 .game-container {
     background: var(--container-bg);
     backdrop-filter: blur(4px);
@@ -148,11 +149,11 @@ body {
     max-width: 1100px;
     display: flex;
     flex-direction: row;
-    flex-wrap: nowrap;
     gap: 24px;
     padding: 24px;
     display: none; /* скрыт пока не войдём */
 }
+
 /* Левая колонка (локация) */
 .game-left {
     flex: 2;
@@ -161,20 +162,70 @@ body {
     background: var(--stat-bg);
     border-radius: 48px;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
     aspect-ratio: 4 / 3;
 }
-.avatar-gif {
+
+/* Контейнер для фона локации */
+.location-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    max-width: 300px;
-    height: auto;
-    border-radius: 32px;
-    background: var(--stat-bg);
-    border: 3px solid var(--accent-gold);
-    object-fit: contain;
+    height: 100%;
+    z-index: 0;
 }
+.location-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Название локации */
+.location-name {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    z-index: 2;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    padding: 10px;
+    border-radius: 60px;
+    color: var(--accent-gold);
+}
+
+/* Контейнер для кликабельных зон (SVG) */
+.location-zones {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 3;
+    pointer-events: none;
+}
+.location-zones svg {
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.location-zones circle {
+    pointer-events: visible;
+    cursor: pointer;
+    transition: fill 0.1s, stroke 0.1s;
+    fill: rgba(0, 200, 0, 0.3);
+    stroke: rgba(0, 200, 0, 0.7);
+    stroke-width: 2;
+}
+.location-zones circle:hover {
+    fill: rgba(0, 200, 0, 0.6);
+    stroke: rgba(0, 200, 0, 1);
+}
+
 /* Правая колонка (персонаж) */
 .game-right {
     flex: 1.2;
@@ -190,6 +241,16 @@ body {
     background: var(--panel-bg);
     padding: 8px;
     border-radius: 60px;
+}
+.avatar-gif {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    border-radius: 32px;
+    background: var(--stat-bg);
+    border: 3px solid var(--accent-gold);
+    object-fit: contain;
+    align-self: center;
 }
 .stats-panel {
     background: var(--panel-bg);
@@ -269,7 +330,7 @@ body {
     margin-top: 8px;
 }
 
-/* Модальные окна (без изменений) */
+/* Модальные окна */
 .modal {
     display: none;
     position: fixed;
@@ -437,91 +498,7 @@ body {
     font-weight: bold;
 }
 
-/* ===== Стили для левой колонки (локация) ===== */
-.game-left {
-    flex: 2;
-    min-width: 260px;
-    position: relative;
-    background: var(--stat-bg);
-    border-radius: 48px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    aspect-ratio: 4 / 3; /* фиксируем пропорции, чтобы блок был красивым */
-}
-
-/* Контейнер для фона локации */
-.location-bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-}
-.location-bg img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-/* Название локации (плашка сверху) */
-.location-name {
-    position: relative;
-    z-index: 2;
-    text-align: center;
-    font-size: 1.6rem;
-    font-weight: bold;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    padding: 12px;
-    margin: 16px 16px 0 16px;
-    border-radius: 60px;
-    color: var(--accent-gold);
-}
-
-/* Контейнер для кликабельных зон (SVG) */
-.location-zones {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 3;
-    pointer-events: none;
-}
-.location-zones svg {
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-.location-zones circle {
-    pointer-events: visible;
-    cursor: pointer;
-    transition: fill 0.1s, stroke 0.1s;
-    fill: rgba(0, 200, 0, 0.3);
-    stroke: rgba(0, 200, 0, 0.7);
-    stroke-width: 2;
-}
-.location-zones circle:hover {
-    fill: rgba(0, 200, 0, 0.6);
-    stroke: rgba(0, 200, 0, 1);
-}
-
 /* Адаптация для мобильных */
-@media (max-width: 768px) {
-    .game-left {
-        aspect-ratio: 16 / 9;
-    }
-    .location-name {
-        font-size: 1.2rem;
-        padding: 8px;
-        margin: 8px 8px 0 8px;
-    }
-}
-
 @media (max-width: 768px) {
     .game-container {
         flex-direction: column;
@@ -529,6 +506,7 @@ body {
     }
     .game-left {
         width: 100%;
+        aspect-ratio: 16 / 9;
     }
     .avatar-gif {
         max-width: 200px;
