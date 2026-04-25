@@ -9,10 +9,10 @@
 <body>
 
     <!-- Splash screen -->
-<div id="splash">
-    <img src="splash.png" alt="Загрузка игры">
-    <div class="splash-text">Загрузка...</div>
-</div>
+    <div id="splash">
+        <img src="splash.png" alt="Загрузка игры">
+        <div class="splash-text">Загрузка...</div>
+    </div>
 
     <!-- Блок авторизации (пока пользователь не вошёл) -->
     <div id="authContainer" class="auth-container">
@@ -36,13 +36,20 @@
 
     <!-- Игровой контейнер (две колонки) -->
     <div id="gameContainer" class="game-container">
-        <!-- Левая колонка: анимация персонажа -->
-        <div class="game-left">
-            <img class="avatar-gif" id="avatarGif" src="hero.gif" alt="Персонаж">
+        <!-- Левая колонка: отображение текущей локации -->
+        <div class="game-left" id="locationContainer">
+            <div class="location-bg" id="locationBg">
+                <img id="locationBgImg" src="images/church_bg.jpg" alt="Фон локации">
+            </div>
+            <div class="location-name" id="locationName">Церковь</div>
+            <div class="location-zones" id="locationZones">
+                <!-- Сюда будут динамически добавляться кликабельные зоны (кружки) -->
+            </div>
         </div>
 
-        <!-- Правая колонка: статистика и действия -->
+        <!-- Правая колонка: персонаж и управление -->
         <div class="game-right">
+            <img class="avatar-gif" id="avatarGif" src="hero.gif" alt="Персонаж">
             <div id="playerNick" class="player-nick">Игрок</div>
 
             <div class="stats-panel">
@@ -70,11 +77,11 @@
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
             </div>
-            <footer class="game-footer">Иваново · Версия 0.0.8</footer>
+            <footer class="game-footer">Иваново · Версия 0.0.9</footer>
         </div>
     </div>
 
-    <!-- Модальные окна (без изменений) -->
+    <!-- Модальные окна -->
     <div id="inventoryModal" class="modal">
         <div class="modal-content">
             <div class="modal-header" style="display:flex; gap:16px; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
@@ -101,7 +108,7 @@
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG · Иваново · Альфа 0.0.8</p>
+        <p>RPG · Иваново · Альфа 0.0.9</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
