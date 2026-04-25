@@ -79,20 +79,20 @@ export const locationsDB = {
             { id: "get_food", name: "Попросить еду", desc: "Дадут хлеб", effect: { items: ["bread"] }, risk: 0 }
         ]
     },
-    bar: {
-        id: "bar",
-        name: "Бар",
-        description: "Можно выпить, подраться или найти работу.",
-        bgImage: "images/bar_bg.jpg",
-        zones: [
-            { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, -40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
-            { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" }
-        ],
-        actions: [
-            { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, деньги -40", effect: { health: 10, hunger: -5, money: -40 }, risk: 0 },
-            { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
-        ]
-    }
+  bar: {
+    id: "bar",
+    name: "Бар",
+    description: "Можно выпить, подраться или найти работу.",
+    bgImage: "images/bar_bg.jpg",
+    zones: [
+        { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
+        { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" }
+    ],
+    actions: [
+        { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, стоит 40₽", effect: { health: 10, hunger: -5 }, cost: 40, risk: 0 },
+        { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
+    ]
+}
 };
 
 // Функция для отрисовки локации на главном экране
