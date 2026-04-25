@@ -71,6 +71,15 @@
                 <div class="money">💰 Деньги: <span id="moneyValue">500</span> ₽</div>
             </div>
 
+            <!-- Блок опыта и уровня -->
+            <div class="exp-panel">
+                <div class="exp-header">⭐ Уровень <span id="levelValue">1</span></div>
+                <div class="exp-bar">
+                    <div class="exp-fill" id="expFill" style="width: 0%"></div>
+                </div>
+                <div class="exp-text"><span id="expValue">0</span> / <span id="expRequired">100</span> опыта</div>
+            </div>
+
             <!-- Лог действий -->
             <div class="log-container">
                 <div class="log-header">📋 История действий</div>
@@ -87,7 +96,7 @@
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
             </div>
-            <footer class="game-footer">Иваново · Версия 0.0.12</footer>
+            <footer class="game-footer">Иваново · Версия 0.0.13</footer>
         </div>
     </div>
 
@@ -131,7 +140,7 @@
 
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG-Иваново · Альфа 0.0.13 · Добавлено логирование событий</p>
+        <p>RPG-Иваново · Альфа 0.0.13 · Система опыта и уровней</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
