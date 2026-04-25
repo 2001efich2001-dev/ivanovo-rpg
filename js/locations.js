@@ -120,15 +120,15 @@ export function renderLocation(locationId) {
     
     // Создаём SVG с кругами
     const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
-    svg.setAttribute("viewBox", "0 0 800 600");
-    svg.setAttribute("preserveAspectRatio", "none");
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    svg.style.position = "absolute";
-    svg.style.top = "0";
-    svg.style.left = "0";
-    svg.style.pointerEvents = "none";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+svg.setAttribute("viewBox", "0 0 800 600");
+svg.setAttribute("preserveAspectRatio", "xMidYMid meet"); // ← важно!
+svg.style.width = "100%";
+svg.style.height = "100%";
+svg.style.position = "absolute";
+svg.style.top = "0";
+svg.style.left = "0";
+svg.style.pointerEvents = "none";
     
     loc.zones.forEach(zone => {
         const circle = document.createElementNS(svgNS, "circle");
