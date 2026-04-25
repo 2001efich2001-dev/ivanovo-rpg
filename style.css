@@ -524,7 +524,47 @@ body {
 #particlesCanvas {
     z-index: 5;
 }
+/* ===== ЕДИНЫЙ ФОН ДЛЯ ЛЕВОЙ КОЛОНКИ И АВАТАРА ===== */
+.game-left {
+    position: relative;
+    z-index: 1;
+}
 
+.avatar-gif {
+    position: relative;
+    z-index: 1;
+    /* Убедимся, что у гифки нет своего фона */
+    background: transparent !important;
+}
+
+/* Общий слой с фоном локации для левой колонки и аватара */
+.game-left::before,
+.avatar-gif::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: -1;
+    border-radius: inherit;
+}
+
+.game-left::before {
+    border-radius: 48px; /* такой же, как у .game-left */
+}
+
+.avatar-gif::before {
+    border-radius: 32px; /* такой же, как у .avatar-gif */
+}
+
+/* Скрываем старый фоновый слой в левой колонке */
+.location-bg {
+    display: none;
+}
 /* Убеждаемся, что кликабельные зоны поверх слоя затемнения */
 .location-zones {
     z-index: 6 !important;
