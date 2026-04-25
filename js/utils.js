@@ -1,4 +1,6 @@
 // js/utils.js
+import { addLogEntry } from './gameState.js';
+
 export function showMessage(text, bgColor = '#4caf50') {
     const msg = document.createElement('div');
     msg.innerText = text;
@@ -14,4 +16,9 @@ export function showMessage(text, bgColor = '#4caf50') {
     msg.style.zIndex = '9999';
     document.body.appendChild(msg);
     setTimeout(() => msg.remove(), 2000);
+}
+
+// Удобная функция для добавления записей в лог действий
+export function logAction(message, type = 'system') {
+    addLogEntry(message, type);
 }
