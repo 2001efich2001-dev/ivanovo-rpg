@@ -496,6 +496,18 @@ body {
     white-space: nowrap;
     font-weight: bold;
 }
+/* Блок времени и погоды */
+.time-weather {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: bold;
+    background: var(--stat-bg);
+    padding: 8px 12px;
+    border-radius: 60px;
+    margin: 8px 0;
+    color: var(--accent-gold);
+    letter-spacing: 1px;
+}
 
 /* ========== ГОРИЗОНТАЛЬНОЕ РАСПОЛОЖЕНИЕ (ДЛЯ ДЕСКТОПА) ========== */
 @media (min-width: 769px) {
