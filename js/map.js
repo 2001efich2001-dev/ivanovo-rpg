@@ -17,7 +17,7 @@ export function renderInteractiveMap() {
     container.innerHTML = `
         <div style="position: relative; display: inline-block; width: 100%;">
             <img src="map.png" alt="Карта Иваново" class="map-image" style="width:100%; height:auto;">
-            <svg class="map-overlay" viewBox="0 0 800 600" preserveAspectRatio="none" style="position: absolute; top:0; left:0; width:100%; height:100%;">
+            <svg class="map-overlay" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" style="position: absolute; top:0; left:0; width:100%; height:100%;">
                 ${zones.map(z => `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" data-location="${z.id}" data-name="${z.name}" fill="rgba(0,200,0,0.25)" stroke="rgba(0,200,0,0.6)" stroke-width="2" />`).join('')}
             </svg>
         </div>
@@ -46,14 +46,9 @@ export function renderInteractiveMap() {
         
         circle.addEventListener('click', async () => {
             if (locationId) {
-                // Воспроизводим звук клика (если глобальная функция есть)
                 if (typeof window.playClickSound === 'function') window.playClickSound();
-                
-                // Закрываем модальное окно карты
                 const mapModal = document.getElementById('mapModal');
                 if (mapModal) mapModal.style.display = 'none';
-                
-                // Меняем текущую локацию
                 setCurrentLocation(locationId);
                 showMessage(`📍 Вы перешли в локацию "${name}"`, '#4caf50');
             } else {
