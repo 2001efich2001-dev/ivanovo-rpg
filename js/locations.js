@@ -3,6 +3,10 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
 
+// Локальный вызов звука (через глобальную функцию из main.js)
+function playClick() {
+    if (typeof window.playClickSound === 'function') window.playClickSound();
+}
 
 export const locationsDB = {
     railway: {
@@ -49,8 +53,7 @@ export const locationsDB = {
 };
 
 async function executeAction(locationId, action) {
-    // в начале функции executeAction:
-    playClick();
+    playClick(); // звук при действии
     let success = true;
     let msg = "";
     if (action.needsItem) {
