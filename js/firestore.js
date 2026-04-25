@@ -1,5 +1,5 @@
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { health, hunger, cold, money, inventory, equipped, setStats, updateUI } from './gameState.js';
+import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather } from './gameState.js';
 import { showMessage } from './utils.js';
 
 let db = null;
@@ -14,6 +14,9 @@ export async function saveGameData() {
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
         health, hunger, cold, money, inventory, equipped,
+        accumulatedMinutes,
+        currentWeather,
+        currentTemperature,
         lastUpdated: new Date().toISOString()
     }, { merge: true });
     console.log("Данные сохранены");
@@ -29,6 +32,13 @@ export async function loadGameData(userId) {
         inventory.length = 0;
         inventory.push(...(data.inventory ?? []));
         Object.assign(equipped, data.equipped ?? { head: null, body: null, legs: null, feet: null });
+        
+        // Загружаем время и погоду
+        const minutes = data.accumulatedMinutes ?? 0;
+        const weather = data.currentWeather ?? 'sunny';
+        const temp = data.currentTemperature ?? 15;
+        setTimeWeather(minutes, weather, temp);
+        
         updateUI();
         console.log("Данные загружены");
     } else {
@@ -38,6 +48,8 @@ export async function loadGameData(userId) {
             { id: "medkit", count: 1 }, { id: "ushanka", count: 1 }, { id: "puhovik", count: 1 }
         );
         Object.assign(equipped, { head: null, body: null, legs: null, feet: null });
+        // Начальное время и погода (12:00, солнечно, +15°)
+        setTimeWeather(720, 'sunny', 15); // 12:00 = 720 минут
         updateUI();
         await saveGameData();
         showMessage('Новый аккаунт создан', '#4caf50');
