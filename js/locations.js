@@ -109,10 +109,8 @@ export function renderLocation(locationId) {
     // Удаляем старые слои погоды
     removeWeatherLayers();
     
-    const bgImg = document.getElementById('locationBgImg');
-    if (bgImg) {
-        bgImg.src = loc.bgImage || 'images/default_bg.jpg';
-    }
+    const bgUrl = loc.bgImage || 'images/default_bg.jpg';
+document.documentElement.style.setProperty('--location-bg', `url(${bgUrl})`);
     
     const locName = document.getElementById('locationName');
     if (locName) {
