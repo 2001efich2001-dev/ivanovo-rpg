@@ -1,10 +1,10 @@
-import { openLocationModal } from './locations.js';
+import { setCurrentLocation } from './gameState.js';
 import { showMessage } from './utils.js';
-
 
 export function renderInteractiveMap() {
     const container = document.getElementById('mapContainer');
     if (!container) return;
+    
     const zones = [
         { id: "railway", name: "Вокзал", cx: 125, cy: 100, r: 45 },
         { id: "market", name: "Рынок", cx: 375, cy: 100, r: 50 },
@@ -13,6 +13,7 @@ export function renderInteractiveMap() {
         { id: "church", name: "Церковь", cx: 395, cy: 360, r: 48 },
         { id: "bar", name: "Бар", cx: 655, cy: 375, r: 45 }
     ];
+    
     container.innerHTML = `
         <div style="position: relative; display: inline-block; width: 100%;">
             <img src="map.png" alt="Карта Иваново" class="map-image" style="width:100%; height:auto;">
@@ -21,12 +22,16 @@ export function renderInteractiveMap() {
             </svg>
         </div>
     `;
+    
     const tooltip = document.createElement('div');
     tooltip.className = 'location-tooltip';
     document.body.appendChild(tooltip);
+    
     const circles = document.querySelectorAll('.map-overlay circle');
     circles.forEach(circle => {
         const name = circle.getAttribute('data-name');
+        const locationId = circle.getAttribute('data-location');
+        
         circle.addEventListener('mouseenter', (e) => {
             tooltip.textContent = name;
             tooltip.style.display = 'block';
@@ -35,11 +40,25 @@ export function renderInteractiveMap() {
             tooltip.style.left = e.clientX + 15 + 'px';
             tooltip.style.top = e.clientY - 30 + 'px';
         });
-        circle.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
-        circle.addEventListener('click', () => {
-            const locId = circle.getAttribute('data-location');
-            if (locId) openLocationModal(locId);
-            else showMessage("Локация не добавлена", "#f0ad4e");
+        circle.addEventListener('mouseleave', () => { 
+            tooltip.style.display = 'none'; 
+        });
+        
+        circle.addEventListener('click', async () => {
+            if (locationId) {
+                // Воспроизводим звук клика (если глобальная функция есть)
+                if (typeof window.playClickSound === 'function') window.playClickSound();
+                
+                // Закрываем модальное окно карты
+                const mapModal = document.getElementById('mapModal');
+                if (mapModal) mapModal.style.display = 'none';
+                
+                // Меняем текущую локацию
+                setCurrentLocation(locationId);
+                showMessage(`📍 Вы перешли в локацию "${name}"`, '#4caf50');
+            } else {
+                showMessage("Локация не добавлена", "#f0ad4e");
+            }
         });
     });
 }
