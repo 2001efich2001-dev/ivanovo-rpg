@@ -4,6 +4,7 @@ import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
+import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -171,6 +172,10 @@ document.addEventListener('DOMContentLoaded', () => {
         initInventoryTabs();
         // Отрисовываем стартовую локацию (церковь)
         renderLocation(currentLocation);
+        // Обновляем отображение времени и погоды
+        updateTimeWeatherUI();
+        // Запускаем обновления времени и погоды
+        startTimeWeatherUpdates();
         hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) {
             startMusic();
@@ -255,6 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
         logoutMenuBtn.addEventListener('click', async () => {
             playClick();
             await auth.signOut();
+            // Останавливаем обновления времени и погоды
+            stopTimeWeatherUpdates();
             hideSplash();
         });
     }
