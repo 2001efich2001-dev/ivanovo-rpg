@@ -2,6 +2,7 @@ import { inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, 
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
+import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
 function playClick() {
@@ -102,6 +103,12 @@ export function renderLocation(locationId) {
         return;
     }
     
+    const locationContainer = document.getElementById('locationContainer');
+    if (!locationContainer) return;
+    
+    // Удаляем старые слои погоды
+    removeWeatherLayers();
+    
     const bgImg = document.getElementById('locationBgImg');
     if (bgImg) {
         bgImg.src = loc.bgImage || 'images/default_bg.jpg';
@@ -170,6 +177,13 @@ export function renderLocation(locationId) {
     
     zonesContainer.innerHTML = '';
     zonesContainer.appendChild(svg);
+    
+    // Создаём слои для погодных эффектов
+    createWeatherLayers(locationContainer);
+    
+    // Обновляем затемнение и погодные эффекты
+    updateDarkness();
+    updateWeatherEffects();
 }
 
 // Всплывающая подсказка
