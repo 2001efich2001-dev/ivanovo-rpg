@@ -1,4 +1,4 @@
-import { money, inventory } from './gameState.js';
+import { money, inventory, health, hunger, cold, setStats } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
@@ -12,7 +12,7 @@ function getSellPrice(itemId) {
 
 // Рендер вкладки "Купить"
 export function renderShopBuyTab() {
-    const container = document.getElementById('shopItemsList');
+    const container = document.getElementById('shopBuyTab');
     if (!container) return;
     
     const items = Object.values(itemsDB).filter(item => item.price > 0);
@@ -41,7 +41,7 @@ export function renderShopBuyTab() {
 
 // Рендер вкладки "Продать" (только предметы, которые есть в инвентаре)
 export function renderShopSellTab() {
-    const container = document.getElementById('shopSellList');
+    const container = document.getElementById('shopSellTab');
     if (!container) return;
     
     const sellable = inventory.filter(item => {
@@ -85,7 +85,6 @@ async function buyItem(itemId) {
     if (!item) return;
     
     if (money >= item.price) {
-        // Списываем деньги
         const newMoney = money - item.price;
         const idx = inventory.findIndex(i => i.id === itemId);
         if (idx !== -1) {
@@ -93,17 +92,13 @@ async function buyItem(itemId) {
         } else {
             inventory.push({ id: itemId, count: 1 });
         }
-        // Используем глобальную функцию setStats, но она не импортирована – сделаем прямое изменение
-        // Для чистоты импортируем setStats из gameState (добавим в импорты)
-        // Пока сделаем так:
-        const { setStats } = await import('./gameState.js');
         setStats(health, hunger, cold, newMoney);
         await saveGameData();
-        showMessage(`Куплено: ${item.name}`, '#4caf50');
+        showMessage(`✅ Куплено: ${item.name}`, '#4caf50');
         // Обновляем вкладку продажи (так как инвентарь изменился)
         renderShopSellTab();
     } else {
-        showMessage(`Не хватает денег! Нужно ${item.price}₽`, '#e74c3c');
+        showMessage(`❌ Не хватает денег! Нужно ${item.price}₽`, '#e74c3c');
     }
 }
 
@@ -125,9 +120,8 @@ async function sellItem(itemId) {
         inventory[idx].count--;
     }
     
-    const { setStats } = await import('./gameState.js');
     setStats(health, hunger, cold, newMoney);
     await saveGameData();
-    showMessage(`Продано: ${item.name} за ${sellPrice}₽`, '#4caf50');
+    showMessage(`💰 Продано: ${item.name} за ${sellPrice}₽`, '#4caf50');
     renderShopSellTab(); // обновляем список продажи
 }
