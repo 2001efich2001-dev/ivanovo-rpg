@@ -145,39 +145,81 @@ body {
     backdrop-filter: blur(4px);
     border-radius: 64px;
     box-shadow: 0 25px 45px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-    width: 95%;                 /* ширина 95% от родителя */
-    max-width: 1600px;          /* но не больше 1600px на огромных экранах */
+    width: 95%;
+    max-width: 1600px;
     display: none;
     gap: 24px;
     padding: 24px;
-    margin: 0 auto;             /* центрирование */
+    margin: 0 auto;
 }
 
 /* Левая колонка (локация) */
 .game-left {
     flex: 2;
-    min-width: 300px;           /* минимальная ширина, чтобы не сжималась слишком */
+    min-width: 300px;
     position: relative;
-    background: var(--stat-bg);
+    background: transparent;
     border-radius: 48px;
     overflow: hidden;
-    aspect-ratio: 4 / 3;        /* высота автоматически подстроится */
+    aspect-ratio: 4 / 3;
 }
 
-/* Контейнер для фона локации */
-.location-bg {
+/* Правая колонка (персонаж) */
+.game-right {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.player-nick {
+    font-size: 1.4rem;
+    font-weight: bold;
+    text-align: center;
+    background: var(--panel-bg);
+    padding: 8px;
+    border-radius: 60px;
+}
+.avatar-gif {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    border-radius: 32px;
+    background: transparent !important;
+    border: 3px solid var(--accent-gold);
+    object-fit: contain;
+    align-self: center;
+    position: relative;
+}
+
+/* Единый фон через псевдоэлементы */
+.game-left::before,
+.avatar-gif::before {
+    content: '';
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 0;
+    background-image: var(--location-bg, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: -1;
+    border-radius: inherit;
 }
-.location-bg img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+
+.game-left::before {
+    border-radius: 48px;
+}
+
+.avatar-gif::before {
+    border-radius: 32px;
+}
+
+/* Скрываем старый фоновый слой в левой колонке */
+.location-bg {
+    display: none;
 }
 
 /* Название локации */
@@ -225,32 +267,7 @@ body {
     stroke: rgba(0, 200, 0, 1);
 }
 
-/* Правая колонка (персонаж) */
-.game-right {
-    flex: 1;
-    min-width: 280px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-.player-nick {
-    font-size: 1.4rem;
-    font-weight: bold;
-    text-align: center;
-    background: var(--panel-bg);
-    padding: 8px;
-    border-radius: 60px;
-}
-.avatar-gif {
-    width: 100%;
-    max-width: 300px;
-    height: auto;
-    border-radius: 32px;
-    background: transparent; /* ← вместо var(--stat-bg) */
-    border: 3px solid var(--accent-gold);
-    object-fit: contain;
-    align-self: center;
-}
+/* Статистика */
 .stats-panel {
     background: var(--panel-bg);
     border-radius: 48px;
@@ -289,6 +306,8 @@ body {
     font-weight: bold;
     margin-top: 16px;
 }
+
+/* Кнопки */
 .action-buttons {
     display: flex;
     gap: 12px;
@@ -496,6 +515,7 @@ body {
     white-space: nowrap;
     font-weight: bold;
 }
+
 /* Блок времени и погоды */
 .time-weather {
     text-align: center;
@@ -520,86 +540,14 @@ body {
     pointer-events: none;
     z-index: 4;
 }
-
 #particlesCanvas {
     z-index: 5;
 }
-/* ===== ЕДИНЫЙ ФОН ДЛЯ ЛЕВОЙ КОЛОНКИ И АВАТАРА ===== */
-.game-left {
-    position: relative;
-    background: transparent;
-}
-
-.avatar-gif {
-    position: relative;
-    background: transparent !important;
-}
-
-/* Общий слой с фоном локации для левой колонки и аватара */
-.game-left::before,
-.avatar-gif::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: var(--location-bg, none);
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    z-index: -1;
-    border-radius: inherit;
-}
-
-.game-left::before {
-    border-radius: 48px;
-}
-
-.avatar-gif::before {
-    border-radius: 32px;
-}
-
-/* Скрываем старый фоновый слой в левой колонке */
-.location-bg {
-    display: none;
-}
-
-/* Убеждаемся, что кликабельные зоны поверх слоя затемнения */
 .location-zones {
     z-index: 6 !important;
 }
-/* Принудительно убираем фоны у аватара */
-.avatar-gif,
-.avatar-gif *,
-.avatar-gif::before,
-.avatar-gif::after {
-    background: transparent !important;
-    background-color: transparent !important;
-    background-image: none !important;
-}
 
-/* Фоновый слой через псевдоэлемент (должен быть виден) */
-.avatar-gif {
-    position: relative;
-    background: transparent !important;
-}
-.avatar-gif::before {
-    content: '' !important;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: var(--location-bg) !important;
-    background-size: cover !important;
-    background-position: center !important;
-    z-index: -1 !important;
-    border-radius: 32px;
-    display: block !important;
-}
-
-/* ========== ГОРИЗОНТАЛЬНОЕ РАСПОЛОЖЕНИЕ (ДЛЯ ДЕСКТОПА) ========== */
+/* ========== ГОРИЗОНТАЛЬНОЕ РАСПОЛОЖЕНИЕ ========== */
 @media (min-width: 769px) {
     .game-container {
         display: flex !important;
@@ -615,8 +563,6 @@ body {
         width: auto !important;
     }
 }
-
-/* Адаптация для мобильных (уже работает) */
 @media (max-width: 768px) {
     .game-container {
         flex-direction: column;
@@ -639,15 +585,12 @@ body {
     .item-info { justify-content: center; }
     .slot { flex-direction: column; text-align: center; gap: 10px; }
 }
-/* Для очень больших экранов (ультраширокие) */
 @media (min-width: 2000px) {
     .game-container {
         width: 80%;
         max-width: 1800px;
     }
 }
-
-/* Для средних экранов (ноутбуки) */
 @media (max-width: 1200px) {
     .game-container {
         width: 98%;
@@ -659,18 +602,5 @@ body {
         top: 8px;
         left: 8px;
         right: 8px;
-    }
-}
-
-/* Для планшетов и телефонов (уже есть) */
-@media (max-width: 768px) {
-    .game-container {
-        flex-direction: column;
-        width: 100%;
-        padding: 12px;
-    }
-    .game-left {
-        width: 100%;
-        aspect-ratio: 16 / 9;
     }
 }
