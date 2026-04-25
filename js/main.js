@@ -5,6 +5,7 @@ import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './i
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
+import { stopWeatherEffects } from './weatherEffects.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -259,9 +260,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutMenuBtn) {
         logoutMenuBtn.addEventListener('click', async () => {
             playClick();
-            await auth.signOut();
+            // Останавливаем анимацию погодных эффектов
+            stopWeatherEffects();
             // Останавливаем обновления времени и погоды
             stopTimeWeatherUpdates();
+            await auth.signOut();
             hideSplash();
         });
     }
