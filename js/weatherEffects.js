@@ -1,4 +1,5 @@
 // js/weatherEffects.js
+
 import { accumulatedMinutes, currentWeather } from './gameState.js';
 
 let darkOverlay = null;
