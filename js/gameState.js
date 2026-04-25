@@ -1,4 +1,4 @@
-//  js/gameState.js
+// js/gameState.js
 export let health = 100;
 export let maxHealth = 100;
 export let hunger = 100;
@@ -10,8 +10,14 @@ export let money = 500;
 export let inventory = [];
 export let equipped = { head: null, body: null, legs: null, feet: null };
 
+// Текущая локация (по умолчанию 'church' — церковь)
+export let currentLocation = 'church';
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
+
+// Колбэк, который будет вызываться при смене локации (устанавливается из main.js)
+let onLocationChangeCallback = null;
 
 export function initDOM() {
     healthValueSpan = document.getElementById('healthValue');
@@ -39,4 +45,19 @@ export function setStats(h, hu, c, m) {
     cold = c;
     money = m;
     updateUI();
+}
+
+// Установка колбэка для смены локации
+export function setLocationChangeCallback(callback) {
+    onLocationChangeCallback = callback;
+}
+
+// Смена текущей локации
+export function setCurrentLocation(locationId) {
+    if (currentLocation === locationId) return;
+    currentLocation = locationId;
+    // Вызываем колбэк, если он установлен
+    if (onLocationChangeCallback) {
+        onLocationChangeCallback(currentLocation);
+    }
 }
