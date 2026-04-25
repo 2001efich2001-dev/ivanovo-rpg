@@ -1,7 +1,7 @@
 import { money, inventory, health, hunger, cold, setStats } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
-import { showMessage } from './utils.js';
+import { showMessage, logAction } from './utils.js';
 
 // Цены продажи (50% от цены покупки, но не менее 1)
 function getSellPrice(itemId) {
@@ -95,6 +95,7 @@ async function buyItem(itemId) {
         setStats(health, hunger, cold, newMoney);
         await saveGameData();
         showMessage(`✅ Куплено: ${item.name}`, '#4caf50');
+        logAction(`Куплен предмет: ${item.name} за ${item.price}₽`, 'economy');
         // Обновляем вкладку продажи (так как инвентарь изменился)
         renderShopSellTab();
     } else {
@@ -123,5 +124,6 @@ async function sellItem(itemId) {
     setStats(health, hunger, cold, newMoney);
     await saveGameData();
     showMessage(`💰 Продано: ${item.name} за ${sellPrice}₽`, '#4caf50');
+    logAction(`Продан предмет: ${item.name} за ${sellPrice}₽`, 'economy');
     renderShopSellTab(); // обновляем список продажи
 }
