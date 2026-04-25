@@ -25,28 +25,36 @@ function calculateTemperature(weather, totalMinutes) {
     // Базовая температура -5..+25 в зависимости от времени суток
     let baseTemp;
     if (hours >= 10 && hours <= 16) {
-        baseTemp = 20 + Math.random() * 5;     // днём теплее
+        baseTemp = 15 + Math.random() * 10;     // днём теплее, 15-25
     } else if (hours >= 22 || hours <= 4) {
-        baseTemp = -5 + Math.random() * 5;     // ночью холоднее
+        baseTemp = -8 + Math.random() * 8;       // ночью холоднее, -8..0
     } else {
-        baseTemp = 5 + Math.random() * 10;     // утром/вечером средняя
+        baseTemp = 0 + Math.random() * 12;       // утром/вечером 0..12
     }
     
     // Корректировка от погоды
     switch (weather) {
-        case 'cloudy': baseTemp -= 2; break;
-        case 'rain': baseTemp -= 4; break;
+        case 'cloudy': baseTemp -= 3; break;
+        case 'rain': baseTemp -= 2; break;
         case 'snow': baseTemp -= 8; break;
         default: break;
     }
     
-    // Ночью снег может опускать температуру ниже 0
-    if (weather === 'snow' && (hours >= 22 || hours <= 4)) {
-        baseTemp -= 3;
+    // Жёсткие ограничения на основе типа погоды
+    if (weather === 'snow' && baseTemp > 1) {
+        baseTemp = 0; // если снег, температура не выше 0
+    }
+    if (weather === 'rain' && baseTemp < 0) {
+        baseTemp = 1; // дождь не может быть при отрицательной температуре
     }
     
-    // Ограничиваем диапазон -10..+30
-    return Math.round(Math.min(30, Math.max(-10, baseTemp)));
+    // Ночью снег может опускать температуру ниже 0
+    if (weather === 'snow' && (hours >= 22 || hours <= 4)) {
+        baseTemp = Math.min(baseTemp, -3);
+    }
+    
+    // Ограничиваем диапазон -15..+28
+    return Math.round(Math.min(28, Math.max(-15, baseTemp)));
 }
 
 // Обновление времени и погоды
