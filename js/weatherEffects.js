@@ -18,10 +18,12 @@ function resizeCanvas() {
     }
 }
 
-// Создание слоёв (вызывается из renderLocation)
 export function createWeatherLayers(container) {
     // Удаляем старые, если есть
     removeWeatherLayers();
+    
+    // Сбрасываем тип эффекта, чтобы анимация перезапустилась на новой локации
+    currentEffectType = null;
     
     // Слой затемнения
     darkOverlay = document.createElement('div');
