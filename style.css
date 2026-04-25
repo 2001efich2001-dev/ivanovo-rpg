@@ -569,6 +569,35 @@ body {
 .location-zones {
     z-index: 6 !important;
 }
+/* Принудительно убираем фоны у аватара */
+.avatar-gif,
+.avatar-gif *,
+.avatar-gif::before,
+.avatar-gif::after {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* Фоновый слой через псевдоэлемент (должен быть виден) */
+.avatar-gif {
+    position: relative;
+    background: transparent !important;
+}
+.avatar-gif::before {
+    content: '' !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: var(--location-bg) !important;
+    background-size: cover !important;
+    background-position: center !important;
+    z-index: -1 !important;
+    border-radius: 32px;
+    display: block !important;
+}
 
 /* ========== ГОРИЗОНТАЛЬНОЕ РАСПОЛОЖЕНИЕ (ДЛЯ ДЕСКТОПА) ========== */
 @media (min-width: 769px) {
