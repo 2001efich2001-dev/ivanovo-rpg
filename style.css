@@ -147,17 +147,24 @@ body {
     width: 100%;
     max-width: 1100px;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: row;
+    flex-wrap: nowrap;
     gap: 24px;
     padding: 24px;
     display: none; /* скрыт пока не войдём */
 }
+/* Левая колонка (локация) */
 .game-left {
-    flex: 1;
-    min-width: 200px;
+    flex: 2;
+    min-width: 260px;
+    position: relative;
+    background: var(--stat-bg);
+    border-radius: 48px;
+    overflow: hidden;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    justify-content: space-between;
+    aspect-ratio: 4 / 3;
 }
 .avatar-gif {
     width: 100%;
@@ -168,6 +175,7 @@ body {
     border: 3px solid var(--accent-gold);
     object-fit: contain;
 }
+/* Правая колонка (персонаж) */
 .game-right {
     flex: 1.2;
     min-width: 260px;
