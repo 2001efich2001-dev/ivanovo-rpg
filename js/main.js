@@ -1,11 +1,12 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
+import { logAction } from './utils.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -156,6 +157,42 @@ function onLocationChanged(newLocationId) {
     renderLocation(newLocationId);
 }
 
+// --- Лог действий (отображение) ---
+function renderLogPanel() {
+    const container = document.getElementById('logPanel');
+    if (!container) return;
+    
+    if (actionLog.length === 0) {
+        container.innerHTML = '<div class="log-entry system" style="text-align:center; opacity:0.6;">История действий пуста</div>';
+        return;
+    }
+    
+    let html = '';
+    // Показываем последние 30 записей (или все, если меньше)
+    const logsToShow = actionLog.slice(-30);
+    for (const entry of logsToShow) {
+        html += `
+            <div class="log-entry ${entry.type}">
+                <span class="log-time">[${entry.time}]</span>
+                ${escapeHtml(entry.message)}
+            </div>
+        `;
+    }
+    container.innerHTML = html;
+    // Прокручиваем вниз
+    container.scrollTop = container.scrollHeight;
+}
+
+// Простой escape для защиты от XSS
+function escapeHtml(str) {
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
 // --- Инициализация ---
 document.addEventListener('DOMContentLoaded', () => {
     initDOM();
@@ -166,6 +203,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerFormDiv = document.getElementById('registerForm');
     const playerNickSpan = document.getElementById('playerNick');
     
+    // Подписываемся на обновление лога
+    setLogUpdateCallback(() => {
+        renderLogPanel();
+    });
+    
     function afterLogin() {
         renderItemsTab();
         renderEquipmentTab();
@@ -174,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLocation(currentLocation);
         updateTimeWeatherUI();
         startTimeWeatherUpdates();
+        renderLogPanel(); // отображаем лог после загрузки
         hideSplash(); // Сплеш скрывается только после полной загрузки
         if (isMusicEnabled && bgMusic && bgMusic.paused) {
             startMusic();
@@ -294,9 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeEventListener('click', startMusicOnFirstClick);
     };
     document.body.addEventListener('click', startMusicOnFirstClick);
-    
-    // Убираем принудительное скрытие сплеша через 0.5 секунды
-    // Теперь сплеш скрывается только в afterLogin после загрузки всех данных
     
     updateUI();
 });
