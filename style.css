@@ -429,6 +429,91 @@ body {
     font-weight: bold;
 }
 
+/* ===== Стили для левой колонки (локация) ===== */
+.game-left {
+    flex: 2;
+    min-width: 260px;
+    position: relative;
+    background: var(--stat-bg);
+    border-radius: 48px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    aspect-ratio: 4 / 3; /* фиксируем пропорции, чтобы блок был красивым */
+}
+
+/* Контейнер для фона локации */
+.location-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+.location-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Название локации (плашка сверху) */
+.location-name {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    font-size: 1.6rem;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    padding: 12px;
+    margin: 16px 16px 0 16px;
+    border-radius: 60px;
+    color: var(--accent-gold);
+}
+
+/* Контейнер для кликабельных зон (SVG) */
+.location-zones {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 3;
+    pointer-events: none;
+}
+.location-zones svg {
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.location-zones circle {
+    pointer-events: visible;
+    cursor: pointer;
+    transition: fill 0.1s, stroke 0.1s;
+    fill: rgba(0, 200, 0, 0.3);
+    stroke: rgba(0, 200, 0, 0.7);
+    stroke-width: 2;
+}
+.location-zones circle:hover {
+    fill: rgba(0, 200, 0, 0.6);
+    stroke: rgba(0, 200, 0, 1);
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .game-left {
+        aspect-ratio: 16 / 9;
+    }
+    .location-name {
+        font-size: 1.2rem;
+        padding: 8px;
+        margin: 8px 8px 0 8px;
+    }
+}
+
 @media (max-width: 768px) {
     .game-container {
         flex-direction: column;
