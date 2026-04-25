@@ -522,3 +522,18 @@ body {
     .item-info { justify-content: center; }
     .slot { flex-direction: column; text-align: center; gap: 10px; }
 }
+/* Принудительное горизонтальное расположение на больших экранах */
+@media (min-width: 769px) {
+    .game-container {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+    }
+    .game-left {
+        flex: 2 !important;
+        width: auto !important;
+    }
+    .game-right {
+        flex: 1.2 !important;
+        width: auto !important;
+    }
+}
