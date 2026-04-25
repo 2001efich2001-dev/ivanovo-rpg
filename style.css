@@ -139,7 +139,7 @@ body {
     100% { opacity: 0.7; transform: scale(1); }
 }
 
-/* Игровой контейнер – две колонки */
+/* Игровой контейнер – две колонки горизонтально */
 .game-container {
     background: var(--container-bg);
     backdrop-filter: blur(4px);
@@ -148,10 +148,11 @@ body {
     width: 100%;
     max-width: 1100px;
     display: flex;
-    flex-direction: row;
+    flex-direction: row;      /* <- элементы в строку */
+    flex-wrap: nowrap;        /* <- без переноса */
     gap: 24px;
     padding: 24px;
-    display: none; /* скрыт пока не войдём */
+    display: none;            /* скрыт пока не войдём */
 }
 
 /* Левая колонка (локация) */
