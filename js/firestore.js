@@ -1,5 +1,5 @@
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog } from './gameState.js';
+import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData } from './gameState.js';
 import { showMessage } from './utils.js';
 
 let db = null;
@@ -18,6 +18,8 @@ export async function saveGameData() {
         currentWeather,
         currentTemperature,
         actionLog: getActionLog(),
+        experience,
+        level,
         lastUpdated: new Date().toISOString()
     }, { merge: true });
     console.log("Данные сохранены");
@@ -43,6 +45,9 @@ export async function loadGameData(userId) {
         // Загружаем лог действий
         setActionLog(data.actionLog ?? []);
         
+        // Загружаем опыт и уровень
+        setExpData(data.experience ?? 0, data.level ?? 1);
+        
         updateUI();
         console.log("Данные загружены");
     } else {
@@ -56,6 +61,8 @@ export async function loadGameData(userId) {
         setTimeWeather(720, 'sunny', 15); // 12:00 = 720 минут
         // Начальный лог действий
         setActionLog([]);
+        // Начальный опыт и уровень
+        setExpData(0, 1);
         updateUI();
         await saveGameData();
         showMessage('Новый аккаунт создан', '#4caf50');
