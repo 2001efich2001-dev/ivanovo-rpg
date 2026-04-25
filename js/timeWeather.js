@@ -1,7 +1,7 @@
 // js/timeWeather.js
 import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon } from './gameState.js';
 import { saveGameData } from './firestore.js';
-import { showMessage } from './utils.js';
+import { showMessage, logAction } from './utils.js';
 import { updateDarkness, updateWeatherEffects } from './weatherEffects.js';
 
 // Константы
@@ -103,6 +103,7 @@ export function updateTimeWeather() {
     if (weatherChanged) {
         const weatherNames = { sunny: 'солнечно', cloudy: 'облачно', rain: 'дождь', snow: 'снег' };
         showMessage(`🌦️ Погода изменилась: ${weatherNames[newWeather]}`, '#4caf50');
+        logAction(`Погода изменилась: ${weatherNames[newWeather]} (температура ${newTemp > 0 ? '+' : ''}${newTemp}°)`, 'weather');
     }
     
     throttledSave();
