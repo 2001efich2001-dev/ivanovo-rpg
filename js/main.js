@@ -187,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerBtn = document.getElementById('registerBtn');
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
+    const shopBtn = document.getElementById('shopBtn');
     const logoutMenuBtn = document.getElementById('logoutMenuBtn');
     const themeToggle = document.getElementById('themeToggle');
     const musicToggle = document.getElementById('musicToggle');
@@ -208,6 +209,46 @@ document.addEventListener('DOMContentLoaded', () => {
             playClick();
             renderInteractiveMap();
             document.getElementById('mapModal').style.display = 'flex';
+        });
+    }
+    if (shopBtn) {
+        shopBtn.addEventListener('click', async () => {
+            playClick();
+            // Динамически импортируем модуль магазина
+            const shop = await import('./shop.js');
+            shop.renderShopBuyTab();
+            shop.renderShopSellTab();
+            
+            // Настройка переключения вкладок магазина
+            const modal = document.getElementById('shopModal');
+            const tabs = modal.querySelectorAll('.tab-btn');
+            const buyTab = document.getElementById('shopBuyTab');
+            const sellTab = document.getElementById('shopSellTab');
+            
+            const switchShopTab = (tab) => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                if (tab.dataset.shopTab === 'buy') {
+                    buyTab.style.display = 'flex';
+                    sellTab.style.display = 'none';
+                    shop.renderShopBuyTab();
+                } else {
+                    buyTab.style.display = 'none';
+                    sellTab.style.display = 'flex';
+                    shop.renderShopSellTab();
+                }
+            };
+            
+            // Удаляем старые обработчики, чтобы не вешать новые каждый раз
+            const newTabs = modal.querySelectorAll('.tab-btn');
+            newTabs.forEach(tab => {
+                tab.removeEventListener('click', tab._shopListener);
+                const handler = () => switchShopTab(tab);
+                tab.addEventListener('click', handler);
+                tab._shopListener = handler;
+            });
+            
+            modal.style.display = 'flex';
         });
     }
     if (logoutMenuBtn) {
