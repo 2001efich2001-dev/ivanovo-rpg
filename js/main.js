@@ -171,13 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
         renderEquipmentTab();
         recalcColdFromEquipment();
         initInventoryTabs();
-        // Отрисовываем стартовую локацию (церковь)
         renderLocation(currentLocation);
-        // Обновляем отображение времени и погоды
         updateTimeWeatherUI();
-        // Запускаем обновления времени и погоды
         startTimeWeatherUpdates();
-        hideSplash();
+        hideSplash(); // Сплеш скрывается только после полной загрузки
         if (isMusicEnabled && bgMusic && bgMusic.paused) {
             startMusic();
         }
@@ -220,12 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (shopBtn) {
         shopBtn.addEventListener('click', async () => {
             playClick();
-            // Динамически импортируем модуль магазина
             const shop = await import('./shop.js');
             shop.renderShopBuyTab();
             shop.renderShopSellTab();
             
-            // Настройка переключения вкладок магазина
             const modal = document.getElementById('shopModal');
             const tabs = modal.querySelectorAll('.tab-btn');
             const buyTab = document.getElementById('shopBuyTab');
@@ -245,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
             
-            // Удаляем старые обработчики, чтобы не вешать новые каждый раз
             const newTabs = modal.querySelectorAll('.tab-btn');
             newTabs.forEach(tab => {
                 tab.removeEventListener('click', tab._shopListener);
@@ -260,9 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutMenuBtn) {
         logoutMenuBtn.addEventListener('click', async () => {
             playClick();
-            // Останавливаем анимацию погодных эффектов
             stopWeatherEffects();
-            // Останавливаем обновления времени и погоды
             stopTimeWeatherUpdates();
             await auth.signOut();
             hideSplash();
@@ -303,9 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.body.addEventListener('click', startMusicOnFirstClick);
     
-    setTimeout(() => {
-        if (!auth.currentUser) hideSplash();
-    }, 500);
+    // Убираем принудительное скрытие сплеша через 0.5 секунды
+    // Теперь сплеш скрывается только в afterLogin после загрузки всех данных
     
     updateUI();
 });
