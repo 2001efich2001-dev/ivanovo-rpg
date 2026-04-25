@@ -3,6 +3,7 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
+import { addExperience } from './gameState.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
 function playClick() {
@@ -213,6 +214,7 @@ async function executeAction(locationId, action) {
     let success = true;
     let msg = "";
     let actionLogMessage = '';
+    let gainedExp = 0;
     
     if (action.needsItem) {
         const has = inventory.find(i => i.id === action.needsItem && i.count > 0);
@@ -268,6 +270,8 @@ async function executeAction(locationId, action) {
                     else inventory.push({ id: it, count: 1 });
                     msg += `+1 ${itemsDB[it]?.name}. `;
                     actionLogMessage += `+1 ${itemsDB[it]?.name}. `;
+                    // Опыт за полученный предмет
+                    gainedExp += 10;
                 });
             }
         }
@@ -279,6 +283,28 @@ async function executeAction(locationId, action) {
                 msg += `Израсходован ${itemsDB[action.needsItem]?.name}. `;
                 actionLogMessage += `Израсходован ${itemsDB[action.needsItem]?.name}. `;
             }
+        }
+        
+        // Начисление опыта за особые действия
+        if (action.id === 'fight') {
+            gainedExp += 20; // драка
+        }
+        if (action.id === 'steal') {
+            gainedExp += 15; // ограбление
+        }
+        if (action.id === 'pray') {
+            gainedExp += 5; // молитва
+        }
+        if (action.id === 'eat' && locationId === 'shelter') {
+            gainedExp += 5; // поесть в столовой
+        }
+        if (action.id === 'get_food') {
+            gainedExp += 10; // получение еды в церкви
+        }
+        
+        if (gainedExp > 0) {
+            addExperience(gainedExp);
+            logAction(`Получено ${gainedExp} опыта за действие "${action.name}"`, 'system');
         }
     }
     updateUI();
