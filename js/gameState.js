@@ -68,10 +68,10 @@ export function updateUI() {
 }
 
 export function setStats(h, hu, c, m) {
-    health = Math.min(maxHealth, Math.max(0, h));
-    hunger = Math.min(maxHunger, Math.max(0, hu));
-    cold = Math.min(maxCold, Math.max(0, c));
-    money = Math.max(0, m);
+    health = isNaN(h) ? 100 : Math.min(maxHealth, Math.max(0, h));
+    hunger = isNaN(hu) ? 100 : Math.min(maxHunger, Math.max(0, hu));
+    cold = isNaN(c) ? 100 : Math.min(maxCold, Math.max(0, c));
+    money = isNaN(m) ? 500 : Math.max(0, m);
     updateUI();
 }
 
