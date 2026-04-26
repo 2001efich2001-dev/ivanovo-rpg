@@ -31,6 +31,13 @@ async function saveUserNickOnRegister(userId, email, nick) {
     if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: nick });
 }
 
+// Функция для скрытия сплеша при ошибке (если определена в main.js)
+function hideSplashOnError() {
+    if (typeof window.hideSplashOnError === 'function') {
+        window.hideSplashOnError();
+    }
+}
+
 export function initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, onLoginCallback) {
     const showRegisterLink = document.getElementById('showRegisterLink');
     const showLoginLink = document.getElementById('showLoginLink');
@@ -45,6 +52,8 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
         registerFormDiv.style.display = 'block';
         if (authError) authError.innerText = '';
         if (regError) regError.innerText = '';
+        // При переключении на регистрацию скрываем сплеш, если он висит
+        hideSplashOnError();
     });
     showLoginLink.addEventListener('click', (e) => {
         e.preventDefault();
@@ -52,6 +61,7 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
         loginFormDiv.style.display = 'block';
         if (authError) authError.innerText = '';
         if (regError) regError.innerText = '';
+        hideSplashOnError();
     });
 
     loginBtn.addEventListener('click', async () => {
@@ -62,6 +72,8 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
             await signInWithEmailAndPassword(auth, email, password);
         } catch (error) {
             if (authError) authError.innerText = error.message;
+            // При ошибке входа скрываем сплеш
+            hideSplashOnError();
         }
     });
     registerBtn.addEventListener('click', async () => {
@@ -71,6 +83,7 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
         if (regError) regError.innerText = '';
         if (!nick) {
             if (regError) regError.innerText = 'Введите игровой ник';
+            hideSplashOnError();
             return;
         }
         try {
@@ -80,6 +93,7 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
             showMessage('Регистрация успешна!', '#4caf50');
         } catch (error) {
             if (regError) regError.innerText = error.message;
+            hideSplashOnError();
         }
     });
 
@@ -102,6 +116,8 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
             document.getElementById('regNick').value = '';
             document.getElementById('regEmail').value = '';
             document.getElementById('regPassword').value = '';
+            // Неавторизованный пользователь – скрываем сплеш
+            hideSplashOnError();
         }
     });
 }
