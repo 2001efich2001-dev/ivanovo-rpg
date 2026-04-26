@@ -112,6 +112,9 @@ function hideSplash() {
     }
 }
 
+// Глобальная функция для скрытия сплеша из других модулей (например, auth.js)
+window.hideSplashOnError = () => hideSplash();
+
 // --- Вкладки инвентаря ---
 function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
