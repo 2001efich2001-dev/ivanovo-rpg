@@ -339,5 +339,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.body.addEventListener('click', startMusicOnFirstClick);
     
+    // Скрываем сплеш через 1.5 секунды, если пользователь не авторизован
+    setTimeout(() => {
+        if (!auth.currentUser) {
+            hideSplash();
+        }
+    }, 1500);
+    
     updateUI();
 });
