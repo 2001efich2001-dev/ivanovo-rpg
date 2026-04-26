@@ -16,30 +16,25 @@ export let equipped = { head: null, body: null, legs: null, feet: null };
 export let currentLocation = 'church';
 
 // ========== ВРЕМЯ И ПОГОДА ==========
-export let accumulatedMinutes = 0;      // сколько игровых минут прошло с начала игры
-export let currentWeather = 'sunny';    // sunny, cloudy, rain, snow
-export let currentTemperature = 15;     // температура в градусах
+export let accumulatedMinutes = 0;
+export let currentWeather = 'sunny';
+export let currentTemperature = 15;
 
 // ========== ЛОГ ДЕЙСТВИЙ ==========
-export let actionLog = [];               // массив записей { time, message, type }
-const MAX_LOG_ENTRIES = 50;             // максимум записей в логе
+export let actionLog = [];
+const MAX_LOG_ENTRIES = 50;
 
 // ========== ОПЫТ И УРОВНИ ==========
 export let experience = 0;
 export let level = 1;
-export let requiredExp = 100;            // опыт для следующего уровня
+export let requiredExp = 100;
 
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
 
-// Колбэк, который будет вызываться при смене локации (устанавливается из main.js)
 let onLocationChangeCallback = null;
-
-// Колбэк для обновления UI лога
 let onLogUpdateCallback = null;
-
-// Колбэк для обновления UI опыта
 let onExpUpdateCallback = null;
 
 export function initDOM() {
@@ -51,7 +46,6 @@ export function initDOM() {
     hungerFill = document.getElementById('hungerFill');
     coldFill = document.getElementById('coldFill');
     
-    // Элементы для опыта
     levelValueSpan = document.getElementById('levelValue');
     expValueSpan = document.getElementById('expValue');
     expRequiredSpan = document.getElementById('expRequired');
@@ -67,7 +61,6 @@ export function updateUI() {
     if (hungerFill) hungerFill.style.width = (hunger / maxHunger) * 100 + '%';
     if (coldFill) coldFill.style.width = (cold / maxCold) * 100 + '%';
     
-    // Обновляем отображение опыта
     if (levelValueSpan) levelValueSpan.innerText = level;
     if (expValueSpan) expValueSpan.innerText = Math.floor(experience);
     if (expRequiredSpan) expRequiredSpan.innerText = requiredExp;
@@ -75,20 +68,18 @@ export function updateUI() {
 }
 
 export function setStats(h, hu, c, m) {
-    health = h;
-    hunger = hu;
-    cold = c;
-    money = m;
+    health = Math.min(maxHealth, Math.max(0, h));
+    hunger = Math.min(maxHunger, Math.max(0, hu));
+    cold = Math.min(maxCold, Math.max(0, c));
+    money = Math.max(0, m);
     updateUI();
 }
 
 // ========== Функции для опыта и уровней ==========
-// Расчёт требуемого опыта для следующего уровня
 function calculateRequiredExp(lvl) {
     return Math.floor(100 * Math.pow(1.2, lvl - 1));
 }
 
-// Добавление опыта и повышение уровня
 export function addExperience(amount) {
     if (amount <= 0) return;
     experience += amount;
@@ -99,7 +90,6 @@ export function addExperience(amount) {
         level++;
         requiredExp = calculateRequiredExp(level);
         leveledUp = true;
-        // Логируем повышение уровня
         addLogEntry(`🎉 Повышение уровня до ${level}!`, 'system');
         showMessage(`🎉 Поздравляем! Вы достигли ${level} уровня!`, '#ffd966');
     }
@@ -107,18 +97,15 @@ export function addExperience(amount) {
     updateUI();
     if (onExpUpdateCallback) onExpUpdateCallback();
     
-    // Сохраняемся при изменении опыта (вызов из main.js через saveGameData, но сохраним глобально)
     import('./firestore.js').then(m => {
         if (typeof m.saveGameData === 'function') m.saveGameData();
     });
 }
 
-// Установка колбэка для обновления UI опыта
 export function setExpUpdateCallback(callback) {
     onExpUpdateCallback = callback;
 }
 
-// Установка сохранённых данных опыта и уровня
 export function setExpData(exp, lvl) {
     experience = exp || 0;
     level = lvl || 1;
@@ -127,48 +114,35 @@ export function setExpData(exp, lvl) {
 }
 
 // ========== Функции для лога действий ==========
-// Установка колбэка для обновления UI лога
 export function setLogUpdateCallback(callback) {
     onLogUpdateCallback = callback;
 }
 
-// Добавление записи в лог
 export function addLogEntry(message, type = 'system') {
     const timeStr = getCurrentTimeString();
-    const newEntry = {
-        time: timeStr,
-        message: message,
-        type: type
-    };
+    const newEntry = { time: timeStr, message: message, type: type };
     actionLog.push(newEntry);
-    // Ограничиваем количество записей
     if (actionLog.length > MAX_LOG_ENTRIES) {
         actionLog.shift();
     }
-    // Обновляем UI через колбэк
     if (onLogUpdateCallback) {
         onLogUpdateCallback();
     }
 }
 
-// Загрузка лога из сохранённых данных
 export function setActionLog(log) {
     actionLog = log || [];
     if (actionLog.length > MAX_LOG_ENTRIES) {
         actionLog = actionLog.slice(-MAX_LOG_ENTRIES);
     }
-    if (onLogUpdateCallback) {
-        onLogUpdateCallback();
-    }
+    if (onLogUpdateCallback) onLogUpdateCallback();
 }
 
-// Получение лога (для сохранения)
 export function getActionLog() {
     return actionLog;
 }
 
 // ========== Функции для времени и погоды ==========
-// Установка сохранённых данных времени и погоды
 export function setTimeWeather(minutes, weather, temp) {
     accumulatedMinutes = minutes;
     currentWeather = weather;
@@ -178,7 +152,6 @@ export function setTimeWeather(minutes, weather, temp) {
     }
 }
 
-// Получить текущее время в формате ЧЧ:ММ
 export function getCurrentTimeString() {
     const totalMinutes = Math.floor(accumulatedMinutes);
     let hours = Math.floor(totalMinutes / 60) % 24;
@@ -186,13 +159,11 @@ export function getCurrentTimeString() {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 }
 
-// Получить иконку погоды
 export function getWeatherIcon() {
     const icons = { sunny: '☀️', cloudy: '☁️', rain: '🌧️', snow: '❄️' };
     return icons[currentWeather] || '☀️';
 }
 
-// Получить символ времени суток
 export function getTimeOfDayIcon() {
     const totalMinutes = Math.floor(accumulatedMinutes);
     const hours = Math.floor(totalMinutes / 60) % 24;
@@ -202,12 +173,10 @@ export function getTimeOfDayIcon() {
     return '🌙';
 }
 
-// Установка колбэка для смены локации
 export function setLocationChangeCallback(callback) {
     onLocationChangeCallback = callback;
 }
 
-// Смена текущей локации
 export function setCurrentLocation(locationId) {
     if (currentLocation === locationId) return;
     currentLocation = locationId;
