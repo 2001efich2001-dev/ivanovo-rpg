@@ -1,5 +1,5 @@
 // js/timeWeather.js
-import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon, health, hunger, cold, maxHealth, maxHunger, maxCold, updateUI, setStats, addLogEntry } from './gameState.js';
+import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon, health, hunger, cold, maxHealth, maxHunger, maxCold, updateUI, setStats, addLogEntry, money } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { updateDarkness, updateWeatherEffects } from './weatherEffects.js';
@@ -97,19 +97,14 @@ function applyWeatherEffects() {
     }
     
     // ===== 3. ПРИМЕНЯЕМ ИЗМЕНЕНИЯ =====
-    let hungerUpdated = false;
-    let coldUpdated = false;
-    
     if (hungerChange !== 0) {
-        const newHunger = hunger + hungerChange;
-        hungerUpdated = true;
-        setStats(health, Math.min(maxHunger, Math.max(0, newHunger)), cold, window.money);
+        const newHunger = Math.min(maxHunger, Math.max(0, hunger + hungerChange));
+        setStats(health, newHunger, cold, money);
     }
     
     if (coldChange !== 0) {
-        const newCold = cold + coldChange;
-        coldUpdated = true;
-        setStats(health, hunger, Math.min(maxCold, Math.max(0, newCold)), window.money);
+        const newCold = Math.min(maxCold, Math.max(0, cold + coldChange));
+        setStats(health, hunger, newCold, money);
     }
     
     // ===== 4. ВЛИЯНИЕ ГОЛОДА И ТЕПЛА НА ЗДОРОВЬЕ =====
@@ -157,8 +152,8 @@ function applyWeatherEffects() {
     
     // Применяем изменения здоровья
     if (healthChange !== 0) {
-        const newHealth = health + healthChange;
-        setStats(Math.min(maxHealth, Math.max(0, newHealth)), hunger, cold, window.money);
+        const newHealth = Math.min(maxHealth, Math.max(0, health + healthChange));
+        setStats(newHealth, hunger, cold, money);
     }
     
     // Обновляем UI и сохраняем
