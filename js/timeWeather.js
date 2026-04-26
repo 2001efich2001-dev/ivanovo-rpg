@@ -1,5 +1,5 @@
 // js/timeWeather.js
-import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon } from './gameState.js';
+import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon, health, hunger, cold, maxHealth, maxHunger, maxCold, updateUI, setStats, addLogEntry } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { updateDarkness, updateWeatherEffects } from './weatherEffects.js';
@@ -9,54 +9,161 @@ const MINUTES_PER_REAL_MINUTE = 10;
 const WEATHER_CHANGE_INTERVAL = 180;
 let lastUpdateTimestamp = Date.now();
 let updateInterval = null;
+let effectsInterval = null;
 
-// Функция для получения случайной погоды с учётом температуры (чтобы снег не выпадал при тепле)
+// Переменные для отслеживания последнего критического состояния (чтобы не спамить в лог)
+let lastHealthWarning = '';
+let lastHungerWarning = '';
+let lastColdWarning = '';
+
+// Функция для получения случайной погоды с учётом температуры
 function getRandomWeather(currentTemp) {
     const rand = Math.random();
-    // Если температура выше +5, исключаем снег
     if (currentTemp > 5) {
         if (rand < 0.5) return 'sunny';
         if (rand < 0.75) return 'cloudy';
         return 'rain';
     }
-    // Если температура ниже 0, исключаем дождь
     if (currentTemp < 0) {
         if (rand < 0.4) return 'sunny';
         if (rand < 0.6) return 'cloudy';
         return 'snow';
     }
-    // Иначе все варианты
     if (rand < 0.4) return 'sunny';
     if (rand < 0.6) return 'cloudy';
     if (rand < 0.8) return 'rain';
     return 'snow';
 }
 
-// Функция для расчёта температуры на основе погоды и времени суток
+// Функция для расчёта температуры
 function calculateTemperature(weather, totalMinutes) {
     const hours = Math.floor(totalMinutes / 60) % 24;
     let baseTemp;
     if (hours >= 10 && hours <= 16) {
-        baseTemp = 15 + Math.random() * 10;     // 15-25
+        baseTemp = 15 + Math.random() * 10;
     } else if (hours >= 22 || hours <= 4) {
-        baseTemp = -8 + Math.random() * 8;      // -8..0
+        baseTemp = -8 + Math.random() * 8;
     } else {
-        baseTemp = 0 + Math.random() * 12;      // 0..12
+        baseTemp = 0 + Math.random() * 12;
     }
     
-    // Корректировка от погоды
     switch (weather) {
         case 'cloudy': baseTemp -= 3; break;
         case 'rain': baseTemp -= 2; break;
-        case 'snow': baseTemp = Math.min(baseTemp - 8, -1); break; // снег -> отрицательная
+        case 'snow': baseTemp = Math.min(baseTemp - 8, -1); break;
         default: break;
     }
     
-    // Дополнительные ограничения
     if (weather === 'snow' && baseTemp > 0) baseTemp = -1;
     if (weather === 'rain' && baseTemp < 0) baseTemp = 1;
     
     return Math.round(Math.min(28, Math.max(-15, baseTemp)));
+}
+
+// Применение эффектов погоды на характеристики (вызывается каждые 30 секунд)
+function applyWeatherEffects() {
+    let hungerChange = 0;
+    let coldChange = 0;
+    let healthChange = 0;
+    const hours = (accumulatedMinutes / 60) % 24;
+    
+    // ===== 1. ЕСТЕСТВЕННОЕ ПАДЕНИЕ ГОЛОДА =====
+    hungerChange = -1;
+    
+    // Коррекция от температуры
+    if (currentTemperature > 25) {
+        hungerChange = -1.5; // жара ускоряет голод
+    } else if (currentTemperature < 0) {
+        hungerChange = -0.5; // холод замедляет голод
+    }
+    
+    // ===== 2. ВЛИЯНИЕ ПОГОДЫ И ТЕМПЕРАТУРЫ НА ТЕПЛО =====
+    // Базовое падение тепла от погоды
+    if (currentWeather === 'rain') {
+        coldChange -= 1;
+    } else if (currentWeather === 'snow') {
+        coldChange -= 2;
+    }
+    
+    // Падение от холода
+    if (currentTemperature < 0) {
+        coldChange -= 1;
+        if (currentTemperature < -10) coldChange -= 1; // сильный мороз
+    }
+    
+    // Падение от ночного времени
+    if (hours >= 22 || hours < 6) {
+        coldChange -= 1;
+    }
+    
+    // ===== 3. ПРИМЕНЯЕМ ИЗМЕНЕНИЯ =====
+    let hungerUpdated = false;
+    let coldUpdated = false;
+    
+    if (hungerChange !== 0) {
+        const newHunger = hunger + hungerChange;
+        hungerUpdated = true;
+        setStats(health, Math.min(maxHunger, Math.max(0, newHunger)), cold, window.money);
+    }
+    
+    if (coldChange !== 0) {
+        const newCold = cold + coldChange;
+        coldUpdated = true;
+        setStats(health, hunger, Math.min(maxCold, Math.max(0, newCold)), window.money);
+    }
+    
+    // ===== 4. ВЛИЯНИЕ ГОЛОДА И ТЕПЛА НА ЗДОРОВЬЕ =====
+    // Критические состояния (≤30)
+    if (hunger <= 30) {
+        healthChange -= 1;
+        if (lastHungerWarning !== 'hungry') {
+            addLogEntry(`🍗 Я очень голоден! Здоровье -1`, 'combat');
+            lastHungerWarning = 'hungry';
+        }
+    } else {
+        lastHungerWarning = '';
+    }
+    
+    if (cold <= 30) {
+        healthChange -= 1;
+        if (lastColdWarning !== 'cold') {
+            addLogEntry(`❄️ Я замерзаю! Здоровье -1`, 'combat');
+            lastColdWarning = 'cold';
+        }
+    } else {
+        lastColdWarning = '';
+    }
+    
+    // Благоприятные состояния (≥90)
+    if (hunger >= 90 && health < maxHealth) {
+        healthChange += 1;
+        if (lastHungerWarning !== 'full') {
+            addLogEntry(`🍽️ Сытость восстанавливает силы, здоровье +1`, 'combat');
+            lastHungerWarning = 'full';
+        }
+    } else if (lastHungerWarning === 'full' && hunger < 90) {
+        lastHungerWarning = '';
+    }
+    
+    if (cold >= 90 && health < maxHealth) {
+        healthChange += 1;
+        if (lastColdWarning !== 'warm') {
+            addLogEntry(`🔥 Тепло помогает восстановиться, здоровье +1`, 'combat');
+            lastColdWarning = 'warm';
+        }
+    } else if (lastColdWarning === 'warm' && cold < 90) {
+        lastColdWarning = '';
+    }
+    
+    // Применяем изменения здоровья
+    if (healthChange !== 0) {
+        const newHealth = health + healthChange;
+        setStats(Math.min(maxHealth, Math.max(0, newHealth)), hunger, cold, window.money);
+    }
+    
+    // Обновляем UI и сохраняем
+    updateUI();
+    throttledSave();
 }
 
 // Обновление времени и погоды
@@ -76,13 +183,11 @@ export function updateTimeWeather() {
     let newWeather = currentWeather;
     let weatherChanged = false;
     
-    // Смена погоды с учётом текущей температуры
     if (newWeatherPeriod > oldWeatherPeriod) {
         newWeather = getRandomWeather(currentTemperature);
         weatherChanged = true;
     }
     
-    // Пересчёт температуры
     let newTemp = currentTemperature;
     const tempRecalcInterval = 60;
     const oldTempPeriod = Math.floor(accumulatedMinutes / tempRecalcInterval);
@@ -92,10 +197,7 @@ export function updateTimeWeather() {
         newTemp = calculateTemperature(newWeather, newMinutes);
     }
     
-    // Обновляем глобальные переменные
     setTimeWeather(newMinutes, newWeather, newTemp);
-    
-    // Обновляем визуальные эффекты
     updateDarkness();
     updateWeatherEffects();
     updateTimeWeatherUI();
@@ -131,14 +233,25 @@ export function updateTimeWeatherUI() {
 export function startTimeWeatherUpdates() {
     if (updateInterval) return;
     lastUpdateTimestamp = Date.now();
+    
+    // Обновление времени и погоды (каждые 10 секунд)
     updateInterval = setInterval(() => {
         updateTimeWeather();
     }, 10000);
+    
+    // Эффекты погоды на характеристики (каждые 30 секунд)
+    effectsInterval = setInterval(() => {
+        applyWeatherEffects();
+    }, 30000);
 }
 
 export function stopTimeWeatherUpdates() {
     if (updateInterval) {
         clearInterval(updateInterval);
         updateInterval = null;
+    }
+    if (effectsInterval) {
+        clearInterval(effectsInterval);
+        effectsInterval = null;
     }
 }
