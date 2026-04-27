@@ -16,6 +16,34 @@ export const eventsDB = {
         effectMessage: "+1 водка добавлена в инвентарь"
     },
 
+    // Рынок (market) – тип А
+    suspicious_vendor: {
+        id: "suspicious_vendor",
+        name: "Подозрительный продавец",
+        description: "Какой-то тип шепнул вам, что у него есть «особый товар» и сунул вам в руку свёрток.",
+        image: "images/events/vendor.jpg",
+        type: "auto",
+        trigger: "location",
+        locationId: "market",
+        chance: 0.25,
+        effect: { items: ["empty_bottle", "old_hat"] }, // случайный предмет из списка
+        effectMessage: "В свёртке оказалось что-то любопытное."
+    },
+
+    // Церковь (church) – тип А
+    generous_donation: {
+        id: "generous_donation",
+        name: "Щедрое пожертвование",
+        description: "Кто-то оставил в церкви щедрое пожертвование, и вам перепало.",
+        image: "images/events/donation.jpg",
+        type: "auto",
+        trigger: "location",
+        locationId: "church",
+        chance: 0.15,
+        effect: { money: [50, 150], experience: 5 },
+        effectMessage: "Вы получили свою долю и даже немного опыта."
+    },
+
     // ===== ТИП Б: С выбором =====
     suspicious_suitcase: {
         id: "suspicious_suitcase",
@@ -39,6 +67,60 @@ export const eventsDB = {
                 text: "Оставить чемодан",
                 effect: {},
                 message: "Вы решили не рисковать и прошли мимо."
+            }
+        ]
+    },
+
+    // Ночлежка (shelter) – тип Б
+    noisy_neighbor: {
+        id: "noisy_neighbor",
+        name: "Сосед по комнате",
+        description: "Ваш сосед по комнате храпит и мешает спать. Что делать?",
+        image: "images/events/snoring.jpg",
+        type: "choice",
+        trigger: "location",
+        locationId: "shelter",
+        chance: 0.2,
+        choices: [
+            {
+                text: "Разбудить и попросить тишины",
+                risk: 0.3,
+                success: { health: 10, cold: 5 },
+                successMessage: "Сосед извинился и перевернулся на другой бок. Вы хорошо выспались.",
+                fail: { health: -10 },
+                failMessage: "Сосед разозлился и ударил вас."
+            },
+            {
+                text: "Перетерпеть",
+                effect: {},
+                message: "Вы решили не связываться и просто перетерпели."
+            }
+        ]
+    },
+
+    // Бар (bar) – тип Б
+    card_game: {
+        id: "card_game",
+        name: "Странный незнакомец",
+        description: "Незнакомец предлагает вам сыграть в карты на деньги. Соглашаетесь?",
+        image: "images/events/cards.jpg",
+        type: "choice",
+        trigger: "location",
+        locationId: "bar",
+        chance: 0.25,
+        choices: [
+            {
+                text: "Сыграть",
+                risk: 0.6,
+                success: { money: 100 },
+                successMessage: "Вам повезло! Вы выиграли 100₽.",
+                fail: { money: -50, health: -5 },
+                failMessage: "Вас обыграли! Вы потеряли 50₽ и получили синяк."
+            },
+            {
+                text: "Отказаться",
+                effect: {},
+                message: "Вы отказались и продолжили пить в одиночестве."
             }
         ]
     },
