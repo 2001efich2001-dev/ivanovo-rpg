@@ -382,6 +382,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (!auth.currentUser) hideSplash();
     }, 1500);
-    
+
+
     updateUI();
+});
+window.addEventListener('beforeunload', () => {
+    import('./firestore.js').then(m => {
+        if (typeof m.saveGameData === 'function') m.saveGameData();
+    });
 });
