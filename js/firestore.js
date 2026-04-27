@@ -68,3 +68,6 @@ export async function loadGameData(userId) {
         showMessage('Новый аккаунт создан', '#4caf50');
     }
 }
+
+// ЭКСПОРТИРУЕМ db ДЛЯ ИСПОЛЬЗОВАНИЯ В main.js
+export { db };
