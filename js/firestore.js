@@ -1,5 +1,5 @@
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData, currentLocation, setCurrentLocationFromData } from './gameState.js';
+import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData, currentLocation } from './gameState.js';
 import { showMessage } from './utils.js';
 
 let db = null;
@@ -17,7 +17,7 @@ export async function saveGameData() {
         accumulatedMinutes,
         currentWeather,
         currentTemperature,
-        currentLocation,            // ← сохраняем текущую локацию
+        currentLocation,
         actionLog: getActionLog(),
         experience,
         level,
@@ -37,21 +37,21 @@ export async function loadGameData(userId) {
         inventory.push(...(data.inventory ?? []));
         Object.assign(equipped, data.equipped ?? { head: null, body: null, legs: null, feet: null });
         
-        // Загружаем время и погоду
         const minutes = data.accumulatedMinutes ?? 0;
         const weather = data.currentWeather ?? 'sunny';
         const temp = data.currentTemperature ?? 15;
         setTimeWeather(minutes, weather, temp);
         
-        // Загружаем лог действий
         setActionLog(data.actionLog ?? []);
-        
-        // Загружаем опыт и уровень
         setExpData(data.experience ?? 0, data.level ?? 1);
         
-        // Загружаем текущую локацию
+        // Восстанавливаем локацию
         if (data.currentLocation) {
-            setCurrentLocationFromData(data.currentLocation);
+            currentLocation = data.currentLocation;
+            // Перерисовываем локацию
+            import('./locations.js').then(l => {
+                l.renderLocation(currentLocation);
+            });
         }
         
         updateUI();
@@ -63,19 +63,17 @@ export async function loadGameData(userId) {
             { id: "medkit", count: 1 }, { id: "ushanka", count: 1 }, { id: "puhovik", count: 1 }
         );
         Object.assign(equipped, { head: null, body: null, legs: null, feet: null });
-        // Начальное время и погода (12:00, солнечно, +15°)
-        setTimeWeather(720, 'sunny', 15); // 12:00 = 720 минут
-        // Начальный лог действий
+        setTimeWeather(720, 'sunny', 15);
         setActionLog([]);
-        // Начальный опыт и уровень
         setExpData(0, 1);
-        // Начальная локация (церковь)
-        setCurrentLocationFromData('church');
+        currentLocation = 'church';
+        import('./locations.js').then(l => {
+            l.renderLocation('church');
+        });
         updateUI();
         await saveGameData();
         showMessage('Новый аккаунт создан', '#4caf50');
     }
 }
 
-// ЭКСПОРТИРУЕМ db ДЛЯ ИСПОЛЬЗОВАНИЯ В main.js
 export { db };
