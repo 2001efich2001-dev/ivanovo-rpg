@@ -7,13 +7,13 @@ import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
 import { logAction } from './utils.js';
+import { getFirestore, collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
-let bgMusic = null;          // HTMLAudioElement для MP3
+let bgMusic = null;
 let isMusicEnabled = true;
 
-// Инициализация Web Audio для коротких звуков
 function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -47,37 +47,28 @@ function playToneInternal(freq, duration, volume) {
     osc.stop(now + duration);
 }
 
-// Глобальные звуковые функции (доступны из других модулей)
 window.playClickSound = () => playTone(880, 0.08, 0.1);
 window.playPurchaseSound = () => playTone(660, 0.12, 0.12);
 window.playActionSound = () => playTone(523, 0.15, 0.12);
 
-// Локальные псевдонимы для удобства
 function playClick() { playTone(880, 0.08, 0.1); }
 function playPurchase() { playTone(660, 0.12, 0.12); }
 
-// --- Фоновая музыка через MP3 ---
 function initMusic() {
     if (bgMusic) return;
     bgMusic = new Audio('background.mp3');
     bgMusic.loop = true;
     bgMusic.volume = 0.3;
-
     const saved = localStorage.getItem('musicEnabled');
     isMusicEnabled = saved !== null ? saved === 'true' : true;
-
     const btn = document.getElementById('musicToggle');
-    if (btn) {
-        btn.textContent = isMusicEnabled ? '🎵 Музыка Вкл' : '🔇 Музыка Выкл';
-    }
+    if (btn) btn.textContent = isMusicEnabled ? '🎵 Музыка Вкл' : '🔇 Музыка Выкл';
 }
 
 function startMusic() {
     if (!isMusicEnabled) return;
     if (!bgMusic) initMusic();
-    if (bgMusic && bgMusic.paused) {
-        bgMusic.play().catch(e => console.log('Автозапуск музыки заблокирован', e));
-    }
+    if (bgMusic && bgMusic.paused) bgMusic.play().catch(e => console.log('Автозапуск музыки заблокирован', e));
 }
 
 function stopMusic() {
@@ -93,7 +84,6 @@ function toggleMusic() {
     else stopMusic();
 }
 
-// --- Сплеш-экран ---
 function showSplash() {
     const splash = document.getElementById('splash');
     if (splash) {
@@ -112,10 +102,8 @@ function hideSplash() {
     }
 }
 
-// Глобальная функция для скрытия сплеша из других модулей (например, auth.js)
 window.hideSplashOnError = () => hideSplash();
 
-// --- Вкладки инвентаря ---
 function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
     if (!modal) return;
@@ -123,11 +111,7 @@ function initInventoryTabs() {
     const itemsTab = document.getElementById('itemsTab');
     const equipmentTab = document.getElementById('equipmentTab');
     if (!tabs.length || !itemsTab || !equipmentTab) return;
-
-    tabs.forEach(tab => {
-        tab.removeEventListener('click', tab._listener);
-    });
-
+    tabs.forEach(tab => { tab.removeEventListener('click', tab._listener); });
     const switchTab = (tab) => {
         playClick();
         tabs.forEach(t => t.classList.remove('active'));
@@ -142,49 +126,37 @@ function initInventoryTabs() {
             renderEquipmentTab();
         }
     };
-
     tabs.forEach(tab => {
         const handler = () => switchTab(tab);
         tab.addEventListener('click', handler);
         tab._listener = handler;
     });
-
     const activeTab = modal.querySelector('.tab-btn.active');
     if (activeTab) switchTab(activeTab);
     else if (tabs[0]) switchTab(tabs[0]);
 }
 
-// --- Обработчик смены локации ---
 function onLocationChanged(newLocationId) {
     console.log(`Смена локации на: ${newLocationId}`);
     renderLocation(newLocationId);
 }
 
-// --- Лог действий (отображение) ---
 function renderLogPanel() {
     const container = document.getElementById('logPanel');
     if (!container) return;
-    
     if (actionLog.length === 0) {
         container.innerHTML = '<div class="log-entry system" style="text-align:center; opacity:0.6;">История действий пуста</div>';
         return;
     }
-    
     let html = '';
     const logsToShow = actionLog.slice(-30);
     for (const entry of logsToShow) {
-        html += `
-            <div class="log-entry ${entry.type}">
-                <span class="log-time">[${entry.time}]</span>
-                ${escapeHtml(entry.message)}
-            </div>
-        `;
+        html += `<div class="log-entry ${entry.type}"><span class="log-time">[${entry.time}]</span>${escapeHtml(entry.message)}</div>`;
     }
     container.innerHTML = html;
     container.scrollTop = container.scrollHeight;
 }
 
-// Простой escape для защиты от XSS
 function escapeHtml(str) {
     return str.replace(/[&<>]/g, function(m) {
         if (m === '&') return '&amp;';
@@ -194,7 +166,63 @@ function escapeHtml(str) {
     });
 }
 
-// --- Инициализация ---
+// ========== ТОП ИГРОКОВ ==========
+let topPlayersCache = null;
+let topPlayersCacheTime = 0;
+const TOP_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+
+async function loadTopPlayers(forceRefresh = false) {
+    const container = document.getElementById('topPlayersList');
+    if (!container) return;
+    const now = Date.now();
+    if (!forceRefresh && topPlayersCache && (now - topPlayersCacheTime < TOP_CACHE_TTL)) {
+        container.innerHTML = topPlayersCache;
+        return;
+    }
+    container.innerHTML = '<div style="text-align:center;">Загрузка...</div>';
+    try {
+        const db = getFirestore(auth.app);
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, orderBy('level', 'desc'), orderBy('experience', 'desc'), limit(20));
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.empty) {
+            container.innerHTML = '<div style="text-align:center;">Пока нет игроков</div>';
+            return;
+        }
+        let html = '';
+        let rank = 1;
+        for (const docSnap of querySnapshot.docs) {
+            const data = docSnap.data();
+            const nick = data.displayName || 'Аноним';
+            const level = data.level ?? 1;
+            const exp = data.experience ?? 0;
+            let rankClass = '';
+            if (rank === 1) rankClass = 'top-player-1';
+            else if (rank === 2) rankClass = 'top-player-2';
+            else if (rank === 3) rankClass = 'top-player-3';
+            const requiredExp = Math.floor(100 * Math.pow(1.2, level - 1));
+            html += `
+                <div class="player-item ${rankClass}">
+                    <div class="player-info">
+                        <span class="player-rank">${rank}.</span>
+                        <span class="player-nick">${escapeHtml(nick)}</span>
+                        <span class="player-level">⭐ ${level}</span>
+                        <span class="player-exp">${Math.floor(exp)}/${requiredExp} опыта</span>
+                    </div>
+                </div>
+            `;
+            rank++;
+        }
+        container.innerHTML = html;
+        topPlayersCache = html;
+        topPlayersCacheTime = now;
+    } catch (error) {
+        console.error(error);
+        container.innerHTML = '<div style="text-align:center;">Ошибка загрузки топа</div>';
+    }
+}
+
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     initDOM();
     
@@ -204,15 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerFormDiv = document.getElementById('registerForm');
     const playerNickSpan = document.getElementById('playerNick');
     
-    // Подписываемся на обновление лога
-    setLogUpdateCallback(() => {
-        renderLogPanel();
-    });
-    
-    // Подписываемся на обновление опыта (перерисовываем UI)
-    setExpUpdateCallback(() => {
-        updateUI(); // updateUI уже обновляет отображение уровня и опыта
-    });
+    setLogUpdateCallback(() => { renderLogPanel(); });
+    setExpUpdateCallback(() => { updateUI(); });
     
     function afterLogin() {
         renderItemsTab();
@@ -223,15 +244,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimeWeatherUI();
         startTimeWeatherUpdates();
         renderLogPanel();
-        updateUI(); // обновляем UI опыта после загрузки
+        updateUI();
         hideSplash();
-        if (isMusicEnabled && bgMusic && bgMusic.paused) {
-            startMusic();
-        }
+        if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
-    
     setLocationChangeCallback(onLocationChanged);
     
     const loginBtn = document.getElementById('loginBtn');
@@ -239,10 +257,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
     const shopBtn = document.getElementById('shopBtn');
+    const topPlayersBtn = document.getElementById('topPlayersBtn');
     const logoutMenuBtn = document.getElementById('logoutMenuBtn');
     const themeToggle = document.getElementById('themeToggle');
     const musicToggle = document.getElementById('musicToggle');
-
+    
     if (loginBtn) loginBtn.addEventListener('click', () => { playClick(); showSplash(); });
     if (registerBtn) registerBtn.addEventListener('click', () => { playClick(); showSplash(); });
     
@@ -268,12 +287,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const shop = await import('./shop.js');
             shop.renderShopBuyTab();
             shop.renderShopSellTab();
-            
             const modal = document.getElementById('shopModal');
             const tabs = modal.querySelectorAll('.tab-btn');
             const buyTab = document.getElementById('shopBuyTab');
             const sellTab = document.getElementById('shopSellTab');
-            
             const switchShopTab = (tab) => {
                 tabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
@@ -287,7 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     shop.renderShopSellTab();
                 }
             };
-            
             const newTabs = modal.querySelectorAll('.tab-btn');
             newTabs.forEach(tab => {
                 tab.removeEventListener('click', tab._shopListener);
@@ -295,8 +311,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 tab.addEventListener('click', handler);
                 tab._shopListener = handler;
             });
-            
             modal.style.display = 'flex';
+        });
+    }
+    if (topPlayersBtn) {
+        topPlayersBtn.addEventListener('click', async () => {
+            playClick();
+            const modal = document.getElementById('topModal');
+            await loadTopPlayers();
+            modal.style.display = 'flex';
+            // обработчик кнопки обновления внутри модального окна
+            const refreshBtn = document.getElementById('refreshTopBtn');
+            if (refreshBtn) {
+                refreshBtn.onclick = () => {
+                    loadTopPlayers(true);
+                };
+            }
         });
     }
     if (logoutMenuBtn) {
@@ -318,7 +348,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const savedTheme = localStorage.getItem('rpgTheme');
         if (savedTheme === 'light') document.body.classList.add('light-theme');
     }
-    
     if (musicToggle) {
         musicToggle.addEventListener('click', () => {
             playClick();
@@ -335,18 +364,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     initMusic();
     const startMusicOnFirstClick = () => {
-        if (isMusicEnabled && bgMusic && bgMusic.paused) {
-            startMusic();
-        }
+        if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
         document.body.removeEventListener('click', startMusicOnFirstClick);
     };
     document.body.addEventListener('click', startMusicOnFirstClick);
     
-    // Скрываем сплеш через 1.5 секунды, если пользователь не авторизован
     setTimeout(() => {
-        if (!auth.currentUser) {
-            hideSplash();
-        }
+        if (!auth.currentUser) hideSplash();
     }, 1500);
     
     updateUI();
