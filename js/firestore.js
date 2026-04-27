@@ -1,5 +1,5 @@
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData, currentLocation } from './gameState.js';
+import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData } from './gameState.js';
 import { showMessage } from './utils.js';
 
 let db = null;
@@ -11,6 +11,10 @@ export function initFirestore(auth) {
 export async function saveGameData() {
     const user = window.auth?.currentUser;
     if (!user || !db) return;
+    
+    // Динамически получаем текущую локацию, чтобы не было ошибки с undefined
+    const { currentLocation } = await import('./gameState.js');
+    
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
         health, hunger, cold, money, inventory, equipped,
@@ -45,12 +49,20 @@ export async function loadGameData(userId) {
         setActionLog(data.actionLog ?? []);
         setExpData(data.experience ?? 0, data.level ?? 1);
         
-        // Восстанавливаем локацию (если нет – значение по умолчанию 'church')
+        // Восстанавливаем локацию
         const savedLocation = data.currentLocation || 'church';
+        const { currentLocation, setLocationChangeCallback } = await import('./gameState.js');
         currentLocation = savedLocation;
-        import('./locations.js').then(l => {
-            l.renderLocation(currentLocation);
-        });
+        
+        // Перерисовываем локацию
+        const { renderLocation } = await import('./locations.js');
+        renderLocation(savedLocation);
+        
+        // Вызываем колбэк, если он установлен
+        if (setLocationChangeCallback) {
+            const cb = setLocationChangeCallback(() => {});
+            // Не вызываем, просто обновляем
+        }
         
         updateUI();
         console.log("Данные загружены");
@@ -64,10 +76,13 @@ export async function loadGameData(userId) {
         setTimeWeather(720, 'sunny', 15);
         setActionLog([]);
         setExpData(0, 1);
+        
+        // Устанавливаем начальную локацию
+        const { currentLocation, renderLocation } = await import('./gameState.js');
         currentLocation = 'church';
-        import('./locations.js').then(l => {
-            l.renderLocation('church');
-        });
+        const { renderLocation: renderLoc } = await import('./locations.js');
+        renderLoc('church');
+        
         updateUI();
         await saveGameData();
         showMessage('Новый аккаунт создан', '#4caf50');
