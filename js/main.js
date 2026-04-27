@@ -140,6 +140,10 @@ function initInventoryTabs() {
 function onLocationChanged(newLocationId) {
     console.log(`Смена локации на: ${newLocationId}`);
     renderLocation(newLocationId);
+    // Проверяем случайные события при переходе в локацию
+    import('./randomEvents.js').then(m => {
+        m.checkAndTriggerEvent('location', { locationId: newLocationId });
+    });
 }
 
 function renderLogPanel() {
@@ -176,7 +180,6 @@ async function loadTopPlayers(forceRefresh = false) {
     const container = document.getElementById('topPlayersList');
     if (!container) return;
     
-    // Проверка, инициализирована ли база данных
     if (!db) {
         console.error('Firestore не инициализирован');
         container.innerHTML = '<div style="text-align:center;">Ошибка: база данных не инициализирована</div>';
@@ -330,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const modal = document.getElementById('topModal');
             await loadTopPlayers();
             modal.style.display = 'flex';
-            // обработчик кнопки обновления внутри модального окна
             const refreshBtn = document.getElementById('refreshTopBtn');
             if (refreshBtn) {
                 refreshBtn.onclick = () => {
@@ -382,10 +384,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (!auth.currentUser) hideSplash();
     }, 1500);
-
-
+    
+    // Периодические события (каждые 15 минут)
+    setInterval(() => {
+        import('./randomEvents.js').then(m => {
+            m.checkAndTriggerEvent('timer');
+        });
+    }, 15 * 60 * 1000);
+    
     updateUI();
 });
+
 window.addEventListener('beforeunload', () => {
     import('./firestore.js').then(m => {
         if (typeof m.saveGameData === 'function') m.saveGameData();
