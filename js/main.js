@@ -7,7 +7,8 @@ import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
 import { logAction } from './utils.js';
-import { getFirestore, collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { db } from './firestore.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -181,7 +182,8 @@ async function loadTopPlayers(forceRefresh = false) {
     }
     container.innerHTML = '<div style="text-align:center;">Загрузка...</div>';
     try {
-        const db = getFirestore(auth.app);
+        // убираем эту строку, db уже импортирован
+// const db = getFirestore(auth.app);
         const usersRef = collection(db, 'users');
         const q = query(usersRef, orderBy('level', 'desc'), orderBy('experience', 'desc'), limit(20));
         const querySnapshot = await getDocs(q);
