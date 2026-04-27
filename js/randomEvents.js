@@ -14,11 +14,9 @@ export function addTemporaryEffect(effectId, duration, effectData) {
         endTime: Date.now() + duration,
         data: effectData
     };
-    // Если эффект влияет на холод – пересчитаем его
     if (effectData.coldMultiplier) {
         console.log(`Временный эффект: ускорение замерзания в ${effectData.coldMultiplier} раза`);
     }
-    // Через duration секунд эффект автоматически удалится
     setTimeout(() => {
         delete activeTemporaryEffects[effectId];
         console.log(`Временный эффект ${effectId} закончился`);
@@ -38,30 +36,61 @@ export function getColdMultiplier() {
     return multiplier;
 }
 
+// Вспомогательная функция для получения случайного числа в диапазоне
+function getRandomInRange(range) {
+    if (Array.isArray(range)) {
+        return Math.floor(Math.random() * (range[1] - range[0] + 1) + range[0]);
+    }
+    return range;
+}
+
 // Применение эффекта события
 async function applyEventEffect(event, choiceIndex = null) {
     if (event.type === 'auto') {
         // Применяем эффекты из event.effect
         if (event.effect.items) {
-            for (const itemId of event.effect.items) {
-                const idx = inventory.findIndex(i => i.id === itemId);
+            const itemsToAdd = event.effect.items;
+            if (Array.isArray(itemsToAdd)) {
+                // Если массив, выбираем случайный предмет
+                const randomItem = itemsToAdd[Math.floor(Math.random() * itemsToAdd.length)];
+                const idx = inventory.findIndex(i => i.id === randomItem);
                 if (idx !== -1) {
                     inventory[idx].count++;
                 } else {
-                    inventory.push({ id: itemId, count: 1 });
+                    inventory.push({ id: randomItem, count: 1 });
                 }
-                addLogEntry(`🎲 Событие: ${event.name} – получен предмет: ${itemsDB[itemId]?.name}`, 'event');
+                addLogEntry(`🎲 Событие: ${event.name} – получен предмет: ${itemsDB[randomItem]?.name}`, 'event');
+                showMessage(`🎲 Вы получили: ${itemsDB[randomItem]?.name}`, '#4caf50');
+            } else {
+                // Одиночный предмет (строка)
+                const idx = inventory.findIndex(i => i.id === itemsToAdd);
+                if (idx !== -1) {
+                    inventory[idx].count++;
+                } else {
+                    inventory.push({ id: itemsToAdd, count: 1 });
+                }
+                addLogEntry(`🎲 Событие: ${event.name} – получен предмет: ${itemsDB[itemsToAdd]?.name}`, 'event');
+                showMessage(`🎲 Вы получили: ${itemsDB[itemsToAdd]?.name}`, '#4caf50');
             }
         }
         if (event.effect.money) {
-            const newMoney = money + event.effect.money;
+            const moneyAdd = getRandomInRange(event.effect.money);
+            const newMoney = money + moneyAdd;
             setStats(health, hunger, cold, newMoney);
-            addLogEntry(`🎲 Событие: ${event.name} – получено ${event.effect.money}₽`, 'event');
+            addLogEntry(`🎲 Событие: ${event.name} – получено ${moneyAdd}₽`, 'event');
+            showMessage(`🎲 Вы получили ${moneyAdd}₽`, '#4caf50');
         }
         if (event.effect.health) {
-            const newHealth = health + event.effect.health;
-            setStats(Math.min(maxHealth, Math.max(0, newHealth)), hunger, cold, money);
-            addLogEntry(`🎲 Событие: ${event.name} – здоровье ${event.effect.health > 0 ? '+' : ''}${event.effect.health}`, 'event');
+            const healthChange = getRandomInRange(event.effect.health);
+            const newHealth = Math.min(maxHealth, Math.max(0, health + healthChange));
+            setStats(newHealth, hunger, cold, money);
+            addLogEntry(`🎲 Событие: ${event.name} – здоровье ${healthChange > 0 ? '+' : ''}${healthChange}`, 'event');
+            showMessage(`🎲 Здоровье ${healthChange > 0 ? '+' : ''}${healthChange}`, healthChange > 0 ? '#4caf50' : '#e74c3c');
+        }
+        if (event.effect.experience) {
+            const expGain = getRandomInRange(event.effect.experience);
+            addExperience(expGain);
+            addLogEntry(`🎲 Событие: ${event.name} – получено ${expGain} опыта`, 'event');
         }
         if (event.effectMessage) {
             showMessage(event.effectMessage, '#4caf50');
@@ -75,7 +104,6 @@ async function applyEventEffect(event, choiceIndex = null) {
         if (success) {
             if (choice.success) {
                 if (choice.success.items) {
-                    // Выбираем случайный предмет из списка
                     const randomItem = choice.success.items[Math.floor(Math.random() * choice.success.items.length)];
                     const idx = inventory.findIndex(i => i.id === randomItem);
                     if (idx !== -1) {
@@ -84,10 +112,25 @@ async function applyEventEffect(event, choiceIndex = null) {
                         inventory.push({ id: randomItem, count: 1 });
                     }
                     addLogEntry(`🎲 Событие: ${event.name} – получен предмет: ${itemsDB[randomItem]?.name}`, 'event');
+                    showMessage(`🎲 Вы получили: ${itemsDB[randomItem]?.name}`, '#4caf50');
                 }
                 if (choice.success.health) {
-                    const newHealth = health + choice.success.health;
-                    setStats(Math.min(maxHealth, Math.max(0, newHealth)), hunger, cold, money);
+                    const healthChange = getRandomInRange(choice.success.health);
+                    const newHealth = Math.min(maxHealth, Math.max(0, health + healthChange));
+                    setStats(newHealth, hunger, cold, money);
+                    addLogEntry(`🎲 Событие: ${event.name} – здоровье ${healthChange > 0 ? '+' : ''}${healthChange}`, 'event');
+                }
+                if (choice.success.cold) {
+                    const coldChange = getRandomInRange(choice.success.cold);
+                    const newCold = Math.min(maxCold, Math.max(0, cold + coldChange));
+                    setStats(health, hunger, newCold, money);
+                    addLogEntry(`🎲 Событие: ${event.name} – тепло ${coldChange > 0 ? '+' : ''}${coldChange}`, 'event');
+                }
+                if (choice.success.money) {
+                    const moneyAdd = getRandomInRange(choice.success.money);
+                    const newMoney = money + moneyAdd;
+                    setStats(health, hunger, cold, newMoney);
+                    addLogEntry(`🎲 Событие: ${event.name} – получено ${moneyAdd}₽`, 'event');
                 }
             }
             if (choice.successMessage) {
@@ -96,12 +139,22 @@ async function applyEventEffect(event, choiceIndex = null) {
         } else {
             if (choice.fail) {
                 if (choice.fail.health) {
-                    const newHealth = health + choice.fail.health;
-                    setStats(Math.min(maxHealth, Math.max(0, newHealth)), hunger, cold, money);
+                    const healthChange = getRandomInRange(choice.fail.health);
+                    const newHealth = Math.min(maxHealth, Math.max(0, health + healthChange));
+                    setStats(newHealth, hunger, cold, money);
+                    addLogEntry(`🎲 Событие: ${event.name} – здоровье ${healthChange > 0 ? '+' : ''}${healthChange}`, 'event');
+                }
+                if (choice.fail.cold) {
+                    const coldChange = getRandomInRange(choice.fail.cold);
+                    const newCold = Math.min(maxCold, Math.max(0, cold + coldChange));
+                    setStats(health, hunger, newCold, money);
+                    addLogEntry(`🎲 Событие: ${event.name} – тепло ${coldChange > 0 ? '+' : ''}${coldChange}`, 'event');
                 }
                 if (choice.fail.money) {
-                    const newMoney = money + choice.fail.money;
+                    const moneyChange = getRandomInRange(choice.fail.money);
+                    const newMoney = money + moneyChange;
                     setStats(health, hunger, cold, newMoney);
+                    addLogEntry(`🎲 Событие: ${event.name} – потеряно ${-moneyChange}₽`, 'event');
                 }
             }
             if (choice.failMessage) {
@@ -169,7 +222,6 @@ async function showEventModal(event, choiceHandler) {
 
 // Проверка и запуск события (экспортируемая функция)
 export async function checkAndTriggerEvent(triggerType, context = {}) {
-    // Ищем подходящие события
     let possibleEvents = Object.values(eventsDB).filter(event => event.trigger === triggerType);
     
     if (triggerType === 'location') {
@@ -179,13 +231,11 @@ export async function checkAndTriggerEvent(triggerType, context = {}) {
         possibleEvents = possibleEvents.filter(event => event.weatherCondition === context.weather);
     }
     
-    // Случайным образом выбираем одно событие (если есть)
     if (possibleEvents.length === 0) return false;
     
     for (const event of possibleEvents) {
         if (Math.random() < event.chance) {
             await showEventModal(event, () => {
-                // После завершения события можно выполнить какие-то действия
                 console.log(`Событие ${event.id} завершено`);
             });
             return true;
