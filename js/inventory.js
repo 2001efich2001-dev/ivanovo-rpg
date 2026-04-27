@@ -2,7 +2,6 @@ import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger,
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 
-// Локальные функции для вызова звуков (если они определены в main.js)
 function playClick() {
     if (typeof window.playClickSound === 'function') window.playClickSound();
 }
@@ -10,7 +9,6 @@ function playPurchase() {
     if (typeof window.playPurchaseSound === 'function') window.playPurchaseSound();
 }
 
-// База предметов (справочник)
 export const itemsDB = {
     bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", effect: { hunger: 20, health: 0, cold: 0 }, price: 25, slot: null },
     vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", effect: { hunger: -10, health: 15, cold: 0 }, price: 40, slot: null },
@@ -26,20 +24,13 @@ export const itemsDB = {
 };
 
 export function recalcColdFromEquipment() {
-    let bonus = 0;
-    if (equipped.head && itemsDB[equipped.head]) bonus += itemsDB[equipped.head].effect.cold || 0;
-    if (equipped.body && itemsDB[equipped.body]) bonus += itemsDB[equipped.body].effect.cold || 0;
-    if (equipped.legs && itemsDB[equipped.legs]) bonus += itemsDB[equipped.legs].effect.cold || 0;
-    if (equipped.feet && itemsDB[equipped.feet]) bonus += itemsDB[equipped.feet].effect.cold || 0;
-    const newCold = Math.min(maxCold, 100 + bonus);
-    if (newCold !== cold) {
-        // Исправлено: вместо прямого присваивания используем setStats
-        setStats(health, hunger, newCold, money);
-    }
+    // Эта функция больше не используется для принудительного пересчёта тепла.
+    // Она оставлена для совместимости, но не делает ничего.
+    console.warn("recalcColdFromEquipment устарела, используйте прямое изменение тепла при экипировке");
 }
 
 async function useItem(itemId) {
-    playClick(); // звук при использовании
+    playClick();
     const itemIndex = inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Нет предмета!", "#e74c3c"); return; }
     const itemData = itemsDB[itemId];
@@ -70,7 +61,7 @@ async function useItem(itemId) {
 }
 
 async function equipItem(itemId) {
-    playClick(); // звук при надевании
+    playClick();
     const itemIndex = inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Нет предмета!", "#e74c3c"); return; }
     const itemData = itemsDB[itemId];
@@ -78,32 +69,51 @@ async function equipItem(itemId) {
     const slot = itemData.slot;
     if (equipped[slot]) {
         const oldId = equipped[slot];
+        const oldItemData = itemsDB[oldId];
+        // Снимаем старый предмет: вычитаем его бонус из тепла
+        if (oldItemData && oldItemData.effect.cold) {
+            const newCold = Math.min(maxCold, Math.max(0, cold - oldItemData.effect.cold));
+            setStats(health, hunger, newCold, money);
+        }
         const exist = inventory.findIndex(i => i.id === oldId);
         if (exist !== -1) inventory[exist].count++;
         else inventory.push({ id: oldId, count: 1 });
-        logAction(`Снят предмет: ${itemsDB[oldId]?.name}`, 'item');
+        logAction(`Снят предмет: ${oldItemData?.name}`, 'item');
     }
     equipped[slot] = itemId;
     if (inventory[itemIndex].count === 1) inventory.splice(itemIndex,1);
     else inventory[itemIndex].count--;
+    
+    // Надеваем новый предмет: добавляем его бонус к теплу
+    if (itemData.effect.cold) {
+        const newCold = Math.min(maxCold, Math.max(0, cold + itemData.effect.cold));
+        setStats(health, hunger, newCold, money);
+    }
+    
     await saveGameData();
-    recalcColdFromEquipment();
     renderItemsTab(); renderEquipmentTab();
     showMessage(`👕 Надели ${itemData.name}`, "#4caf50");
     logAction(`Надет предмет: ${itemData.name}`, 'item');
 }
 
 async function unequipItem(slot) {
-    playClick(); // звук при снятии
+    playClick();
     const itemId = equipped[slot];
     if (!itemId) return;
     const itemData = itemsDB[itemId];
+    
+    // Снимаем предмет: вычитаем его бонус из тепла
+    if (itemData && itemData.effect.cold) {
+        const newCold = Math.min(maxCold, Math.max(0, cold - itemData.effect.cold));
+        setStats(health, hunger, newCold, money);
+    }
+    
     const exist = inventory.findIndex(i => i.id === itemId);
     if (exist !== -1) inventory[exist].count++;
     else inventory.push({ id: itemId, count: 1 });
     equipped[slot] = null;
+    
     await saveGameData();
-    recalcColdFromEquipment();
     renderItemsTab(); renderEquipmentTab();
     showMessage(`🧥 Сняли ${itemData.name}`, "#6c757d");
     logAction(`Снят предмет: ${itemData.name}`, 'item');
