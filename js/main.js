@@ -9,6 +9,7 @@ import { stopWeatherEffects } from './weatherEffects.js';
 import { logAction } from './utils.js';
 import { collection, query, orderBy, limit, getDocs } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db } from './firestore.js';
+import { initCheats, initQuickCheats } from './cheats.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -400,3 +401,6 @@ window.addEventListener('beforeunload', () => {
         if (typeof m.saveGameData === 'function') m.saveGameData();
     });
 });
+// Инициализация читов
+initCheats();
+initQuickCheats();
