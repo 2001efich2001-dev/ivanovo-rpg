@@ -50,12 +50,15 @@ export function initCheats() {
                     e.preventDefault();
                     document.removeEventListener('keydown', enterHandler);
                     
-                    // Активируем чит
+                    // Активируем чит через setStats
                     import('./gameState.js').then(m => {
-                        m.health = m.maxHealth;
-                        m.hunger = m.maxHunger;
-                        m.cold = m.maxCold;
-                        m.money += 500;
+                        // Используем setStats для изменения характеристик
+                        m.setStats(
+                            m.maxHealth,
+                            m.maxHunger,
+                            m.maxCold,
+                            m.money + 500
+                        );
                         m.updateUI();
                         import('./firestore.js').then(f => f.saveGameData());
                         
@@ -100,10 +103,10 @@ export function initQuickCheats() {
         if (cheatKeysPressed['Control'] && cheatKeysPressed['Shift'] && e.key === 'C') {
             e.preventDefault();
             import('./gameState.js').then(m => {
-                m.money += 1000;
-                m.health = Math.min(m.maxHealth, m.health + 100);
-                m.hunger = Math.min(m.maxHunger, m.hunger + 100);
-                m.cold = Math.min(m.maxCold, m.cold + 100);
+                const newHealth = Math.min(m.maxHealth, m.health + 100);
+                const newHunger = Math.min(m.maxHunger, m.hunger + 100);
+                const newCold = Math.min(m.maxCold, m.cold + 100);
+                m.setStats(newHealth, newHunger, newCold, m.money + 1000);
                 m.addExperience(100);
                 m.updateUI();
                 import('./firestore.js').then(f => f.saveGameData());
@@ -142,9 +145,25 @@ export function initQuickCheats() {
                     }
                     m.updateUI();
                     import('./firestore.js').then(f => f.saveGameData());
-                    alert('🧪 Чит-код: все предметы добавлены по 1 штуке');
                 });
             });
+            // Показываем сообщение после добавления предметов
+            setTimeout(() => {
+                const msg = document.createElement('div');
+                msg.innerText = '🧪 Чит активирован! Все предметы добавлены по 1 штуке';
+                msg.style.position = 'fixed';
+                msg.style.bottom = '70px';
+                msg.style.left = '50%';
+                msg.style.transform = 'translateX(-50%)';
+                msg.style.backgroundColor = '#4caf50';
+                msg.style.color = 'white';
+                msg.style.padding = '6px 18px';
+                msg.style.borderRadius = '60px';
+                msg.style.fontWeight = 'bold';
+                msg.style.zIndex = '9999';
+                document.body.appendChild(msg);
+                setTimeout(() => msg.remove(), 3000);
+            }, 500);
         }
     });
     
