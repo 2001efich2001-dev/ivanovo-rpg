@@ -17,7 +17,7 @@ export async function saveGameData() {
         accumulatedMinutes,
         currentWeather,
         currentTemperature,
-        currentLocation,
+        currentLocation: currentLocation || 'church',
         actionLog: getActionLog(),
         experience,
         level,
@@ -45,14 +45,12 @@ export async function loadGameData(userId) {
         setActionLog(data.actionLog ?? []);
         setExpData(data.experience ?? 0, data.level ?? 1);
         
-        // Восстанавливаем локацию
-        if (data.currentLocation) {
-            currentLocation = data.currentLocation;
-            // Перерисовываем локацию
-            import('./locations.js').then(l => {
-                l.renderLocation(currentLocation);
-            });
-        }
+        // Восстанавливаем локацию (если нет – значение по умолчанию 'church')
+        const savedLocation = data.currentLocation || 'church';
+        currentLocation = savedLocation;
+        import('./locations.js').then(l => {
+            l.renderLocation(currentLocation);
+        });
         
         updateUI();
         console.log("Данные загружены");
