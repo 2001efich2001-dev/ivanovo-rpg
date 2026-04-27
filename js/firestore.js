@@ -1,5 +1,5 @@
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData } from './gameState.js';
+import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData, currentLocation, setCurrentLocationFromData } from './gameState.js';
 import { showMessage } from './utils.js';
 
 let db = null;
@@ -17,6 +17,7 @@ export async function saveGameData() {
         accumulatedMinutes,
         currentWeather,
         currentTemperature,
+        currentLocation,            // ← сохраняем текущую локацию
         actionLog: getActionLog(),
         experience,
         level,
@@ -48,6 +49,11 @@ export async function loadGameData(userId) {
         // Загружаем опыт и уровень
         setExpData(data.experience ?? 0, data.level ?? 1);
         
+        // Загружаем текущую локацию
+        if (data.currentLocation) {
+            setCurrentLocationFromData(data.currentLocation);
+        }
+        
         updateUI();
         console.log("Данные загружены");
     } else {
@@ -63,6 +69,8 @@ export async function loadGameData(userId) {
         setActionLog([]);
         // Начальный опыт и уровень
         setExpData(0, 1);
+        // Начальная локация (церковь)
+        setCurrentLocationFromData('church');
         updateUI();
         await saveGameData();
         showMessage('Новый аккаунт создан', '#4caf50');
