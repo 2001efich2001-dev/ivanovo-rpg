@@ -667,6 +667,49 @@ body {
     color: var(--text-secondary);
 }
 
+/* ===== ТОП ИГРОКОВ (ПОДСВЕТКА МЕСТ) ===== */
+.top-player-1 {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 215, 0, 0.1));
+    border-left: 5px solid #FFD700;
+    font-weight: bold;
+}
+.top-player-2 {
+    background: linear-gradient(135deg, rgba(192, 192, 192, 0.3), rgba(192, 192, 192, 0.1));
+    border-left: 5px solid #C0C0C0;
+}
+.top-player-3 {
+    background: linear-gradient(135deg, rgba(205, 127, 50, 0.3), rgba(205, 127, 50, 0.1));
+    border-left: 5px solid #CD7F32;
+}
+.player-rank {
+    display: inline-block;
+    width: 35px;
+    font-weight: bold;
+}
+.player-level {
+    background: var(--card-bg);
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    margin-left: 12px;
+}
+.player-exp {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-left: 12px;
+}
+.top-refresh-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 6px 16px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin-bottom: 12px;
+    display: inline-block;
+}
+
 /* ========== АДАПТИВНОСТЬ (МЕДИА-ЗАПРОСЫ) ========== */
 
 /* Десктопы, планшеты (ширина ≥ 901px) */
