@@ -175,15 +175,22 @@ const TOP_CACHE_TTL = 5 * 60 * 1000; // 5 минут
 async function loadTopPlayers(forceRefresh = false) {
     const container = document.getElementById('topPlayersList');
     if (!container) return;
+    
+    // Проверка, инициализирована ли база данных
+    if (!db) {
+        console.error('Firestore не инициализирован');
+        container.innerHTML = '<div style="text-align:center;">Ошибка: база данных не инициализирована</div>';
+        return;
+    }
+    
     const now = Date.now();
     if (!forceRefresh && topPlayersCache && (now - topPlayersCacheTime < TOP_CACHE_TTL)) {
         container.innerHTML = topPlayersCache;
         return;
     }
+    
     container.innerHTML = '<div style="text-align:center;">Загрузка...</div>';
     try {
-        // убираем эту строку, db уже импортирован
-// const db = getFirestore(auth.app);
         const usersRef = collection(db, 'users');
         const q = query(usersRef, orderBy('level', 'desc'), orderBy('experience', 'desc'), limit(20));
         const querySnapshot = await getDocs(q);
@@ -191,6 +198,7 @@ async function loadTopPlayers(forceRefresh = false) {
             container.innerHTML = '<div style="text-align:center;">Пока нет игроков</div>';
             return;
         }
+        
         let html = '';
         let rank = 1;
         for (const docSnap of querySnapshot.docs) {
