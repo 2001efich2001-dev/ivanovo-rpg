@@ -185,3 +185,13 @@ export function setCurrentLocation(locationId) {
         onLocationChangeCallback(currentLocation);
     }
 }
+
+// ========== Функция для восстановления локации из сохранения ==========
+export function setCurrentLocationFromData(locationId) {
+    if (currentLocation === locationId) return;
+    currentLocation = locationId;
+    // Вызываем колбэк для перерисовки локации, если он установлен
+    if (onLocationChangeCallback) {
+        onLocationChangeCallback(currentLocation);
+    }
+}
