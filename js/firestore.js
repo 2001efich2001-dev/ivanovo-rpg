@@ -12,7 +12,7 @@ export async function saveGameData() {
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
-    // Динамически получаем текущую локацию, чтобы не было ошибки с undefined
+    // Получаем текущую локацию динамически
     const { currentLocation } = await import('./gameState.js');
     
     const docRef = doc(db, 'users', user.uid);
@@ -49,20 +49,10 @@ export async function loadGameData(userId) {
         setActionLog(data.actionLog ?? []);
         setExpData(data.experience ?? 0, data.level ?? 1);
         
-        // Восстанавливаем локацию
+        // Восстанавливаем локацию через функцию setCurrentLocation, а не присваиванием
         const savedLocation = data.currentLocation || 'church';
-        const { currentLocation, setLocationChangeCallback } = await import('./gameState.js');
-        currentLocation = savedLocation;
-        
-        // Перерисовываем локацию
-        const { renderLocation } = await import('./locations.js');
-        renderLocation(savedLocation);
-        
-        // Вызываем колбэк, если он установлен
-        if (setLocationChangeCallback) {
-            const cb = setLocationChangeCallback(() => {});
-            // Не вызываем, просто обновляем
-        }
+        const { setCurrentLocation } = await import('./gameState.js');
+        setCurrentLocation(savedLocation);
         
         updateUI();
         console.log("Данные загружены");
@@ -78,10 +68,8 @@ export async function loadGameData(userId) {
         setExpData(0, 1);
         
         // Устанавливаем начальную локацию
-        const { currentLocation, renderLocation } = await import('./gameState.js');
-        currentLocation = 'church';
-        const { renderLocation: renderLoc } = await import('./locations.js');
-        renderLoc('church');
+        const { setCurrentLocation } = await import('./gameState.js');
+        setCurrentLocation('church');
         
         updateUI();
         await saveGameData();
