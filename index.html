@@ -85,18 +85,16 @@
     </div>
 
     <!-- Модальное окно для топа игроков -->
-    <div id="topModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <h3>🏆 Топ игроков</h3>
-            <div id="topPlayersList" class="players-list" style="max-height: 400px; overflow-y: auto;">
-                Загрузка...
-            </div>
-            <div style="text-align: center; margin-top: 14px;">
-                <button id="refreshTopBtn" style="background: var(--buy-btn-bg); border: none; padding: 6px 16px; border-radius: 40px; color: white; cursor: pointer; font-size: 0.8rem; width: auto; display: inline-block;">🔄 Обновить топ</button>
-                <button class="close-modal" style="width: auto; padding: 6px 20px; margin-left: 10px; display: inline-block;">Закрыть</button>
-            </div>
+ <div id="topModal" class="modal">
+    <div class="modal-content" style="max-width: 700px; width: 90%;">
+        <h3 style="text-align:center; margin-bottom:12px;">🏆 Топ игроков</h3>
+        <div id="topPlayersList" class="players-list" style="max-height: 500px; overflow-y: auto;"></div>
+        <div style="text-align: center; margin-top: 16px;">
+            <button id="refreshTopBtn" style="background: var(--buy-btn-bg); border: none; padding: 8px 20px; border-radius: 40px; color: white; cursor: pointer; font-size: 0.9rem;">🔄 Обновить</button>
+            <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text); border: none; padding: 8px 20px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; margin-left: 12px;">Закрыть</button>
         </div>
     </div>
+</div>
 
     <!-- Остальные модальные окна без изменений -->
     <div id="inventoryModal" class="modal">
