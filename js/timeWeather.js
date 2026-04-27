@@ -3,6 +3,7 @@ import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather,
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { updateDarkness, updateWeatherEffects } from './weatherEffects.js';
+import { getColdMultiplier } from './randomEvents.js';
 
 // Константы
 const MINUTES_PER_REAL_MINUTE = 10;
@@ -67,6 +68,9 @@ function applyWeatherEffects() {
     let healthChange = 0;
     const hours = (accumulatedMinutes / 60) % 24;
     
+    // Получаем множитель холода от временных эффектов (например, метель)
+    const coldMultiplier = getColdMultiplier();
+    
     // ===== 1. ЕСТЕСТВЕННОЕ ПАДЕНИЕ ГОЛОДА =====
     hungerChange = -1;
     
@@ -78,22 +82,22 @@ function applyWeatherEffects() {
     }
     
     // ===== 2. ВЛИЯНИЕ ПОГОДЫ И ТЕМПЕРАТУРЫ НА ТЕПЛО =====
-    // Базовое падение тепла от погоды
+    // Базовое падение тепла от погоды с учётом множителя
     if (currentWeather === 'rain') {
-        coldChange -= 1;
+        coldChange -= 1 * coldMultiplier;
     } else if (currentWeather === 'snow') {
-        coldChange -= 2;
+        coldChange -= 2 * coldMultiplier;
     }
     
     // Падение от холода
     if (currentTemperature < 0) {
-        coldChange -= 1;
-        if (currentTemperature < -10) coldChange -= 1; // сильный мороз
+        coldChange -= 1 * coldMultiplier;
+        if (currentTemperature < -10) coldChange -= 1 * coldMultiplier; // сильный мороз
     }
     
     // Падение от ночного времени
     if (hours >= 22 || hours < 6) {
-        coldChange -= 1;
+        coldChange -= 1 * coldMultiplier;
     }
     
     // ===== 3. ПРИМЕНЯЕМ ИЗМЕНЕНИЯ =====
@@ -201,6 +205,10 @@ export function updateTimeWeather() {
         const weatherNames = { sunny: 'солнечно', cloudy: 'облачно', rain: 'дождь', snow: 'снег' };
         showMessage(`🌦️ Погода изменилась: ${weatherNames[newWeather]}`, '#4caf50');
         logAction(`Погода изменилась: ${weatherNames[newWeather]} (температура ${newTemp > 0 ? '+' : ''}${newTemp}°)`, 'weather');
+        // При смене погоды можно проверить погодные события
+        import('./randomEvents.js').then(m => {
+            m.checkAndTriggerEvent('weather', { weather: newWeather });
+        });
     }
     
     throttledSave();
