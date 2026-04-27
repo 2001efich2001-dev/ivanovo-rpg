@@ -33,10 +33,8 @@ export function recalcColdFromEquipment() {
     if (equipped.feet && itemsDB[equipped.feet]) bonus += itemsDB[equipped.feet].effect.cold || 0;
     const newCold = Math.min(maxCold, 100 + bonus);
     if (newCold !== cold) {
-        import('./gameState.js').then(module => {
-            module.cold = newCold;
-            module.updateUI();
-        });
+        // Исправлено: вместо прямого присваивания используем setStats
+        setStats(health, hunger, newCold, money);
     }
 }
 
