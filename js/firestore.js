@@ -142,6 +142,7 @@ export async function cancelTradeOffer(offerId, userId) {
 
 // Принятие предложения (транзакция)
 // Принятие предложения (транзакция)
+// Принятие предложения (транзакция)
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
@@ -156,6 +157,12 @@ export async function acceptTradeOffer(offerId, userId) {
             if (offer.toUserId !== userId) throw new Error('Вы не получатель этого предложения');
             if (new Date(offer.expiresAt) < new Date()) throw new Error('Срок предложения истёк');
             
+            // ===== ВАЖНО: приводим деньги к числам (могут приходить как строки) =====
+            const fromMoneyNum = Number(offer.fromMoney) || 0;
+            const toMoneyNum = Number(offer.toMoney) || 0;
+            
+            console.log('💰 fromMoneyNum:', fromMoneyNum, 'toMoneyNum:', toMoneyNum);
+            
             // Получаем данные отправителя и получателя
             const fromUserRef = doc(db, 'users', offer.fromUserId);
             const toUserRef = doc(db, 'users', offer.toUserId);
@@ -167,90 +174,104 @@ export async function acceptTradeOffer(offerId, userId) {
             const fromUserData = fromUserSnap.data();
             const toUserData = toUserSnap.data();
             
-            // Копируем инвентари
-            let fromInventory = [...(fromUserData.inventory || [])];
-            let toInventory = [...(toUserData.inventory || [])];
+            console.log('👤 Отправитель до:', { money: fromUserData.money, inventory: fromUserData.inventory });
+            console.log('👤 Получатель до:', { money: toUserData.money, inventory: toUserData.inventory });
+            
+            // Копируем инвентари (глубокое копирование)
+            let fromInventory = (fromUserData.inventory || []).map(i => ({ ...i }));
+            let toInventory = (toUserData.inventory || []).map(i => ({ ...i }));
             
             // ===== 1. ПРОВЕРКА: у отправителя есть предметы из offer.fromItems =====
-            for (const item of offer.fromItems) {
+            for (const item of offer.fromItems || []) {
                 const idx = fromInventory.findIndex(i => i.id === item.id);
-                if (idx === -1 || fromInventory[idx].count < item.count) {
-                    throw new Error(`У отправителя нет ${item.count} шт. ${item.id}`);
+                if (idx === -1 || fromInventory[idx].count < (item.count || 1)) {
+                    throw new Error(`У отправителя нет ${item.count || 1} шт. ${item.id}`);
                 }
             }
             
             // ===== 2. ПРОВЕРКА: у получателя есть предметы из offer.toItems =====
-            for (const item of offer.toItems) {
+            for (const item of offer.toItems || []) {
                 const idx = toInventory.findIndex(i => i.id === item.id);
-                if (idx === -1 || toInventory[idx].count < item.count) {
-                    throw new Error(`У вас нет ${item.count} шт. ${item.id}`);
+                if (idx === -1 || toInventory[idx].count < (item.count || 1)) {
+                    throw new Error(`У вас нет ${item.count || 1} шт. ${item.id}`);
                 }
             }
             
             // ===== 3. ПРОВЕРКА ДЕНЕГ =====
-            if (offer.fromMoney > 0 && (fromUserData.money || 0) < offer.fromMoney) {
-                throw new Error(`У отправителя недостаточно денег (нужно ${offer.fromMoney}₽)`);
+            const fromCurrentMoney = fromUserData.money || 0;
+            const toCurrentMoney = toUserData.money || 0;
+            
+            if (fromMoneyNum > 0 && fromCurrentMoney < fromMoneyNum) {
+                throw new Error(`У отправителя недостаточно денег (нужно ${fromMoneyNum}₽)`);
             }
-            if (offer.toMoney > 0 && (toUserData.money || 0) < offer.toMoney) {
-                throw new Error(`У вас недостаточно денег (нужно ${offer.toMoney}₽)`);
+            if (toMoneyNum > 0 && toCurrentMoney < toMoneyNum) {
+                throw new Error(`У вас недостаточно денег (нужно ${toMoneyNum}₽)`);
             }
             
             // ===== 4. ОБНОВЛЕНИЕ ИНВЕНТАРЯ ОТПРАВИТЕЛЯ =====
             // Списать offer.fromItems (отдаёт)
-            for (const item of offer.fromItems) {
+            for (const item of offer.fromItems || []) {
+                const itemCount = item.count || 1;
                 const idx = fromInventory.findIndex(i => i.id === item.id);
-                if (fromInventory[idx].count === item.count) {
+                if (fromInventory[idx].count === itemCount) {
                     fromInventory.splice(idx, 1);
                 } else {
-                    fromInventory[idx].count -= item.count;
+                    fromInventory[idx].count -= itemCount;
                 }
             }
             // Добавить offer.toItems (получает)
-            for (const item of offer.toItems) {
+            for (const item of offer.toItems || []) {
+                const itemCount = item.count || 1;
                 const idx = fromInventory.findIndex(i => i.id === item.id);
                 if (idx !== -1) {
-                    fromInventory[idx].count += item.count;
+                    fromInventory[idx].count += itemCount;
                 } else {
-                    fromInventory.push({ id: item.id, count: item.count });
+                    fromInventory.push({ id: item.id, count: itemCount });
                 }
             }
             
             // ===== 5. ОБНОВЛЕНИЕ ИНВЕНТАРЯ ПОЛУЧАТЕЛЯ =====
             // Списать offer.toItems (отдаёт)
-            for (const item of offer.toItems) {
+            for (const item of offer.toItems || []) {
+                const itemCount = item.count || 1;
                 const idx = toInventory.findIndex(i => i.id === item.id);
-                if (toInventory[idx].count === item.count) {
+                if (toInventory[idx].count === itemCount) {
                     toInventory.splice(idx, 1);
                 } else {
-                    toInventory[idx].count -= item.count;
+                    toInventory[idx].count -= itemCount;
                 }
             }
             // Добавить offer.fromItems (получает)
-            for (const item of offer.fromItems) {
+            for (const item of offer.fromItems || []) {
+                const itemCount = item.count || 1;
                 const idx = toInventory.findIndex(i => i.id === item.id);
                 if (idx !== -1) {
-                    toInventory[idx].count += item.count;
+                    toInventory[idx].count += itemCount;
                 } else {
-                    toInventory.push({ id: item.id, count: item.count });
+                    toInventory.push({ id: item.id, count: itemCount });
                 }
             }
             
             // ===== 6. ОБНОВЛЕНИЕ ДЕНЕГ =====
-            const fromNewMoney = (fromUserData.money || 0) - offer.fromMoney + offer.toMoney;
-            const toNewMoney = (toUserData.money || 0) - offer.toMoney + offer.fromMoney;
+            const fromNewMoney = fromCurrentMoney - fromMoneyNum + toMoneyNum;
+            const toNewMoney = toCurrentMoney - toMoneyNum + fromMoneyNum;
+            
+            console.log('💰 После расчёта:', { fromNewMoney, toNewMoney });
+            console.log('📦 fromInventory после:', JSON.stringify(fromInventory));
+            console.log('📦 toInventory после:', JSON.stringify(toInventory));
             
             // ===== 7. СОХРАНЕНИЕ =====
             transaction.update(fromUserRef, { inventory: fromInventory, money: fromNewMoney });
             transaction.update(toUserRef, { inventory: toInventory, money: toNewMoney });
-            transaction.update(offerRef, { status: 'accepted' });
+            transaction.update(offerRef, { status: 'accepted', completedAt: new Date().toISOString() });
         });
         
         showMessage('Обмен успешно завершён!', '#4caf50');
         
-        // Обновляем локальное состояние игры для текущего игрока
-        const user = window.auth?.currentUser;
-        if (user && userId === user.uid) {
-            await loadGameData(user.uid);
+        // ===== 8. ОБНОВЛЕНИЕ ЛОКАЛЬНЫХ ДАННЫХ У ОБОИХ ИГРОКОВ =====
+        const currentUser = window.auth?.currentUser;
+        if (currentUser) {
+            await loadGameData(currentUser.uid);
             const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
             renderItemsTab();
             renderEquipmentTab();
@@ -258,6 +279,7 @@ export async function acceptTradeOffer(offerId, userId) {
         
         return true;
     } catch (error) {
+        console.error('❌ Ошибка в acceptTradeOffer:', error);
         showMessage(`Ошибка: ${error.message}`, '#e74c3c');
         return false;
     }
