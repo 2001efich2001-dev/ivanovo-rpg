@@ -64,18 +64,31 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
         hideSplashOnError();
     });
 
-    loginBtn.addEventListener('click', async () => {
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        if (authError) authError.innerText = '';
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-        } catch (error) {
-            if (authError) authError.innerText = error.message;
-            // При ошибке входа скрываем сплеш
-            hideSplashOnError();
-        }
-    });
+ loginBtn.addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    if (authError) authError.innerText = '';
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        if (authError) authError.innerText = error.message;
+        hideSplashOnError();
+    }
+});
+
+// ===== НОВЫЙ КОД: вход по нажатию Enter =====
+const loginEmail = document.getElementById('loginEmail');
+const loginPassword = document.getElementById('loginPassword');
+
+function onEnterPress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        loginBtn.click();
+    }
+}
+
+if (loginEmail) loginEmail.addEventListener('keypress', onEnterPress);
+if (loginPassword) loginPassword.addEventListener('keypress', onEnterPress);
     registerBtn.addEventListener('click', async () => {
         const nick = document.getElementById('regNick').value.trim();
         const email = document.getElementById('regEmail').value;
