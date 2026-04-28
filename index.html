@@ -86,6 +86,12 @@
                 <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
                 <button class="action-btn" id="mapBtn">🗺️ Карта</button>
                 <button class="action-btn" id="shopBtn">🏪 Магазин</button>
+                <button class="action-btn" id="myOffersBtn">
+                    💼 Мои предложения
+                    <span id="tradeNotification" class="trade-notification" style="display: none;">
+                        <span class="trade-count"></span>!
+                    </span>
+                </button>
                 <button class="action-btn" id="topPlayersBtn">🏆 Топ игроков</button>
                 <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
             </div>
@@ -93,7 +99,7 @@
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
             </div>
-            <footer class="game-footer">Иваново · Версия 0.0.15 · Энергия</footer>
+            <footer class="game-footer">Иваново · Версия 0.0.17 · Торговля</footer>
         </div>
     </div>
 
@@ -105,6 +111,52 @@
             <div style="text-align: center; margin-top: 16px;">
                 <button id="refreshTopBtn" style="background: var(--buy-btn-bg); border: none; padding: 8px 20px; border-radius: 40px; color: white; cursor: pointer; font-size: 0.9rem;">🔄 Обновить</button>
                 <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text); border: none; padding: 8px 20px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; margin-left: 12px;">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для предложения обмена -->
+    <div id="tradeOfferModal" class="modal">
+        <div class="modal-content" style="max-width: 900px; width: 90%;">
+            <h3>💼 Предложить обмен</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                <div style="flex: 1;">
+                    <strong>📦 Я отдаю:</strong>
+                    <div id="tradeFromItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
+                    <div class="selected-items" style="margin-top: 10px;">
+                        <strong>Выбрано:</strong>
+                        <div id="tradeSelectedFrom" class="selected-items-list"></div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label>💰 Деньги: <input type="number" id="tradeFromMoney" min="0" value="0" style="width: 100px;"></label>
+                    </div>
+                </div>
+                <div style="flex: 1;">
+                    <strong>🎁 Я получаю:</strong>
+                    <div id="tradeToItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
+                    <div class="selected-items" style="margin-top: 10px;">
+                        <strong>Выбрано:</strong>
+                        <div id="tradeSelectedTo" class="selected-items-list"></div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label>💰 Деньги: <input type="number" id="tradeToMoney" min="0" value="0" style="width: 100px;"></label>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button id="sendTradeBtn" class="action-btn">📤 Отправить предложение</button>
+                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно "Мои предложения" -->
+    <div id="myOffersModal" class="modal">
+        <div class="modal-content" style="max-width: 700px; width: 90%;">
+            <h3>💼 Мои предложения обмена</h3>
+            <div id="myOffersList" class="inventory-grid" style="max-height: 500px; overflow-y: auto;"></div>
+            <div style="text-align: center; margin-top: 16px;">
+                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
             </div>
         </div>
     </div>
@@ -155,7 +207,7 @@
     
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG-Иваново · Альфа 0.0.16 · Энергия</p>
+        <p>RPG-Иваново · Альфа 0.0.17 · Торговля</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
