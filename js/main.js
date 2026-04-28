@@ -279,13 +279,14 @@ async function openTradeOfferModal(targetUserId, targetUserNick) {
     const title = modal.querySelector('.modal-content h3');
     if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
     document.getElementById('tradeFromItems').innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
-    document.getElementById('tradeToItems').innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
+    document.getElementById('tradeToItems').innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка...</div>';
     document.getElementById('tradeFromMoney').value = 0;
     document.getElementById('tradeToMoney').value = 0;
     document.getElementById('tradeSelectedFrom').innerHTML = '';
     document.getElementById('tradeSelectedTo').innerHTML = '';
     modal.style.display = 'flex';
     await renderTradeInventorySelector('from');
+    await renderTradeInventorySelector('to');
 }
 
 async function renderTradeInventorySelector(side) {
@@ -396,28 +397,38 @@ async function sendTradeOffer() {
     const targetUserNick = modal.dataset.targetUserNick;
     const user = auth.currentUser;
     if (!user || !targetUserId) return;
+    
     const fromItems = [];
     for (const el of document.querySelectorAll('#tradeSelectedFrom .selected-item')) {
         const itemId = el.dataset.id;
         const count = parseInt(el.querySelector('.selected-count').textContent);
         fromItems.push({ id: itemId, count });
     }
+    
     const toItems = [];
     for (const el of document.querySelectorAll('#tradeSelectedTo .selected-item')) {
         const itemId = el.dataset.id;
         const count = parseInt(el.querySelector('.selected-count').textContent);
         toItems.push({ id: itemId, count });
     }
+    
     const fromMoney = parseInt(document.getElementById('tradeFromMoney').value) || 0;
     const toMoney = parseInt(document.getElementById('tradeToMoney').value) || 0;
+    
     if (fromItems.length === 0 && fromMoney === 0 && toItems.length === 0 && toMoney === 0) {
         showMessage('Предложите хоть что-то в обмен', '#e74c3c');
         return;
     }
+    
     try {
         await createTradeOffer(user.uid, user.displayName, targetUserId, targetUserNick, fromItems, fromMoney, toItems, toMoney);
         showMessage('Предложение обмена отправлено!', '#4caf50');
         modal.style.display = 'none';
+        // Очищаем выбранные предметы
+        document.getElementById('tradeSelectedFrom').innerHTML = '';
+        document.getElementById('tradeSelectedTo').innerHTML = '';
+        document.getElementById('tradeFromMoney').value = 0;
+        document.getElementById('tradeToMoney').value = 0;
     } catch (error) {
         showMessage(`Ошибка: ${error.message}`, '#e74c3c');
     }
