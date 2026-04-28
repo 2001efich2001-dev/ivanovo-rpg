@@ -248,3 +248,6 @@ export function setCurrentLocation(locationId) {
         onLocationChangeCallback(currentLocation);
     }
 }
+export function setLastEnergyUpdate(value) {
+    lastEnergyUpdate = value;
+}
