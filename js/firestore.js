@@ -58,9 +58,6 @@ export async function loadGameData(userId) {
         const savedEnergy = data.energy ?? 100;
         setEnergy(savedEnergy);
         
-       const savedLastUpdate = data.lastEnergyUpdate ?? Date.now();
-setLastEnergyUpdate(savedLastUpdate);
-        
         const savedLocation = data.currentLocation || 'church';
         const { setCurrentLocation } = await import('./gameState.js');
         setCurrentLocation(savedLocation);
