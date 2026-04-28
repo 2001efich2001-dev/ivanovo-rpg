@@ -1,7 +1,7 @@
 // js/main.js
 import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback } from './gameState.js';
 import { initAuth, auth } from './auth.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
+import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
