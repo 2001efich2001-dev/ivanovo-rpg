@@ -9,6 +9,11 @@ export let cold = 100;
 export let maxCold = 100;
 export let money = 500;
 
+// ========== ЭНЕРГИЯ ==========
+export let energy = 100;
+export let maxEnergy = 100;
+export let lastEnergyUpdate = Date.now(); // время последнего восстановления энергии
+
 export let inventory = [];
 export let equipped = { head: null, body: null, legs: null, feet: null };
 
@@ -32,6 +37,7 @@ export let requiredExp = 100;
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
+export let energyValueSpan, energyFill; // для отображения энергии
 
 let onLocationChangeCallback = null;
 let onLogUpdateCallback = null;
@@ -50,6 +56,10 @@ export function initDOM() {
     expValueSpan = document.getElementById('expValue');
     expRequiredSpan = document.getElementById('expRequired');
     expFill = document.getElementById('expFill');
+    
+    // Элементы для энергии
+    energyValueSpan = document.getElementById('energyValue');
+    energyFill = document.getElementById('energyFill');
 }
 
 export function updateUI() {
@@ -65,6 +75,10 @@ export function updateUI() {
     if (expValueSpan) expValueSpan.innerText = Math.floor(experience);
     if (expRequiredSpan) expRequiredSpan.innerText = requiredExp;
     if (expFill) expFill.style.width = (experience / requiredExp) * 100 + '%';
+    
+    // Обновляем отображение энергии
+    if (energyValueSpan) energyValueSpan.innerText = `${Math.floor(energy)} / ${maxEnergy}`;
+    if (energyFill) energyFill.style.width = (energy / maxEnergy) * 100 + '%';
 }
 
 export function setStats(h, hu, c, m) {
@@ -73,6 +87,50 @@ export function setStats(h, hu, c, m) {
     cold = isNaN(c) ? 100 : Math.min(maxCold, Math.max(0, c));
     money = isNaN(m) ? 500 : Math.max(0, m);
     updateUI();
+}
+
+// ========== Функции для энергии ==========
+// Восстановление энергии (вызывать перед действиями или по таймеру)
+export function updateEnergy() {
+    const now = Date.now();
+    const secondsPassed = (now - lastEnergyUpdate) / 1000;
+    // Восстанавливаем 1 энергию каждые 2 минуты (120 секунд)
+    const energyToAdd = Math.floor(secondsPassed / 120);
+    if (energyToAdd > 0 && energy < maxEnergy) {
+        energy = Math.min(maxEnergy, energy + energyToAdd);
+        lastEnergyUpdate = now;
+        updateUI();
+        // Сохраняем изменения
+        import('./firestore.js').then(m => {
+            if (typeof m.saveGameData === 'function') m.saveGameData();
+        });
+    }
+}
+
+// Принудительная установка энергии (при загрузке или сне)
+export function setEnergy(newEnergy) {
+    energy = Math.min(maxEnergy, Math.max(0, newEnergy));
+    lastEnergyUpdate = Date.now();
+    updateUI();
+}
+
+// Проверка, хватает ли энергии на действие
+export function hasEnoughEnergy(cost) {
+    updateEnergy(); // обновляем перед проверкой
+    return energy >= cost;
+}
+
+// Трата энергии
+export function spendEnergy(cost) {
+    if (cost === undefined || cost === null) return true;
+    if (energy >= cost) {
+        energy -= cost;
+        lastEnergyUpdate = Date.now();
+        updateUI();
+        return true;
+    }
+    showMessage(`❌ Не хватает энергии! Нужно ${cost}⚡`, '#e74c3c');
+    return false;
 }
 
 // ========== Функции для опыта и уровней ==========
@@ -185,4 +243,3 @@ export function setCurrentLocation(locationId) {
         onLocationChangeCallback(currentLocation);
     }
 }
-
