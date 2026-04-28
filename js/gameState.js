@@ -42,6 +42,7 @@ export let energyValueSpan, energyFill; // для отображения эне�
 let onLocationChangeCallback = null;
 let onLogUpdateCallback = null;
 let onExpUpdateCallback = null;
+let onEnergyUpdateCallback = null;
 
 export function initDOM() {
     healthValueSpan = document.getElementById('healthValue');
@@ -90,6 +91,10 @@ export function setStats(h, hu, c, m) {
 }
 
 // ========== Функции для энергии ==========
+export function setEnergyUpdateCallback(callback) {
+    onEnergyUpdateCallback = callback;
+}
+
 // Восстановление энергии (вызывать перед действиями или по таймеру)
 export function updateEnergy() {
     const now = Date.now();
@@ -100,7 +105,7 @@ export function updateEnergy() {
         energy = Math.min(maxEnergy, energy + energyToAdd);
         lastEnergyUpdate = now;
         updateUI();
-        // Сохраняем изменения
+        if (onEnergyUpdateCallback) onEnergyUpdateCallback();
         import('./firestore.js').then(m => {
             if (typeof m.saveGameData === 'function') m.saveGameData();
         });
