@@ -825,54 +825,54 @@ body {
 /* Десктопы, планшеты (ширина ≥ 901px) */
 @media (min-width: 901px) {
     .game-container {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
     }
     .game-left {
-        flex: 2 !important;
-        width: auto !important;
+        flex: 2;
+        width: auto;
     }
     .game-right {
-        flex: 1.2 !important;
-        width: auto !important;
+        flex: 1.2;
+        width: auto;
     }
 }
 
 /* Планшеты и узкие десктопы (769px - 900px) */
 @media (min-width: 769px) and (max-width: 900px) {
     .game-container {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
         gap: 16px;
         padding: 16px;
     }
     .game-left {
-        flex: 1.8 !important;
-        width: auto !important;
+        flex: 1.8;
+        width: auto;
     }
     .game-right {
-        flex: 1.2 !important;
-        width: auto !important;
+        flex: 1.2;
+        width: auto;
     }
 }
 
 /* Мобильные устройства (горизонтальная ориентация) */
 @media (max-width: 768px) and (orientation: landscape) {
     .game-container {
-        display: flex !important;
-        flex-direction: row !important;
+        display: flex;
+        flex-direction: row;
         gap: 12px;
         padding: 12px;
     }
     .game-left {
-        flex: 1.5 !important;
+        flex: 1.5;
         min-width: 200px;
         aspect-ratio: 16 / 10;
     }
     .game-right {
-        flex: 1 !important;
+        flex: 1;
         min-width: 220px;
         gap: 8px;
     }
@@ -913,7 +913,7 @@ body {
 /* Мобильные устройства (вертикальная ориентация) */
 @media (max-width: 768px) and (orientation: portrait) {
     .game-container {
-        flex-direction: column !important;
+        flex-direction: column;
         align-items: center;
         gap: 16px;
         padding: 16px;
