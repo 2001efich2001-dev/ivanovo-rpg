@@ -143,25 +143,27 @@ export async function cancelTradeOffer(offerId, userId) {
 // Принятие предложения (транзакция)
 // Принятие предложения (транзакция)
 // Принятие предложения (транзакция)
+// Принятие предложения (транзакция)
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
     try {
+        let offerData = null; // сохраним данные предложения для обновления отправителя
+        
         const result = await runTransaction(db, async (transaction) => {
             const offerRef = doc(db, 'trade_offers', offerId);
             const offerSnap = await transaction.get(offerRef);
             if (!offerSnap.exists()) throw new Error('Предложение не найдено');
             
             const offer = offerSnap.data();
+            offerData = offer; // сохраняем
             if (offer.status !== 'pending') throw new Error('Предложение уже обработано');
             if (offer.toUserId !== userId) throw new Error('Вы не получатель этого предложения');
             if (new Date(offer.expiresAt) < new Date()) throw new Error('Срок предложения истёк');
             
-            // ===== ВАЖНО: приводим деньги к числам (могут приходить как строки) =====
+            // ===== ВАЖНО: приводим деньги к числам =====
             const fromMoneyNum = Number(offer.fromMoney) || 0;
             const toMoneyNum = Number(offer.toMoney) || 0;
-            
-            console.log('💰 fromMoneyNum:', fromMoneyNum, 'toMoneyNum:', toMoneyNum);
             
             // Получаем данные отправителя и получателя
             const fromUserRef = doc(db, 'users', offer.fromUserId);
@@ -174,14 +176,11 @@ export async function acceptTradeOffer(offerId, userId) {
             const fromUserData = fromUserSnap.data();
             const toUserData = toUserSnap.data();
             
-            console.log('👤 Отправитель до:', { money: fromUserData.money, inventory: fromUserData.inventory });
-            console.log('👤 Получатель до:', { money: toUserData.money, inventory: toUserData.inventory });
-            
-            // Копируем инвентари (глубокое копирование)
+            // Копируем инвентари
             let fromInventory = (fromUserData.inventory || []).map(i => ({ ...i }));
             let toInventory = (toUserData.inventory || []).map(i => ({ ...i }));
             
-            // ===== 1. ПРОВЕРКА: у отправителя есть предметы из offer.fromItems =====
+            // ===== ПРОВЕРКИ =====
             for (const item of offer.fromItems || []) {
                 const idx = fromInventory.findIndex(i => i.id === item.id);
                 if (idx === -1 || fromInventory[idx].count < (item.count || 1)) {
@@ -189,7 +188,6 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // ===== 2. ПРОВЕРКА: у получателя есть предметы из offer.toItems =====
             for (const item of offer.toItems || []) {
                 const idx = toInventory.findIndex(i => i.id === item.id);
                 if (idx === -1 || toInventory[idx].count < (item.count || 1)) {
@@ -197,19 +195,14 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // ===== 3. ПРОВЕРКА ДЕНЕГ =====
-            const fromCurrentMoney = fromUserData.money || 0;
-            const toCurrentMoney = toUserData.money || 0;
-            
-            if (fromMoneyNum > 0 && fromCurrentMoney < fromMoneyNum) {
+            if (fromMoneyNum > 0 && (fromUserData.money || 0) < fromMoneyNum) {
                 throw new Error(`У отправителя недостаточно денег (нужно ${fromMoneyNum}₽)`);
             }
-            if (toMoneyNum > 0 && toCurrentMoney < toMoneyNum) {
+            if (toMoneyNum > 0 && (toUserData.money || 0) < toMoneyNum) {
                 throw new Error(`У вас недостаточно денег (нужно ${toMoneyNum}₽)`);
             }
             
-            // ===== 4. ОБНОВЛЕНИЕ ИНВЕНТАРЯ ОТПРАВИТЕЛЯ =====
-            // Списать offer.fromItems (отдаёт)
+            // ===== ОБНОВЛЕНИЕ ИНВЕНТАРЯ ОТПРАВИТЕЛЯ =====
             for (const item of offer.fromItems || []) {
                 const itemCount = item.count || 1;
                 const idx = fromInventory.findIndex(i => i.id === item.id);
@@ -219,7 +212,6 @@ export async function acceptTradeOffer(offerId, userId) {
                     fromInventory[idx].count -= itemCount;
                 }
             }
-            // Добавить offer.toItems (получает)
             for (const item of offer.toItems || []) {
                 const itemCount = item.count || 1;
                 const idx = fromInventory.findIndex(i => i.id === item.id);
@@ -230,8 +222,7 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // ===== 5. ОБНОВЛЕНИЕ ИНВЕНТАРЯ ПОЛУЧАТЕЛЯ =====
-            // Списать offer.toItems (отдаёт)
+            // ===== ОБНОВЛЕНИЕ ИНВЕНТАРЯ ПОЛУЧАТЕЛЯ =====
             for (const item of offer.toItems || []) {
                 const itemCount = item.count || 1;
                 const idx = toInventory.findIndex(i => i.id === item.id);
@@ -241,7 +232,6 @@ export async function acceptTradeOffer(offerId, userId) {
                     toInventory[idx].count -= itemCount;
                 }
             }
-            // Добавить offer.fromItems (получает)
             for (const item of offer.fromItems || []) {
                 const itemCount = item.count || 1;
                 const idx = toInventory.findIndex(i => i.id === item.id);
@@ -252,15 +242,11 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // ===== 6. ОБНОВЛЕНИЕ ДЕНЕГ =====
-            const fromNewMoney = fromCurrentMoney - fromMoneyNum + toMoneyNum;
-            const toNewMoney = toCurrentMoney - toMoneyNum + fromMoneyNum;
+            // ===== ОБНОВЛЕНИЕ ДЕНЕГ =====
+            const fromNewMoney = (fromUserData.money || 0) - fromMoneyNum + toMoneyNum;
+            const toNewMoney = (toUserData.money || 0) - toMoneyNum + fromMoneyNum;
             
-            console.log('💰 После расчёта:', { fromNewMoney, toNewMoney });
-            console.log('📦 fromInventory после:', JSON.stringify(fromInventory));
-            console.log('📦 toInventory после:', JSON.stringify(toInventory));
-            
-            // ===== 7. СОХРАНЕНИЕ =====
+            // Сохраняем
             transaction.update(fromUserRef, { inventory: fromInventory, money: fromNewMoney });
             transaction.update(toUserRef, { inventory: toInventory, money: toNewMoney });
             transaction.update(offerRef, { status: 'accepted', completedAt: new Date().toISOString() });
@@ -268,13 +254,27 @@ export async function acceptTradeOffer(offerId, userId) {
         
         showMessage('Обмен успешно завершён!', '#4caf50');
         
-        // ===== 8. ОБНОВЛЕНИЕ ЛОКАЛЬНЫХ ДАННЫХ У ОБОИХ ИГРОКОВ =====
+        // ===== ОБНОВЛЯЕМ ДАННЫЕ У ОБОИХ ИГРОКОВ =====
         const currentUser = window.auth?.currentUser;
+        
+        // Обновляем текущего игрока (получателя)
         if (currentUser) {
             await loadGameData(currentUser.uid);
             const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
             renderItemsTab();
             renderEquipmentTab();
+        }
+        
+        // ОБНОВЛЯЕМ ДАННЫЕ ОТПРАВИТЕЛЯ (через отдельный запрос)
+        if (offerData && offerData.fromUserId) {
+            // Создаём скрытый iframe или просто делаем запрос к базе
+            // Самый простой способ: добавить в localStorage флаг, что нужно обновить данные
+            console.log('Нужно обновить данные отправителя:', offerData.fromUserId);
+            
+            // Отправляем уведомление отправителю через localStorage (если это тот же браузер)
+            try {
+                localStorage.setItem('trade_needs_refresh_' + offerData.fromUserId, Date.now().toString());
+            } catch(e) {}
         }
         
         return true;
