@@ -176,6 +176,11 @@ let topPlayersCache = null;
 let topPlayersCacheTime = 0;
 const TOP_CACHE_TTL = 5 * 60 * 1000;
 
+// ========== ТОП ИГРОКОВ ==========
+let topPlayersCache = null;
+let topPlayersCacheTime = 0;
+const TOP_CACHE_TTL = 5 * 60 * 1000;
+
 async function loadTopPlayers(forceRefresh = false) {
     const container = document.getElementById('topPlayersList');
     if (!container) return;
@@ -187,6 +192,8 @@ async function loadTopPlayers(forceRefresh = false) {
     const now = Date.now();
     if (!forceRefresh && topPlayersCache && (now - topPlayersCacheTime < TOP_CACHE_TTL)) {
         container.innerHTML = topPlayersCache;
+        // Перевешиваем обработчики после кэша
+        attachTradeButtons();
         return;
     }
     container.innerHTML = '<div style="text-align:center;">Загрузка...</div>';
@@ -211,12 +218,15 @@ async function loadTopPlayers(forceRefresh = false) {
             else if (rank === 3) rankClass = 'top-player-3';
             const requiredExp = Math.floor(100 * Math.pow(1.2, level - 1));
             html += `
-                <div class="player-item ${rankClass}">
+                <div class="player-item ${rankClass}" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">
                     <div class="player-info">
                         <span class="player-rank">${rank}.</span>
                         <span class="player-nick">${escapeHtml(nick)}</span>
                         <span class="player-level">⭐ ${level}</span>
                         <span class="player-exp">${Math.floor(exp)}/${requiredExp} опыта</span>
+                    </div>
+                    <div>
+                        <button class="trade-offer-btn" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">💼 Предложить обмен</button>
                     </div>
                 </div>
             `;
@@ -225,10 +235,33 @@ async function loadTopPlayers(forceRefresh = false) {
         container.innerHTML = html;
         topPlayersCache = html;
         topPlayersCacheTime = now;
+        
+        // Добавляем обработчики для кнопок обмена
+        attachTradeButtons();
+        
     } catch (error) {
         console.error(error);
         container.innerHTML = '<div style="text-align:center;">Ошибка загрузки топа</div>';
     }
+}
+
+// Функция для привязки обработчиков к кнопкам "Предложить обмен"
+function attachTradeButtons() {
+    document.querySelectorAll('.trade-offer-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._handler);
+        const handler = () => {
+            const targetUserId = btn.dataset.userId;
+            const targetUserNick = btn.dataset.userNick;
+            // Нельзя предложить обмен самому себе
+            if (targetUserId === auth.currentUser?.uid) {
+                showMessage('Нельзя предложить обмен самому себе', '#e74c3c');
+                return;
+            }
+            openTradeOfferModal(targetUserId, targetUserNick);
+        };
+        btn.addEventListener('click', handler);
+        btn._handler = handler;
+    });
 }
 
 // ========== ТОРГОВЛЯ ==========
@@ -256,20 +289,23 @@ async function openTradeOfferModal(targetUserId, targetUserNick) {
     const modal = document.getElementById('tradeOfferModal');
     if (!modal) return;
     
-    // Сохраняем ID получателя
+    // Сохраняем ID и ник получателя
     modal.dataset.targetUserId = targetUserId;
     modal.dataset.targetUserNick = targetUserNick;
     
     // Заполняем заголовок
-    modal.querySelector('.modal-content h3').innerHTML = `💼 Предложить обмен игроку ${targetUserNick}`;
+    const title = modal.querySelector('.modal-content h3');
+    if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
     
     // Очищаем поля
     const fromItemsDiv = document.getElementById('tradeFromItems');
     const toItemsDiv = document.getElementById('tradeToItems');
-    if (fromItemsDiv) fromItemsDiv.innerHTML = '<div class="inventory-item" style="justify-content:center;">Выберите предметы из инвентаря</div>';
-    if (toItemsDiv) toItemsDiv.innerHTML = '<div class="inventory-item" style="justify-content:center;">Выберите предметы для получения</div>';
+    if (fromItemsDiv) fromItemsDiv.innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
+    if (toItemsDiv) toItemsDiv.innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
     document.getElementById('tradeFromMoney').value = 0;
     document.getElementById('tradeToMoney').value = 0;
+    document.getElementById('tradeSelectedFrom').innerHTML = '';
+    document.getElementById('tradeSelectedTo').innerHTML = '';
     
     modal.style.display = 'flex';
     
