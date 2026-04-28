@@ -544,6 +544,25 @@ document.addEventListener('DOMContentLoaded', () => {
             checkNewTradeOffers();
         }, 30000);
         checkNewTradeOffers();
+        // Слушаем обновления от торговли (для отправителя)
+setInterval(async () => {
+    const user = window.auth?.currentUser;
+    if (!user) return;
+    
+    const key = 'trade_needs_refresh_' + user.uid;
+    const needRefresh = localStorage.getItem(key);
+    if (needRefresh) {
+        localStorage.removeItem(key);
+        console.log('Обновляем данные после торговли');
+        await import('./firestore.js').then(async (m) => {
+            await m.loadGameData(user.uid);
+            const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
+            renderItemsTab();
+            renderEquipmentTab();
+            showMessage('🔄 Данные обновлены после обмена', '#4caf50');
+        });
+    }
+}, 3000); // Проверяем каждые 3 секунды
     }
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
     setLocationChangeCallback(onLocationChanged);
