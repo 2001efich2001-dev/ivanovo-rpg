@@ -216,6 +216,65 @@ async function executeAction(locationId, action) {
     let actionLogMessage = '';
     let gainedExp = 0;
     
+    // Обработка сна (затемнение и пропуск времени)
+    if (action.id === 'sleep') {
+        // Сначала применяем обычные эффекты (здоровье, списание денег)
+        if (action.cost && action.cost > 0) {
+            if (money < action.cost) { showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); return; }
+            setStats(health, hunger, cold, money - action.cost);
+            actionLogMessage += `-${action.cost}₽. `;
+        }
+        if (action.effect && action.effect.health) {
+            const add = Array.isArray(action.effect.health) ? Math.floor(Math.random()*(action.effect.health[1]-action.effect.health[0]+1)+action.effect.health[0]) : action.effect.health;
+            const newHealth = Math.min(maxHealth, Math.max(0, health + add));
+            setStats(newHealth, hunger, cold, money);
+            msg += `Здоровье +${add}. `;
+            actionLogMessage += `Здоровье +${add}. `;
+        }
+        
+        // Затемняем экран
+        const overlay = document.createElement('div');
+        overlay.id = 'sleepOverlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'black';
+        overlay.style.zIndex = '10002';
+        overlay.style.transition = 'opacity 0.5s ease';
+        overlay.style.opacity = '0';
+        document.body.appendChild(overlay);
+        
+        // Плавное затемнение
+        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        
+        // Через 0.5 секунды добавляем 8 часов к игровому времени
+        setTimeout(async () => {
+            const { addGameHours } = await import('./timeWeather.js');
+            addGameHours(8);
+            // Обновляем UI после изменения времени
+            updateUI();
+        }, 500);
+        
+        // Через 3.5 секунды убираем затемнение
+        setTimeout(() => {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 500);
+        }, 3500);
+        
+        updateUI();
+        await saveGameData();
+        showMessage(msg || "Вы крепко выспались!", "#4caf50");
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
+        document.getElementById('locationModal').style.display = 'none';
+        if (document.getElementById('inventoryModal').style.display === 'flex') {
+            import('./inventory.js').then(m => { m.renderItemsTab(); m.renderEquipmentTab(); });
+        }
+        return;
+    }
+    
+    // Обычная обработка для остальных действий
     if (action.needsItem) {
         const has = inventory.find(i => i.id === action.needsItem && i.count > 0);
         if (!has) { showMessage(`Нет ${itemsDB[action.needsItem]?.name || action.needsItem}`, "#e74c3c"); return; }
@@ -270,7 +329,6 @@ async function executeAction(locationId, action) {
                     else inventory.push({ id: it, count: 1 });
                     msg += `+1 ${itemsDB[it]?.name}. `;
                     actionLogMessage += `+1 ${itemsDB[it]?.name}. `;
-                    // Опыт за полученный предмет
                     gainedExp += 10;
                 });
             }
@@ -285,22 +343,11 @@ async function executeAction(locationId, action) {
             }
         }
         
-        // Начисление опыта за особые действия
-        if (action.id === 'fight') {
-            gainedExp += 20; // драка
-        }
-        if (action.id === 'steal') {
-            gainedExp += 15; // ограбление
-        }
-        if (action.id === 'pray') {
-            gainedExp += 5; // молитва
-        }
-        if (action.id === 'eat' && locationId === 'shelter') {
-            gainedExp += 5; // поесть в столовой
-        }
-        if (action.id === 'get_food') {
-            gainedExp += 10; // получение еды в церкви
-        }
+        if (action.id === 'fight') gainedExp += 20;
+        if (action.id === 'steal') gainedExp += 15;
+        if (action.id === 'pray') gainedExp += 5;
+        if (action.id === 'eat' && locationId === 'shelter') gainedExp += 5;
+        if (action.id === 'get_food') gainedExp += 10;
         
         if (gainedExp > 0) {
             addExperience(gainedExp);
@@ -311,7 +358,6 @@ async function executeAction(locationId, action) {
     await saveGameData();
     showMessage(msg, success ? "#4caf50" : "#e74c3c");
     
-    // Логируем действие
     if (actionLogMessage) {
         logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
     } else if (success) {
