@@ -238,6 +238,13 @@ async function loadTopPlayers(forceRefresh = false) {
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
+
+      // Принудительно скрываем игровой контейнер при загрузке
+    const gameContainer = document.getElementById('gameContainer');
+    const authContainer = document.getElementById('authContainer');
+    if (gameContainer) gameContainer.style.display = 'none';
+    if (authContainer) authContainer.style.display = 'block';
+    
     initDOM();
     
     const authContainer = document.getElementById('authContainer');
@@ -259,6 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
+        const gameContainer = document.getElementById('gameContainer');
+    if (gameContainer) gameContainer.style.display = 'block';
         hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
     }
