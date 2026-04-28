@@ -242,65 +242,71 @@ async function executeAction(locationId, action) {
     let gainedExp = 0;
     
     // Обработка сна (затемнение и пропуск времени)
-    if (action.id === 'sleep') {
-        // Сначала применяем обычные эффекты (здоровье, списание денег)
-        if (action.cost && action.cost > 0) {
-            if (money < action.cost) { showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); return; }
-            setStats(health, hunger, cold, money - action.cost);
-            actionLogMessage += `-${action.cost}₽. `;
+if (action.id === 'sleep') {
+    // Проверяем деньги
+    if (action.cost && action.cost > 0) {
+        if (money < action.cost) { 
+            showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); 
+            return; 
         }
-        if (action.effect && action.effect.health) {
-            const add = Array.isArray(action.effect.health) ? Math.floor(Math.random()*(action.effect.health[1]-action.effect.health[0]+1)+action.effect.health[0]) : action.effect.health;
-            const newHealth = Math.min(maxHealth, Math.max(0, health + add));
-            setStats(newHealth, hunger, cold, money);
-            msg += `Здоровье +${add}. `;
-            actionLogMessage += `Здоровье +${add}. `;
-        }
-        
-        // Восстанавливаем 50 энергии после сна
-        const { setEnergy } = await import('./gameState.js');
-        setEnergy(Math.min(100, energy + 50));
-        
-        // Затемняем экран
-        const overlay = document.createElement('div');
-        overlay.id = 'sleepOverlay';
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.backgroundColor = 'black';
-        overlay.style.zIndex = '10002';
-        overlay.style.transition = 'opacity 0.5s ease';
-        overlay.style.opacity = '0';
-        document.body.appendChild(overlay);
-        
-        // Плавное затемнение
-        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
-        
-        // Через 0.5 секунды добавляем 8 часов к игровому времени
-        setTimeout(async () => {
-            const { addGameHours } = await import('./timeWeather.js');
-            addGameHours(8);
-            updateUI();
-        }, 500);
-        
-        // Через 3.5 секунды убираем затемнение
-        setTimeout(() => {
-            overlay.style.opacity = '0';
-            setTimeout(() => overlay.remove(), 500);
-        }, 3500);
-        
-        updateUI();
-        await saveGameData();
-        showMessage(msg || "Вы крепко выспались! +50 энергии", "#4caf50");
-        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage} +50 энергии`, 'location');
-        document.getElementById('locationModal').style.display = 'none';
-        if (document.getElementById('inventoryModal').style.display === 'flex') {
-            import('./inventory.js').then(m => { m.renderItemsTab(); m.renderEquipmentTab(); });
-        }
-        return;
+        setStats(health, hunger, cold, money - action.cost);
+        actionLogMessage += `-${action.cost}₽. `;
     }
+    
+    // Восстанавливаем здоровье
+    if (action.effect && action.effect.health) {
+        const add = Array.isArray(action.effect.health) ? Math.floor(Math.random()*(action.effect.health[1]-action.effect.health[0]+1)+action.effect.health[0]) : action.effect.health;
+        const newHealth = Math.min(maxHealth, Math.max(0, health + add));
+        setStats(newHealth, hunger, cold, money);
+        msg += `Здоровье +${add}. `;
+        actionLogMessage += `Здоровье +${add}. `;
+    }
+    
+    // Восстанавливаем энергию (50)
+    const { setEnergy } = await import('./gameState.js');
+    setEnergy(Math.min(100, energy + 50));
+    actionLogMessage += `+50⚡. `;
+    
+    // Затемняем экран
+    const overlay = document.createElement('div');
+    overlay.id = 'sleepOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'black';
+    overlay.style.zIndex = '10002';
+    overlay.style.transition = 'opacity 0.5s ease';
+    overlay.style.opacity = '0';
+    document.body.appendChild(overlay);
+    
+    // Плавное затемнение
+    setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+    
+    // Через 0.5 секунды добавляем 8 часов к игровому времени
+    setTimeout(async () => {
+        const { addGameHours } = await import('./timeWeather.js');
+        addGameHours(8);
+        updateUI();
+    }, 500);
+    
+    // Через 3.5 секунды убираем затемнение
+    setTimeout(() => {
+        overlay.style.opacity = '0';
+        setTimeout(() => overlay.remove(), 500);
+    }, 3500);
+    
+    updateUI();
+    await saveGameData();
+    showMessage(msg || "Вы крепко выспались! +50 энергии", "#4caf50");
+    logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
+    document.getElementById('locationModal').style.display = 'none';
+    if (document.getElementById('inventoryModal').style.display === 'flex') {
+        import('./inventory.js').then(m => { m.renderItemsTab(); m.renderEquipmentTab(); });
+    }
+    return;
+}
     
     // Обычная обработка для остальных действий
     if (action.needsItem) {
