@@ -58,6 +58,19 @@
                 <div class="money">💰 Деньги: <span id="moneyValue">500</span> ₽</div>
             </div>
 
+            <!-- Шкала энергии -->
+            <div class="stats-panel" style="margin-top: 0; padding: 12px 16px;">
+                <div class="stat">
+                    <div class="stat-header">
+                        <span>⚡ Энергия</span>
+                        <span id="energyValue">100 / 100</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-fill energy-fill" id="energyFill" style="width: 100%; background: #f1c40f;"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="exp-panel">
                 <div class="exp-header">⭐ Уровень <span id="levelValue">1</span></div>
                 <div class="exp-bar"><div class="exp-fill" id="expFill" style="width: 0%"></div></div>
@@ -80,21 +93,21 @@
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
             </div>
-            <footer class="game-footer">Иваново · Версия 0.0.14</footer>
+            <footer class="game-footer">Иваново · Версия 0.0.15 · Энергия</footer>
         </div>
     </div>
 
     <!-- Модальное окно для топа игроков -->
- <div id="topModal" class="modal">
-    <div class="modal-content" style="max-width: 700px; width: 90%;">
-        <h3 style="text-align:center; margin-bottom:12px;">🏆 Топ игроков</h3>
-        <div id="topPlayersList" class="players-list" style="max-height: 500px; overflow-y: auto;"></div>
-        <div style="text-align: center; margin-top: 16px;">
-            <button id="refreshTopBtn" style="background: var(--buy-btn-bg); border: none; padding: 8px 20px; border-radius: 40px; color: white; cursor: pointer; font-size: 0.9rem;">🔄 Обновить</button>
-            <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text); border: none; padding: 8px 20px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; margin-left: 12px;">Закрыть</button>
+    <div id="topModal" class="modal">
+        <div class="modal-content" style="max-width: 700px; width: 90%;">
+            <h3 style="text-align:center; margin-bottom:12px;">🏆 Топ игроков</h3>
+            <div id="topPlayersList" class="players-list" style="max-height: 500px; overflow-y: auto;"></div>
+            <div style="text-align: center; margin-top: 16px;">
+                <button id="refreshTopBtn" style="background: var(--buy-btn-bg); border: none; padding: 8px 20px; border-radius: 40px; color: white; cursor: pointer; font-size: 0.9rem;">🔄 Обновить</button>
+                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text); border: none; padding: 8px 20px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; margin-left: 12px;">Закрыть</button>
+            </div>
         </div>
     </div>
-</div>
 
     <!-- Остальные модальные окна без изменений -->
     <div id="inventoryModal" class="modal">
@@ -133,16 +146,16 @@
         </div>
     </div>
 
-<!-- Модальное окно для случайных событий -->
-<div id="eventModal" class="modal">
-    <div class="modal-content" id="eventModalContent" style="max-width: 450px; text-align: center;">
-        <!-- Содержимое заполняется динамически -->
+    <!-- Модальное окно для случайных событий -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content" id="eventModalContent" style="max-width: 450px; text-align: center;">
+            <!-- Содержимое заполняется динамически -->
+        </div>
     </div>
-</div>
     
     <div class="global-footer">
         <p>developed by Efich</p>
-        <p>RPG-Иваново · Альфа 0.0.15 · Случайные события</p>
+        <p>RPG-Иваново · Альфа 0.0.16 · Энергия</p>
     </div>
 
     <script type="module" src="js/main.js"></script>
