@@ -141,6 +141,7 @@ export async function cancelTradeOffer(offerId, userId) {
 }
 
 // Принятие предложения (транзакция)
+// Принятие предложения (транзакция)
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
@@ -157,7 +158,7 @@ export async function acceptTradeOffer(offerId, userId) {
             
             // Получаем данные отправителя и получателя
             const fromUserRef = doc(db, 'users', offer.fromUserId);
-            const toUserRef = doc(db, 'users', userId);
+            const toUserRef = doc(db, 'users', offer.toUserId);
             const fromUserSnap = await transaction.get(fromUserRef);
             const toUserSnap = await transaction.get(toUserRef);
             
@@ -166,8 +167,11 @@ export async function acceptTradeOffer(offerId, userId) {
             const fromUserData = fromUserSnap.data();
             const toUserData = toUserSnap.data();
             
-            // Проверяем, что у отправителя есть предметы
+            // Копируем инвентари
             let fromInventory = [...(fromUserData.inventory || [])];
+            let toInventory = [...(toUserData.inventory || [])];
+            
+            // ===== 1. ПРОВЕРКА: у отправителя есть предметы из offer.fromItems =====
             for (const item of offer.fromItems) {
                 const idx = fromInventory.findIndex(i => i.id === item.id);
                 if (idx === -1 || fromInventory[idx].count < item.count) {
@@ -175,8 +179,7 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // Проверяем, что у получателя есть предметы
-            let toInventory = [...(toUserData.inventory || [])];
+            // ===== 2. ПРОВЕРКА: у получателя есть предметы из offer.toItems =====
             for (const item of offer.toItems) {
                 const idx = toInventory.findIndex(i => i.id === item.id);
                 if (idx === -1 || toInventory[idx].count < item.count) {
@@ -184,7 +187,7 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // Проверяем деньги
+            // ===== 3. ПРОВЕРКА ДЕНЕГ =====
             if (offer.fromMoney > 0 && (fromUserData.money || 0) < offer.fromMoney) {
                 throw new Error(`У отправителя недостаточно денег (нужно ${offer.fromMoney}₽)`);
             }
@@ -192,8 +195,8 @@ export async function acceptTradeOffer(offerId, userId) {
                 throw new Error(`У вас недостаточно денег (нужно ${offer.toMoney}₽)`);
             }
             
-            // Обновляем инвентарь отправителя (списываем предметы, добавляем полученные)
-            // Списываем предметы, которые отдаёт
+            // ===== 4. ОБНОВЛЕНИЕ ИНВЕНТАРЯ ОТПРАВИТЕЛЯ =====
+            // Списать offer.fromItems (отдаёт)
             for (const item of offer.fromItems) {
                 const idx = fromInventory.findIndex(i => i.id === item.id);
                 if (fromInventory[idx].count === item.count) {
@@ -202,7 +205,7 @@ export async function acceptTradeOffer(offerId, userId) {
                     fromInventory[idx].count -= item.count;
                 }
             }
-            // Добавляем предметы, которые получает
+            // Добавить offer.toItems (получает)
             for (const item of offer.toItems) {
                 const idx = fromInventory.findIndex(i => i.id === item.id);
                 if (idx !== -1) {
@@ -212,7 +215,8 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // Обновляем инвентарь получателя
+            // ===== 5. ОБНОВЛЕНИЕ ИНВЕНТАРЯ ПОЛУЧАТЕЛЯ =====
+            // Списать offer.toItems (отдаёт)
             for (const item of offer.toItems) {
                 const idx = toInventory.findIndex(i => i.id === item.id);
                 if (toInventory[idx].count === item.count) {
@@ -221,6 +225,7 @@ export async function acceptTradeOffer(offerId, userId) {
                     toInventory[idx].count -= item.count;
                 }
             }
+            // Добавить offer.fromItems (получает)
             for (const item of offer.fromItems) {
                 const idx = toInventory.findIndex(i => i.id === item.id);
                 if (idx !== -1) {
@@ -230,17 +235,27 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // Обновляем деньги
+            // ===== 6. ОБНОВЛЕНИЕ ДЕНЕГ =====
             const fromNewMoney = (fromUserData.money || 0) - offer.fromMoney + offer.toMoney;
             const toNewMoney = (toUserData.money || 0) - offer.toMoney + offer.fromMoney;
             
-            // Обновляем документы
+            // ===== 7. СОХРАНЕНИЕ =====
             transaction.update(fromUserRef, { inventory: fromInventory, money: fromNewMoney });
             transaction.update(toUserRef, { inventory: toInventory, money: toNewMoney });
             transaction.update(offerRef, { status: 'accepted' });
         });
         
         showMessage('Обмен успешно завершён!', '#4caf50');
+        
+        // Обновляем локальное состояние игры для текущего игрока
+        const user = window.auth?.currentUser;
+        if (user && userId === user.uid) {
+            await loadGameData(user.uid);
+            const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
+            renderItemsTab();
+            renderEquipmentTab();
+        }
+        
         return true;
     } catch (error) {
         showMessage(`Ошибка: ${error.message}`, '#e74c3c');
