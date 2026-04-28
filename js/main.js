@@ -336,7 +336,6 @@ async function renderTradeInventorySelector(side) {
         container.innerHTML = html;
     }
     
-    // Вешаем обработчики на кнопки (один раз, через делегирование)
     container.querySelectorAll('.trade-add-btn').forEach(btn => {
         btn.removeEventListener('click', btn._handler);
         const handler = async (e) => {
@@ -390,57 +389,6 @@ async function renderTradeInventorySelector(side) {
         btn._handler = handler;
     });
 }
-    
-    // Добавляем обработчики для кнопок добавления
-    document.querySelectorAll('.trade-add-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const side = btn.dataset.side === 'from' ? 'from' : 'to';
-            const itemId = btn.dataset.id;
-            let maxCount = Infinity;
-            if (side === 'from') {
-                maxCount = parseInt(btn.dataset.max);
-            }
-            const count = prompt(`Сколько ${itemsDB[itemId]?.name} вы хотите ${side === 'from' ? 'отдать' : 'получить'}? ${side === 'from' ? `(макс. ${maxCount})` : ''}`, '1');
-            const numCount = parseInt(count);
-            if (isNaN(numCount) || numCount < 1 || (side === 'from' && numCount > maxCount)) {
-                showMessage('Некорректное количество', '#e74c3c');
-                return;
-            }
-            const selectedContainer = document.getElementById(`tradeSelected${side === 'from' ? 'From' : 'To'}`);
-            if (!selectedContainer) return;
-            
-            let existingItem = null;
-            for (const el of selectedContainer.querySelectorAll('.selected-item')) {
-                if (el.dataset.id === itemId) {
-                    existingItem = el;
-                    break;
-                }
-            }
-            if (existingItem) {
-                const countSpan = existingItem.querySelector('.selected-count');
-                const currentCount = parseInt(countSpan.textContent);
-                const newCount = currentCount + numCount;
-                if (side === 'from' && newCount > maxCount) {
-                    showMessage(`Нельзя добавить больше, чем есть в инвентаре (${maxCount})`, '#e74c3c');
-                    return;
-                }
-                countSpan.textContent = newCount;
-            } else {
-                const itemData = itemsDB[itemId];
-                const newItemHtml = `
-                    <div class="selected-item" data-id="${itemId}" data-count="${numCount}">
-                        <span>${itemData.icon} ${itemData.name} ×<span class="selected-count">${numCount}</span></span>
-                        <button class="remove-item-btn">✖️</button>
-                    </div>
-                `;
-                selectedContainer.insertAdjacentHTML('beforeend', newItemHtml);
-                selectedContainer.querySelector('.remove-item-btn:last-child').addEventListener('click', (e) => {
-                    e.target.closest('.selected-item').remove();
-                });
-            }
-        });
-    });
-}
 
 async function sendTradeOffer() {
     const modal = document.getElementById('tradeOfferModal');
@@ -483,6 +431,7 @@ async function sendTradeOffer() {
         showMessage(`Ошибка: ${error.message}`, '#e74c3c');
     }
 }
+
 async function openMyOffersModal() {
     const user = auth.currentUser;
     if (!user) return;
