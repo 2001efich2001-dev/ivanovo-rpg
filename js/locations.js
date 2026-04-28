@@ -1,10 +1,8 @@
-import { inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
-import { addExperience } from './gameState.js';
-import { inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy } from './gameState.js';
+import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy } from './gameState.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
 function playClick() {
