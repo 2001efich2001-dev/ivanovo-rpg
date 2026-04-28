@@ -826,6 +826,101 @@ body {
 #eventModal .event-choice-btn:active {
     transform: translateY(2px);
 }
+
+/* ===== ТОРГОВЛЯ (УВЕДОМЛЕНИЯ И ВЫБРАННЫЕ ПРЕДМЕТЫ) ===== */
+.trade-notification {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #e74c3c;
+    color: white;
+    border-radius: 20px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+}
+
+.action-btn {
+    position: relative;
+}
+
+.selected-items-list {
+    background: var(--stat-bg);
+    border-radius: 32px;
+    padding: 8px 12px;
+    margin-top: 8px;
+    min-height: 50px;
+}
+
+.selected-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-bg);
+    padding: 4px 12px;
+    border-radius: 40px;
+    margin: 4px;
+    font-size: 0.8rem;
+}
+
+.selected-item .remove-item-btn {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 4px;
+}
+
+/* Стили для модальных окон торговли */
+#tradeOfferModal .modal-content,
+#myOffersModal .modal-content {
+    max-width: 900px;
+    width: 90%;
+}
+
+#tradeOfferModal .inventory-grid {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.trade-add-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 4px 12px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.accept-offer-btn, .reject-offer-btn, .cancel-offer-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.8rem;
+    margin: 4px;
+}
+
+.reject-offer-btn, .cancel-offer-btn {
+    background: #7f8c8d;
+}
+
+@media (max-width: 768px) {
+    #tradeOfferModal .modal-content {
+        max-width: 95%;
+        padding: 16px;
+    }
+    #tradeOfferModal > div > div {
+        flex-direction: column;
+    }
+}
+
 /* ========== АДАПТИВНОСТЬ (МЕДИА-ЗАПРОСЫ) ========== */
 
 /* Десктопы, планшеты (ширина ≥ 901px) */
