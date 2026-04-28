@@ -525,6 +525,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setLogUpdateCallback(() => { renderLogPanel(); });
     setExpUpdateCallback(() => { updateUI(); });
     function afterLogin() {
+         // ===== ДОБАВЬ ЭТИ СТРОКИ =====
+    // Очищаем старые флаги обмена после логина
+    const user = window.auth?.currentUser;
+    if (user) {
+        const key = 'trade_needs_refresh_' + user.uid;
+        localStorage.removeItem(key);
+    }
+    // Снимаем блокировку автосохранения
+    window._preventAutoSave = false;
+    // =============================
+    
+    renderItemsTab();
+    renderEquipmentTab();
         renderItemsTab();
         renderEquipmentTab();
         recalcColdFromEquipment();
