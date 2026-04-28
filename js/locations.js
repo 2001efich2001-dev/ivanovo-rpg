@@ -1,4 +1,4 @@
-import { inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI } from './gameState.js';
+import { inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
@@ -9,6 +9,21 @@ import { addExperience } from './gameState.js';
 function playClick() {
     if (typeof window.playClickSound === 'function') window.playClickSound();
 }
+
+// Стоимость энергии для разных действий
+const energyCosts = {
+    beg: 10,      // попросить подаяние
+    search: 15,   // поискать вещи
+    trade: 5,     // обменять бутылки
+    steal: 20,    // украсть еду
+    scavenge: 15, // покопаться в мусоре
+    pray: 5,      // помолиться
+    get_food: 10, // попросить еду
+    drink: 5,     // выпить водку
+    fight: 25,    // подраться
+    eat: 5,       // поесть в столовой
+    sleep: 0      // сон (восстанавливает энергию, не тратит)
+};
 
 // База локаций с фонами, зонами и действиями
 export const locationsDB = {
@@ -50,7 +65,7 @@ export const locationsDB = {
             { id: "eat_zone", name: "Столовая", description: "Поесть: +30 голода (25₽)", cx: 400, cy: 220, r: 45, actionId: "eat" }
         ],
         actions: [
-            { id: "sleep", name: "Переночевать", desc: "Восстановить здоровье за 20₽", effect: { health: 30 }, cost: 20, risk: 0 },
+            { id: "sleep", name: "Переночевать", desc: "Восстановить здоровье за 20₽", effect: { health: 30, energy: 50 }, cost: 20, risk: 0 },
             { id: "eat", name: "Поесть в столовой", desc: "Восстановить голод за 25₽", effect: { hunger: 30 }, cost: 25, risk: 0 }
         ]
     },
@@ -211,6 +226,16 @@ function hideTooltip() {
 // Функции для действий
 async function executeAction(locationId, action) {
     playClick();
+    
+    // Проверка энергии (кроме сна, так как он восстанавливает)
+    const energyCost = energyCosts[action.id] || 0;
+    if (energyCost > 0) {
+        if (!hasEnoughEnergy(energyCost)) {
+            showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+            return;
+        }
+    }
+    
     let success = true;
     let msg = "";
     let actionLogMessage = '';
@@ -231,6 +256,10 @@ async function executeAction(locationId, action) {
             msg += `Здоровье +${add}. `;
             actionLogMessage += `Здоровье +${add}. `;
         }
+        
+        // Восстанавливаем 50 энергии после сна
+        const { setEnergy } = await import('./gameState.js');
+        setEnergy(Math.min(100, energy + 50));
         
         // Затемняем экран
         const overlay = document.createElement('div');
@@ -253,7 +282,6 @@ async function executeAction(locationId, action) {
         setTimeout(async () => {
             const { addGameHours } = await import('./timeWeather.js');
             addGameHours(8);
-            // Обновляем UI после изменения времени
             updateUI();
         }, 500);
         
@@ -265,8 +293,8 @@ async function executeAction(locationId, action) {
         
         updateUI();
         await saveGameData();
-        showMessage(msg || "Вы крепко выспались!", "#4caf50");
-        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
+        showMessage(msg || "Вы крепко выспались! +50 энергии", "#4caf50");
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage} +50 энергии`, 'location');
         document.getElementById('locationModal').style.display = 'none';
         if (document.getElementById('inventoryModal').style.display === 'flex') {
             import('./inventory.js').then(m => { m.renderItemsTab(); m.renderEquipmentTab(); });
@@ -352,6 +380,12 @@ async function executeAction(locationId, action) {
         if (gainedExp > 0) {
             addExperience(gainedExp);
             logAction(`Получено ${gainedExp} опыта за действие "${action.name}"`, 'system');
+        }
+        
+        // Списание энергии только при успешном действии
+        if (energyCost > 0) {
+            spendEnergy(energyCost);
+            actionLogMessage += `-${energyCost}⚡. `;
         }
     }
     updateUI();
