@@ -4,6 +4,7 @@ import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
 import { addExperience } from './gameState.js';
+import { inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy } from './gameState.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
 function playClick() {
@@ -263,7 +264,6 @@ if (action.id === 'sleep') {
     }
     
     // Восстанавливаем энергию (50)
-    const { setEnergy } = await import('./gameState.js');
     setEnergy(Math.min(100, energy + 50));
     actionLogMessage += `+50⚡. `;
     
