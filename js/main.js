@@ -6,7 +6,7 @@ import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
-import { logAction } from './utils.js';
+import { logAction, showMessage } from './utils.js';
 import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
@@ -296,7 +296,6 @@ async function renderTradeInventorySelector(side) {
     const container = document.getElementById(`trade${side === 'from' ? 'FromItems' : 'ToItems'}`);
     if (!container) return;
     
-    // Для левой колонки (я отдаю) — инвентарь игрока
     if (side === 'from') {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const userInv = userDoc.data()?.inventory || [];
@@ -320,13 +319,10 @@ async function renderTradeInventorySelector(side) {
             `;
         }
         container.innerHTML = html;
-    } 
-    // Для правой колонки (я получаю) — все предметы из игры
-    else {
+    } else {
         const allItems = Object.values(itemsDB);
         let html = '';
         for (const item of allItems) {
-            // Показываем только предметы с ценой > 0 (не бесконечные)
             html += `
                 <div class="inventory-item" data-id="${item.id}">
                     <div class="item-info">
@@ -339,6 +335,61 @@ async function renderTradeInventorySelector(side) {
         }
         container.innerHTML = html;
     }
+    
+    // Вешаем обработчики на кнопки (один раз, через делегирование)
+    container.querySelectorAll('.trade-add-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._handler);
+        const handler = async (e) => {
+            e.stopPropagation();
+            const sideType = btn.dataset.side === 'from' ? 'from' : 'to';
+            const itemId = btn.dataset.id;
+            let maxCount = Infinity;
+            if (sideType === 'from') {
+                maxCount = parseInt(btn.dataset.max);
+            }
+            const count = prompt(`Сколько ${itemsDB[itemId]?.name} вы хотите ${sideType === 'from' ? 'отдать' : 'получить'}? ${sideType === 'from' ? `(макс. ${maxCount})` : ''}`, '1');
+            const numCount = parseInt(count);
+            if (isNaN(numCount) || numCount < 1 || (sideType === 'from' && numCount > maxCount)) {
+                showMessage('Некорректное количество', '#e74c3c');
+                return;
+            }
+            const selectedContainer = document.getElementById(`tradeSelected${sideType === 'from' ? 'From' : 'To'}`);
+            if (!selectedContainer) return;
+            
+            let existingItem = null;
+            for (const el of selectedContainer.querySelectorAll('.selected-item')) {
+                if (el.dataset.id === itemId) {
+                    existingItem = el;
+                    break;
+                }
+            }
+            if (existingItem) {
+                const countSpan = existingItem.querySelector('.selected-count');
+                const currentCount = parseInt(countSpan.textContent);
+                const newCount = currentCount + numCount;
+                if (sideType === 'from' && newCount > maxCount) {
+                    showMessage(`Нельзя добавить больше, чем есть в инвентаре (${maxCount})`, '#e74c3c');
+                    return;
+                }
+                countSpan.textContent = newCount;
+            } else {
+                const itemData = itemsDB[itemId];
+                const newItemHtml = `
+                    <div class="selected-item" data-id="${itemId}" data-count="${numCount}">
+                        <span>${itemData.icon} ${itemData.name} ×<span class="selected-count">${numCount}</span></span>
+                        <button class="remove-item-btn">✖️</button>
+                    </div>
+                `;
+                selectedContainer.insertAdjacentHTML('beforeend', newItemHtml);
+                selectedContainer.querySelector('.remove-item-btn:last-child').addEventListener('click', (e) => {
+                    e.target.closest('.selected-item').remove();
+                });
+            }
+        };
+        btn.addEventListener('click', handler);
+        btn._handler = handler;
+    });
+}
     
     // Добавляем обработчики для кнопок добавления
     document.querySelectorAll('.trade-add-btn').forEach(btn => {
@@ -424,7 +475,6 @@ async function sendTradeOffer() {
         await createTradeOffer(user.uid, user.displayName, targetUserId, targetUserNick, fromItems, fromMoney, toItems, toMoney);
         showMessage('Предложение обмена отправлено!', '#4caf50');
         modal.style.display = 'none';
-        // Очищаем выбранные предметы
         document.getElementById('tradeSelectedFrom').innerHTML = '';
         document.getElementById('tradeSelectedTo').innerHTML = '';
         document.getElementById('tradeFromMoney').value = 0;
@@ -433,7 +483,6 @@ async function sendTradeOffer() {
         showMessage(`Ошибка: ${error.message}`, '#e74c3c');
     }
 }
-
 async function openMyOffersModal() {
     const user = auth.currentUser;
     if (!user) return;
