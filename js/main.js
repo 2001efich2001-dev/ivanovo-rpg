@@ -141,7 +141,6 @@ function initInventoryTabs() {
 function onLocationChanged(newLocationId) {
     console.log(`Смена локации на: ${newLocationId}`);
     renderLocation(newLocationId);
-    // Проверяем случайные события при переходе в локацию
     import('./randomEvents.js').then(m => {
         m.checkAndTriggerEvent('location', { locationId: newLocationId });
     });
@@ -175,24 +174,21 @@ function escapeHtml(str) {
 // ========== ТОП ИГРОКОВ ==========
 let topPlayersCache = null;
 let topPlayersCacheTime = 0;
-const TOP_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+const TOP_CACHE_TTL = 5 * 60 * 1000;
 
 async function loadTopPlayers(forceRefresh = false) {
     const container = document.getElementById('topPlayersList');
     if (!container) return;
-    
     if (!db) {
         console.error('Firestore не инициализирован');
         container.innerHTML = '<div style="text-align:center;">Ошибка: база данных не инициализирована</div>';
         return;
     }
-    
     const now = Date.now();
     if (!forceRefresh && topPlayersCache && (now - topPlayersCacheTime < TOP_CACHE_TTL)) {
         container.innerHTML = topPlayersCache;
         return;
     }
-    
     container.innerHTML = '<div style="text-align:center;">Загрузка...</div>';
     try {
         const usersRef = collection(db, 'users');
@@ -202,7 +198,6 @@ async function loadTopPlayers(forceRefresh = false) {
             container.innerHTML = '<div style="text-align:center;">Пока нет игроков</div>';
             return;
         }
-        
         let html = '';
         let rank = 1;
         for (const docSnap of querySnapshot.docs) {
@@ -238,8 +233,7 @@ async function loadTopPlayers(forceRefresh = false) {
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
-
-      // Принудительно скрываем игровой контейнер при загрузке
+    // Принудительно скрываем игровой контейнер при загрузке
     const gameContainer = document.getElementById('gameContainer');
     const authContainer = document.getElementById('authContainer');
     if (gameContainer) gameContainer.style.display = 'none';
@@ -247,8 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     initDOM();
     
-    const authContainer = document.getElementById('authContainer');
-    const gameContainer = document.getElementById('gameContainer');
     const loginFormDiv = document.getElementById('loginForm');
     const registerFormDiv = document.getElementById('registerForm');
     const playerNickSpan = document.getElementById('playerNick');
@@ -266,8 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
-        const gameContainer = document.getElementById('gameContainer');
-    if (gameContainer) gameContainer.style.display = 'block';
+        const gameContainerEl = document.getElementById('gameContainer');
+        if (gameContainerEl) gameContainerEl.style.display = 'block';
         hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
     }
@@ -395,7 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!auth.currentUser) hideSplash();
     }, 1500);
     
-    // Периодические события (каждые 15 минут)
     setInterval(() => {
         import('./randomEvents.js').then(m => {
             m.checkAndTriggerEvent('timer');
@@ -410,6 +401,7 @@ window.addEventListener('beforeunload', () => {
         if (typeof m.saveGameData === 'function') m.saveGameData();
     });
 });
+
 // Инициализация читов
 initCheats();
 initQuickCheats();
