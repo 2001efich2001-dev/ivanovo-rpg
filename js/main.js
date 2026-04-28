@@ -176,11 +176,6 @@ let topPlayersCache = null;
 let topPlayersCacheTime = 0;
 const TOP_CACHE_TTL = 5 * 60 * 1000;
 
-// ========== ТОП ИГРОКОВ ==========
-let topPlayersCache = null;
-let topPlayersCacheTime = 0;
-const TOP_CACHE_TTL = 5 * 60 * 1000;
-
 async function loadTopPlayers(forceRefresh = false) {
     const container = document.getElementById('topPlayersList');
     if (!container) return;
@@ -192,7 +187,6 @@ async function loadTopPlayers(forceRefresh = false) {
     const now = Date.now();
     if (!forceRefresh && topPlayersCache && (now - topPlayersCacheTime < TOP_CACHE_TTL)) {
         container.innerHTML = topPlayersCache;
-        // Перевешиваем обработчики после кэша
         attachTradeButtons();
         return;
     }
@@ -235,24 +229,19 @@ async function loadTopPlayers(forceRefresh = false) {
         container.innerHTML = html;
         topPlayersCache = html;
         topPlayersCacheTime = now;
-        
-        // Добавляем обработчики для кнопок обмена
         attachTradeButtons();
-        
     } catch (error) {
         console.error(error);
         container.innerHTML = '<div style="text-align:center;">Ошибка загрузки топа</div>';
     }
 }
 
-// Функция для привязки обработчиков к кнопкам "Предложить обмен"
 function attachTradeButtons() {
     document.querySelectorAll('.trade-offer-btn').forEach(btn => {
         btn.removeEventListener('click', btn._handler);
         const handler = () => {
             const targetUserId = btn.dataset.userId;
             const targetUserNick = btn.dataset.userNick;
-            // Нельзя предложить обмен самому себе
             if (targetUserId === auth.currentUser?.uid) {
                 showMessage('Нельзя предложить обмен самому себе', '#e74c3c');
                 return;
@@ -267,68 +256,49 @@ function attachTradeButtons() {
 // ========== ТОРГОВЛЯ ==========
 let tradeNotificationInterval = null;
 
-// Функция для отображения уведомления о новых предложениях
 async function checkNewTradeOffers() {
     const user = auth.currentUser;
     if (!user) return;
     const offers = await getIncomingTradeOffers(user.uid);
-    if (offers.length > 0) {
-        const notification = document.getElementById('tradeNotification');
-        if (notification) {
+    const notification = document.getElementById('tradeNotification');
+    if (notification) {
+        if (offers.length > 0) {
             notification.style.display = 'flex';
             notification.querySelector('.trade-count')?.setAttribute('data-count', offers.length);
+        } else {
+            notification.style.display = 'none';
         }
-    } else {
-        const notification = document.getElementById('tradeNotification');
-        if (notification) notification.style.display = 'none';
     }
 }
 
-// Открытие модального окна предложения обмена
 async function openTradeOfferModal(targetUserId, targetUserNick) {
     const modal = document.getElementById('tradeOfferModal');
     if (!modal) return;
-    
-    // Сохраняем ID и ник получателя
     modal.dataset.targetUserId = targetUserId;
     modal.dataset.targetUserNick = targetUserNick;
-    
-    // Заполняем заголовок
     const title = modal.querySelector('.modal-content h3');
     if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
-    
-    // Очищаем поля
-    const fromItemsDiv = document.getElementById('tradeFromItems');
-    const toItemsDiv = document.getElementById('tradeToItems');
-    if (fromItemsDiv) fromItemsDiv.innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
-    if (toItemsDiv) toItemsDiv.innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
+    document.getElementById('tradeFromItems').innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
+    document.getElementById('tradeToItems').innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
     document.getElementById('tradeFromMoney').value = 0;
     document.getElementById('tradeToMoney').value = 0;
     document.getElementById('tradeSelectedFrom').innerHTML = '';
     document.getElementById('tradeSelectedTo').innerHTML = '';
-    
     modal.style.display = 'flex';
-    
-    // Загружаем инвентарь в левую колонку (я отдаю)
     await renderTradeInventorySelector('from');
 }
 
-// Рендер выбора предметов для обмена
 async function renderTradeInventorySelector(side) {
     const user = auth.currentUser;
     if (!user) return;
-    
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     const userInv = userDoc.data()?.inventory || [];
-    
     const container = document.getElementById(`trade${side === 'from' ? 'FromItems' : 'ToItems'}`);
     if (!container) return;
-    
     if (userInv.length === 0) {
         container.innerHTML = '<div class="inventory-item" style="justify-content:center;">Инвентарь пуст</div>';
         return;
     }
-    
     let html = '';
     for (const item of userInv) {
         const itemData = itemsDB[item.id];
@@ -345,8 +315,6 @@ async function renderTradeInventorySelector(side) {
         `;
     }
     container.innerHTML = html;
-    
-    // Добавляем обработчики для кнопок добавления
     document.querySelectorAll('.trade-add-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const itemId = btn.dataset.id;
@@ -357,14 +325,10 @@ async function renderTradeInventorySelector(side) {
                 showMessage('Некорректное количество', '#e74c3c');
                 return;
             }
-            // Добавляем в выбранную сторону
             const selectedContainer = document.getElementById(`tradeSelected${side === 'from' ? 'From' : 'To'}`);
             if (!selectedContainer) return;
-            
-            // Проверяем, есть ли уже этот предмет
             let existingItem = null;
-            const itemsList = selectedContainer.querySelectorAll('.selected-item');
-            for (const el of itemsList) {
+            for (const el of selectedContainer.querySelectorAll('.selected-item')) {
                 if (el.dataset.id === itemId) {
                     existingItem = el;
                     break;
@@ -396,41 +360,30 @@ async function renderTradeInventorySelector(side) {
     });
 }
 
-// Создание предложения обмена
 async function sendTradeOffer() {
     const modal = document.getElementById('tradeOfferModal');
     const targetUserId = modal.dataset.targetUserId;
     const targetUserNick = modal.dataset.targetUserNick;
     const user = auth.currentUser;
     if (!user || !targetUserId) return;
-    
-    // Собираем предметы, которые отдаём
     const fromItems = [];
-    const fromSelected = document.querySelectorAll('#tradeSelectedFrom .selected-item');
-    for (const el of fromSelected) {
+    for (const el of document.querySelectorAll('#tradeSelectedFrom .selected-item')) {
         const itemId = el.dataset.id;
         const count = parseInt(el.querySelector('.selected-count').textContent);
         fromItems.push({ id: itemId, count });
     }
-    
-    // Собираем предметы, которые хотим получить
     const toItems = [];
-    const toSelected = document.querySelectorAll('#tradeSelectedTo .selected-item');
-    for (const el of toSelected) {
+    for (const el of document.querySelectorAll('#tradeSelectedTo .selected-item')) {
         const itemId = el.dataset.id;
         const count = parseInt(el.querySelector('.selected-count').textContent);
         toItems.push({ id: itemId, count });
     }
-    
     const fromMoney = parseInt(document.getElementById('tradeFromMoney').value) || 0;
     const toMoney = parseInt(document.getElementById('tradeToMoney').value) || 0;
-    
-    // Проверка, что хоть что-то предложено
     if (fromItems.length === 0 && fromMoney === 0 && toItems.length === 0 && toMoney === 0) {
         showMessage('Предложите хоть что-то в обмен', '#e74c3c');
         return;
     }
-    
     try {
         await createTradeOffer(user.uid, user.displayName, targetUserId, targetUserNick, fromItems, fromMoney, toItems, toMoney);
         showMessage('Предложение обмена отправлено!', '#4caf50');
@@ -440,20 +393,15 @@ async function sendTradeOffer() {
     }
 }
 
-// Открытие окна с моими предложениями
 async function openMyOffersModal() {
     const user = auth.currentUser;
     if (!user) return;
-    
     const incoming = await getIncomingTradeOffers(user.uid);
     const outgoing = await getOutgoingTradeOffers(user.uid);
-    
     const modal = document.getElementById('myOffersModal');
     if (!modal) return;
-    
     const container = document.getElementById('myOffersList');
     if (!container) return;
-    
     let html = '<div style="margin-bottom: 12px;"><strong>📥 Входящие предложения</strong></div>';
     if (incoming.length === 0) {
         html += '<div class="inventory-item" style="justify-content:center;">Нет входящих предложений</div>';
@@ -478,7 +426,6 @@ async function openMyOffersModal() {
             `;
         }
     }
-    
     html += '<div style="margin-top: 16px; margin-bottom: 12px;"><strong>📤 Исходящие предложения</strong></div>';
     if (outgoing.length === 0) {
         html += '<div class="inventory-item" style="justify-content:center;">Нет исходящих предложений</div>';
@@ -503,13 +450,11 @@ async function openMyOffersModal() {
         }
     }
     container.innerHTML = html;
-    
-    // Обработчики кнопок
     document.querySelectorAll('.accept-offer-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             await acceptTradeOffer(btn.dataset.id, user.uid);
-            openMyOffersModal(); // обновляем
-            checkNewTradeOffers(); // обновляем уведомления
+            openMyOffersModal();
+            checkNewTradeOffers();
         });
     });
     document.querySelectorAll('.reject-offer-btn').forEach(btn => {
@@ -525,7 +470,6 @@ async function openMyOffersModal() {
             openMyOffersModal();
         });
     });
-    
     modal.style.display = 'flex';
 }
 
@@ -533,19 +477,14 @@ async function openMyOffersModal() {
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
     const authContainer = document.getElementById('authContainer');
-    
     if (gameContainer) gameContainer.classList.add('game-container-hidden');
     if (authContainer) authContainer.style.display = 'block';
-    
     initDOM();
-    
     const loginFormDiv = document.getElementById('loginForm');
     const registerFormDiv = document.getElementById('registerForm');
     const playerNickSpan = document.getElementById('playerNick');
-    
     setLogUpdateCallback(() => { renderLogPanel(); });
     setExpUpdateCallback(() => { updateUI(); });
-    
     function afterLogin() {
         renderItemsTab();
         renderEquipmentTab();
@@ -559,21 +498,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
-        
         setEnergyUpdateCallback(() => { updateUI(); });
         setInterval(() => { updateEnergy(); }, 120000);
-        
-        // Запускаем проверку новых предложений
         if (tradeNotificationInterval) clearInterval(tradeNotificationInterval);
         tradeNotificationInterval = setInterval(() => {
             checkNewTradeOffers();
-        }, 30000); // каждые 30 секунд
+        }, 30000);
         checkNewTradeOffers();
     }
-    
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
     setLocationChangeCallback(onLocationChanged);
-    
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const inventoryBtn = document.getElementById('inventoryBtn');
@@ -585,10 +519,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggle = document.getElementById('themeToggle');
     const musicToggle = document.getElementById('musicToggle');
     const sendTradeBtn = document.getElementById('sendTradeBtn');
-    
     if (loginBtn) loginBtn.addEventListener('click', () => { playClick(); showSplash(); });
     if (registerBtn) registerBtn.addEventListener('click', () => { playClick(); showSplash(); });
-    
     if (inventoryBtn) {
         inventoryBtn.addEventListener('click', () => {
             playClick();
@@ -691,31 +623,26 @@ document.addEventListener('DOMContentLoaded', () => {
             toggleMusic();
         });
     }
-    
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', (e) => {
             playClick();
             e.target.closest('.modal').style.display = 'none';
         });
     });
-    
     initMusic();
     const startMusicOnFirstClick = () => {
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
         document.body.removeEventListener('click', startMusicOnFirstClick);
     };
     document.body.addEventListener('click', startMusicOnFirstClick);
-    
     setTimeout(() => {
         if (!auth.currentUser) hideSplash();
     }, 1500);
-    
     setInterval(() => {
         import('./randomEvents.js').then(m => {
             m.checkAndTriggerEvent('timer');
         });
     }, 15 * 60 * 1000);
-    
     updateUI();
 });
 
@@ -725,6 +652,5 @@ window.addEventListener('beforeunload', () => {
     });
 });
 
-// Инициализация читов
 initCheats();
 initQuickCheats();
