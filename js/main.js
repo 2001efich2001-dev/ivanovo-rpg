@@ -291,42 +291,72 @@ async function openTradeOfferModal(targetUserId, targetUserNick) {
 async function renderTradeInventorySelector(side) {
     const user = auth.currentUser;
     if (!user) return;
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    const userInv = userDoc.data()?.inventory || [];
+    
     const container = document.getElementById(`trade${side === 'from' ? 'FromItems' : 'ToItems'}`);
     if (!container) return;
-    if (userInv.length === 0) {
-        container.innerHTML = '<div class="inventory-item" style="justify-content:center;">Инвентарь пуст</div>';
-        return;
-    }
-    let html = '';
-    for (const item of userInv) {
-        const itemData = itemsDB[item.id];
-        if (!itemData) continue;
-        html += `
-            <div class="inventory-item" data-id="${item.id}" data-count="${item.count}">
-                <div class="item-info">
-                    <span class="item-icon">${itemData.icon}</span>
-                    <span class="item-name">${itemData.name}</span>
-                    <span class="item-count">×${item.count}</span>
+    
+    // Для левой колонки (я отдаю) — инвентарь игрока
+    if (side === 'from') {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        const userInv = userDoc.data()?.inventory || [];
+        if (userInv.length === 0) {
+            container.innerHTML = '<div class="inventory-item" style="justify-content:center;">Инвентарь пуст</div>';
+            return;
+        }
+        let html = '';
+        for (const item of userInv) {
+            const itemData = itemsDB[item.id];
+            if (!itemData) continue;
+            html += `
+                <div class="inventory-item" data-id="${item.id}" data-count="${item.count}">
+                    <div class="item-info">
+                        <span class="item-icon">${itemData.icon}</span>
+                        <span class="item-name">${itemData.name}</span>
+                        <span class="item-count">×${item.count}</span>
+                    </div>
+                    <button class="trade-add-btn" data-id="${item.id}" data-max="${item.count}" data-side="from">➕ Добавить</button>
                 </div>
-                <button class="trade-add-btn" data-id="${item.id}" data-max="${item.count}">➕ Добавить</button>
-            </div>
-        `;
+            `;
+        }
+        container.innerHTML = html;
+    } 
+    // Для правой колонки (я получаю) — все предметы из игры
+    else {
+        const allItems = Object.values(itemsDB);
+        let html = '';
+        for (const item of allItems) {
+            // Показываем только предметы с ценой > 0 (не бесконечные)
+            html += `
+                <div class="inventory-item" data-id="${item.id}">
+                    <div class="item-info">
+                        <span class="item-icon">${item.icon}</span>
+                        <span class="item-name">${item.name}</span>
+                    </div>
+                    <button class="trade-add-btn" data-id="${item.id}" data-side="to">➕ Добавить</button>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
     }
-    container.innerHTML = html;
+    
+    // Добавляем обработчики для кнопок добавления
     document.querySelectorAll('.trade-add-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
+            const side = btn.dataset.side === 'from' ? 'from' : 'to';
             const itemId = btn.dataset.id;
-            const maxCount = parseInt(btn.dataset.max);
-            const count = prompt(`Сколько ${itemsDB[itemId]?.name} вы хотите ${side === 'from' ? 'отдать' : 'получить'}? (макс. ${maxCount})`, '1');
+            let maxCount = Infinity;
+            if (side === 'from') {
+                maxCount = parseInt(btn.dataset.max);
+            }
+            const count = prompt(`Сколько ${itemsDB[itemId]?.name} вы хотите ${side === 'from' ? 'отдать' : 'получить'}? ${side === 'from' ? `(макс. ${maxCount})` : ''}`, '1');
             const numCount = parseInt(count);
-            if (isNaN(numCount) || numCount < 1 || numCount > maxCount) {
+            if (isNaN(numCount) || numCount < 1 || (side === 'from' && numCount > maxCount)) {
                 showMessage('Некорректное количество', '#e74c3c');
                 return;
             }
             const selectedContainer = document.getElementById(`tradeSelected${side === 'from' ? 'From' : 'To'}`);
             if (!selectedContainer) return;
+            
             let existingItem = null;
             for (const el of selectedContainer.querySelectorAll('.selected-item')) {
                 if (el.dataset.id === itemId) {
@@ -338,7 +368,7 @@ async function renderTradeInventorySelector(side) {
                 const countSpan = existingItem.querySelector('.selected-count');
                 const currentCount = parseInt(countSpan.textContent);
                 const newCount = currentCount + numCount;
-                if (newCount > maxCount) {
+                if (side === 'from' && newCount > maxCount) {
                     showMessage(`Нельзя добавить больше, чем есть в инвентаре (${maxCount})`, '#e74c3c');
                     return;
                 }
