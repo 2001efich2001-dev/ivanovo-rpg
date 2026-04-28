@@ -165,6 +165,23 @@ function applyWeatherEffects() {
     throttledSave();
 }
 
+// Добавление игровых часов (прямое увеличение времени)
+export function addGameHours(hours) {
+    const minutesToAdd = hours * 60;
+    const newMinutes = accumulatedMinutes + minutesToAdd;
+    // Обновляем время (погода и температура пересчитаются автоматически при следующем обновлении)
+    setTimeWeather(newMinutes, currentWeather, currentTemperature);
+    // Обновляем затемнение и эффекты
+    updateDarkness();
+    updateWeatherEffects();
+    updateTimeWeatherUI();
+    // Сохраняем изменения
+    throttledSave();
+    
+    addLogEntry(`🛌 Вы проспали ${hours} часов.`, 'system');
+    showMessage(`🛌 Вы проснулись через ${hours} часов.`, '#4caf50');
+}
+
 // Обновление времени и погоды
 export function updateTimeWeather() {
     const now = Date.now();
