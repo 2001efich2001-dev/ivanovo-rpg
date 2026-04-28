@@ -236,8 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
     const authContainer = document.getElementById('authContainer');
     
-    // Принудительно скрываем игровой контейнер при загрузке
-    if (gameContainer) gameContainer.style.display = 'none';
+    // Скрываем игровой контейнер через класс (не через style.display)
+    if (gameContainer) gameContainer.classList.add('game-container-hidden');
     if (authContainer) authContainer.style.display = 'block';
     
     initDOM();
@@ -259,8 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
-        // Показываем игровой контейнер только после полной загрузки
-        if (gameContainer) gameContainer.style.display = 'block';
+        // Показываем игровой контейнер (убираем класс скрытия)
+        if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
     }
@@ -350,8 +350,8 @@ document.addEventListener('DOMContentLoaded', () => {
             stopWeatherEffects();
             stopTimeWeatherUpdates();
             await auth.signOut();
-            // При выходе скрываем игру и показываем форму авторизации
-            if (gameContainer) gameContainer.style.display = 'none';
+            // При выходе скрываем игру через класс и показываем форму авторизации
+            if (gameContainer) gameContainer.classList.add('game-container-hidden');
             if (authContainer) authContainer.style.display = 'block';
             hideSplash();
         });
