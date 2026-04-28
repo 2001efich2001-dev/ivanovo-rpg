@@ -2,8 +2,7 @@ import { getFirestore, doc, setDoc, getDoc, collection, addDoc, updateDoc, delet
 import { 
     health, hunger, cold, money, inventory, equipped, setStats, updateUI, 
     accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, 
-    getActionLog, setActionLog, experience, level, setExpData, energy, setEnergy,
-    setLastEnergyUpdate  
+    getActionLog, setActionLog, experience, level, setExpData, energy, setEnergy
 } from './gameState.js';
 import { showMessage } from './utils.js';
 
@@ -14,14 +13,12 @@ export function initFirestore(auth) {
 }
 
 export async function saveGameData() {
-
-     if (window._preventAutoSave) {
+    // Защита от автосохранения во время обмена
+    if (window._preventAutoSave) {
         console.log('🛡️ Автосохранение заблокировано (обмен в процессе)');
         return;
     }
     
-    const user = window.auth?.currentUser;
-    if (!user || !db) return;
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
@@ -107,7 +104,7 @@ export async function createTradeOffer(fromUserId, fromUserNick, toUserId, toUse
         toMoney: toMoney || 0,
         status: 'pending',
         createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 часа
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
     };
     const docRef = await addDoc(collection(db, 'trade_offers'), offer);
     return docRef.id;
@@ -129,7 +126,7 @@ export async function getOutgoingTradeOffers(userId) {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-// Отзыв предложения (только для отправителя)
+// Отзыв предложения
 export async function cancelTradeOffer(offerId, userId) {
     if (!db) return false;
     const offerRef = doc(db, 'trade_offers', offerId);
@@ -149,14 +146,10 @@ export async function cancelTradeOffer(offerId, userId) {
 }
 
 // Принятие предложения (транзакция)
-// Принятие предложения (транзакция)
-// Принятие предложения (транзакция)
-// Принятие предложения (транзакция)
-// Принятие предложения (транзакция)
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
-    // Флаг, чтобы предотвратить автосохранение
+    // Флаг для предотвращения автосохранения
     if (typeof window._preventAutoSave === 'undefined') {
         window._preventAutoSave = false;
     }
@@ -164,7 +157,7 @@ export async function acceptTradeOffer(offerId, userId) {
     try {
         let offerData = null;
         
-        const result = await runTransaction(db, async (transaction) => {
+        await runTransaction(db, async (transaction) => {
             const offerRef = doc(db, 'trade_offers', offerId);
             const offerSnap = await transaction.get(offerRef);
             if (!offerSnap.exists()) throw new Error('Предложение не найдено');
@@ -213,7 +206,7 @@ export async function acceptTradeOffer(offerId, userId) {
                 throw new Error(`У вас недостаточно денег (нужно ${toMoneyNum}₽)`);
             }
             
-            // Обновление отправителя
+            // Обновление отправителя: списываем fromItems, добавляем toItems
             for (const item of offer.fromItems || []) {
                 const itemCount = item.count || 1;
                 const idx = fromInventory.findIndex(i => i.id === item.id);
@@ -233,7 +226,7 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // Обновление получателя
+            // Обновление получателя: списываем toItems, добавляем fromItems
             for (const item of offer.toItems || []) {
                 const itemCount = item.count || 1;
                 const idx = toInventory.findIndex(i => i.id === item.id);
@@ -263,15 +256,11 @@ export async function acceptTradeOffer(offerId, userId) {
         
         showMessage('Обмен успешно завершён!', '#4caf50');
         
-        // Включаем защиту от автосохранения на 5 секунд
+        // Защита от автосохранения на 5 секунд
         window._preventAutoSave = true;
-        setTimeout(() => {
-            window._preventAutoSave = false;
-        }, 5000);
         
-        // Принудительно обновляем данные у обоих игроков
+        // Принудительно обновляем данные у ТЕКУЩЕГО игрока (получатель)
         const currentUser = window.auth?.currentUser;
-        
         if (currentUser) {
             await loadGameData(currentUser.uid);
             const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
@@ -279,11 +268,15 @@ export async function acceptTradeOffer(offerId, userId) {
             renderEquipmentTab();
         }
         
-        // Если текущий игрок НЕ отправитель, обновляем и отправителя
-        if (offerData && offerData.fromUserId && currentUser?.uid !== offerData.fromUserId) {
-            // Временно переключаемся на отправителя? Нет, просто сохраняем флаг
+        // Устанавливаем флаг для обновления ОТПРАВИТЕЛЯ при следующем автосохранении
+        if (offerData && offerData.fromUserId) {
             localStorage.setItem('trade_refresh_needed_' + offerData.fromUserId, Date.now().toString());
         }
+        
+        // Снимаем защиту через 5 секунд
+        setTimeout(() => {
+            window._preventAutoSave = false;
+        }, 5000);
         
         return true;
     } catch (error) {
