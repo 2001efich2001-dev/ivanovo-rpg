@@ -8,7 +8,7 @@ import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } 
 import { stopWeatherEffects } from './weatherEffects.js';
 import { logAction, showMessage } from './utils.js';
 import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer } from './firestore.js';
+import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
@@ -512,6 +512,58 @@ async function openMyOffersModal() {
     modal.style.display = 'flex';
 }
 
+// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ ==========
+let realTimeUnsubscribe = null;
+
+function setupRealTimeUpdates(userId) {
+    // Отписываемся от старой подписки
+    if (realTimeUnsubscribe) {
+        realTimeUnsubscribe();
+        realTimeUnsubscribe = null;
+    }
+    
+    // Подписываемся на изменения
+    subscribeToUserChanges(userId, async (newData) => {
+        console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
+        
+        // Блокируем автосохранение на время обновления
+        window._preventAutoSave = true;
+        
+        try {
+            // Обновляем локальные данные
+            const { setStats, inventory, equipped, setExpData, setEnergy, setTimeWeather, setActionLog, setCurrentLocation, updateUI } = await import('./gameState.js');
+            const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
+            const { renderLocation } = await import('./locations.js');
+            
+            setStats(newData.health, newData.hunger, newData.cold, newData.money);
+            inventory.length = 0;
+            inventory.push(...(newData.inventory ?? []));
+            Object.assign(equipped, newData.equipped ?? {});
+            setExpData(newData.experience, newData.level);
+            setEnergy(newData.energy);
+            setTimeWeather(newData.accumulatedMinutes, newData.currentWeather, newData.currentTemperature);
+            setActionLog(newData.actionLog ?? []);
+            setCurrentLocation(newData.currentLocation || 'church');
+            
+            updateUI();
+            renderItemsTab();
+            renderEquipmentTab();
+            renderLocation(newData.currentLocation || 'church');
+            
+            showMessage('🔄 Данные синхронизированы после обмена', '#4caf50');
+        } catch (err) {
+            console.error('Ошибка при обновлении данных:', err);
+        }
+        
+        // Снимаем блокировку через 2 секунды
+        setTimeout(() => {
+            window._preventAutoSave = false;
+        }, 2000);
+    });
+    
+    realTimeUnsubscribe = () => unsubscribeFromUserChanges();
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
@@ -524,20 +576,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const playerNickSpan = document.getElementById('playerNick');
     setLogUpdateCallback(() => { renderLogPanel(); });
     setExpUpdateCallback(() => { updateUI(); });
-    function afterLogin() {
-         // ===== ДОБАВЬ ЭТИ СТРОКИ =====
-    // Очищаем старые флаги обмена после логина
-    const user = window.auth?.currentUser;
-    if (user) {
-        const key = 'trade_needs_refresh_' + user.uid;
-        localStorage.removeItem(key);
-    }
-    // Снимаем блокировку автосохранения
-    window._preventAutoSave = false;
-    // =============================
     
-    renderItemsTab();
-    renderEquipmentTab();
+    function afterLogin() {
+        const user = window.auth?.currentUser;
+        
+        // Очищаем старые флаги обмена после логина
+        if (user) {
+            const key = 'trade_needs_refresh_' + user.uid;
+            localStorage.removeItem(key);
+        }
+        
+        // Снимаем блокировку автосохранения
+        window._preventAutoSave = false;
+        
+        // Настраиваем Real-time обновления
+        if (user) {
+            setupRealTimeUpdates(user.uid);
+        }
+        
         renderItemsTab();
         renderEquipmentTab();
         recalcColdFromEquipment();
@@ -547,38 +603,25 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
+        
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
+        
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
+        
         setEnergyUpdateCallback(() => { updateUI(); });
         setInterval(() => { updateEnergy(); }, 120000);
+        
         if (tradeNotificationInterval) clearInterval(tradeNotificationInterval);
         tradeNotificationInterval = setInterval(() => {
             checkNewTradeOffers();
         }, 30000);
         checkNewTradeOffers();
-        // Слушаем обновления от торговли (для отправителя)
-setInterval(async () => {
-    const user = window.auth?.currentUser;
-    if (!user) return;
+    }
     
-    const key = 'trade_needs_refresh_' + user.uid;
-    const needRefresh = localStorage.getItem(key);
-    if (needRefresh) {
-        localStorage.removeItem(key);
-        console.log('Обновляем данные после торговли');
-        await import('./firestore.js').then(async (m) => {
-            await m.loadGameData(user.uid);
-            const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
-            renderItemsTab();
-            renderEquipmentTab();
-            showMessage('🔄 Данные обновлены после обмена', '#4caf50');
-        });
-    }
-}, 3000); // Проверяем каждые 3 секунды
-    }
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
     setLocationChangeCallback(onLocationChanged);
+    
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
     const inventoryBtn = document.getElementById('inventoryBtn');
@@ -590,8 +633,10 @@ setInterval(async () => {
     const themeToggle = document.getElementById('themeToggle');
     const musicToggle = document.getElementById('musicToggle');
     const sendTradeBtn = document.getElementById('sendTradeBtn');
+    
     if (loginBtn) loginBtn.addEventListener('click', () => { playClick(); showSplash(); });
     if (registerBtn) registerBtn.addEventListener('click', () => { playClick(); showSplash(); });
+    
     if (inventoryBtn) {
         inventoryBtn.addEventListener('click', () => {
             playClick();
@@ -601,6 +646,7 @@ setInterval(async () => {
             document.getElementById('inventoryModal').style.display = 'flex';
         });
     }
+    
     if (mapBtn) {
         mapBtn.addEventListener('click', () => {
             playClick();
@@ -608,6 +654,7 @@ setInterval(async () => {
             document.getElementById('mapModal').style.display = 'flex';
         });
     }
+    
     if (shopBtn) {
         shopBtn.addEventListener('click', async () => {
             playClick();
@@ -641,6 +688,7 @@ setInterval(async () => {
             modal.style.display = 'flex';
         });
     }
+    
     if (topPlayersBtn) {
         topPlayersBtn.addEventListener('click', async () => {
             playClick();
@@ -655,22 +703,32 @@ setInterval(async () => {
             }
         });
     }
+    
     if (myOffersBtn) {
         myOffersBtn.addEventListener('click', () => {
             playClick();
             openMyOffersModal();
         });
     }
+    
     if (sendTradeBtn) {
         sendTradeBtn.addEventListener('click', () => {
             sendTradeOffer();
         });
     }
+    
     if (logoutMenuBtn) {
         logoutMenuBtn.addEventListener('click', async () => {
             playClick();
             stopWeatherEffects();
             stopTimeWeatherUpdates();
+            
+            // Отписываемся от Real-time обновлений
+            if (realTimeUnsubscribe) {
+                realTimeUnsubscribe();
+                realTimeUnsubscribe = null;
+            }
+            
             await auth.signOut();
             if (gameContainer) gameContainer.classList.add('game-container-hidden');
             if (authContainer) authContainer.style.display = 'block';
@@ -678,6 +736,7 @@ setInterval(async () => {
             if (tradeNotificationInterval) clearInterval(tradeNotificationInterval);
         });
     }
+    
     if (themeToggle) {
         themeToggle.addEventListener('click', () => {
             playClick();
@@ -688,32 +747,38 @@ setInterval(async () => {
         const savedTheme = localStorage.getItem('rpgTheme');
         if (savedTheme === 'light') document.body.classList.add('light-theme');
     }
+    
     if (musicToggle) {
         musicToggle.addEventListener('click', () => {
             playClick();
             toggleMusic();
         });
     }
+    
     document.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', (e) => {
             playClick();
             e.target.closest('.modal').style.display = 'none';
         });
     });
+    
     initMusic();
     const startMusicOnFirstClick = () => {
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
         document.body.removeEventListener('click', startMusicOnFirstClick);
     };
     document.body.addEventListener('click', startMusicOnFirstClick);
+    
     setTimeout(() => {
         if (!auth.currentUser) hideSplash();
     }, 1500);
+    
     setInterval(() => {
         import('./randomEvents.js').then(m => {
             m.checkAndTriggerEvent('timer');
         });
     }, 15 * 60 * 1000);
+    
     updateUI();
 });
 
