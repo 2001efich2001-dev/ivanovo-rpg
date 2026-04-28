@@ -1,4 +1,4 @@
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, updateDoc, deleteDoc, query, where, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc, collection, addDoc, updateDoc, deleteDoc, query, where, getDocs, runTransaction, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { 
     health, hunger, cold, money, inventory, equipped, setStats, updateUI, 
     accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, 
@@ -7,6 +7,7 @@ import {
 import { showMessage } from './utils.js';
 
 let db = null;
+let unsubscribeUserListener = null; // Для Real-time подписки
 
 export function initFirestore(auth) {
     db = getFirestore(auth.app);
@@ -85,6 +86,38 @@ export async function loadGameData(userId) {
         updateUI();
         await saveGameData();
         showMessage('Новый аккаунт создан', '#4caf50');
+    }
+}
+
+// ========== REAL-TIME ПОДПИСКА НА ИЗМЕНЕНИЯ ==========
+export function subscribeToUserChanges(userId, onDataChanged) {
+    if (!db) {
+        console.error('Firestore не инициализирован');
+        return;
+    }
+    
+    // Отписываемся от старой подписки, если есть
+    if (unsubscribeUserListener) {
+        unsubscribeUserListener();
+        unsubscribeUserListener = null;
+    }
+    
+    const userRef = doc(db, 'users', userId);
+    unsubscribeUserListener = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists() && onDataChanged) {
+            console.log('🔄 Real-time: данные изменились в БД');
+            onDataChanged(docSnap.data());
+        }
+    }, (error) => {
+        console.error('Ошибка в onSnapshot:', error);
+    });
+}
+
+export function unsubscribeFromUserChanges() {
+    if (unsubscribeUserListener) {
+        unsubscribeUserListener();
+        unsubscribeUserListener = null;
+        console.log('🔄 Отписка от Real-time обновлений');
     }
 }
 
@@ -266,11 +299,6 @@ export async function acceptTradeOffer(offerId, userId) {
             const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
             renderItemsTab();
             renderEquipmentTab();
-        }
-        
-        // Устанавливаем флаг для обновления ОТПРАВИТЕЛЯ при следующем автосохранении
-        if (offerData && offerData.fromUserId) {
-            localStorage.setItem('trade_refresh_needed_' + offerData.fromUserId, Date.now().toString());
         }
         
         // Снимаем защиту через 5 секунд
