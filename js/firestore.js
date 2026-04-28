@@ -1,5 +1,10 @@
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, updateDoc, deleteDoc, query, where, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData, energy, setEnergy } from './gameState.js';
+import { 
+    health, hunger, cold, money, inventory, equipped, setStats, updateUI, 
+    accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, 
+    getActionLog, setActionLog, experience, level, setExpData, energy, setEnergy,
+    setLastEnergyUpdate  
+} from './gameState.js';
 import { showMessage } from './utils.js';
 
 let db = null;
@@ -53,10 +58,8 @@ export async function loadGameData(userId) {
         const savedEnergy = data.energy ?? 100;
         setEnergy(savedEnergy);
         
-        const savedLastUpdate = data.lastEnergyUpdate ?? Date.now();
-        import('./gameState.js').then(m => {
-            m.lastEnergyUpdate = savedLastUpdate;
-        });
+       const savedLastUpdate = data.lastEnergyUpdate ?? Date.now();
+setLastEnergyUpdate(savedLastUpdate);
         
         const savedLocation = data.currentLocation || 'church';
         const { setCurrentLocation } = await import('./gameState.js');
