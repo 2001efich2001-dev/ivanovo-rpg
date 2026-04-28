@@ -1,5 +1,5 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
@@ -263,6 +263,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
+        
+        // Запускаем таймер восстановления энергии (раз в 2 минуты)
+        setEnergyUpdateCallback(() => {
+            updateUI();
+        });
+        setInterval(() => {
+            updateEnergy();
+        }, 120000); // 2 минуты
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
@@ -350,7 +358,6 @@ document.addEventListener('DOMContentLoaded', () => {
             stopWeatherEffects();
             stopTimeWeatherUpdates();
             await auth.signOut();
-            // При выходе скрываем игру через класс и показываем форму авторизации
             if (gameContainer) gameContainer.classList.add('game-container-hidden');
             if (authContainer) authContainer.style.display = 'block';
             hideSplash();
