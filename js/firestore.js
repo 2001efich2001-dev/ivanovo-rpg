@@ -14,6 +14,14 @@ export function initFirestore(auth) {
 }
 
 export async function saveGameData() {
+
+     if (window._preventAutoSave) {
+        console.log('🛡️ Автосохранение заблокировано (обмен в процессе)');
+        return;
+    }
+    
+    const user = window.auth?.currentUser;
+    if (!user || !db) return;
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
