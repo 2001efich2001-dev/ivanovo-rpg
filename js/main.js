@@ -233,9 +233,10 @@ async function loadTopPlayers(forceRefresh = false) {
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
-    // Принудительно скрываем игровой контейнер при загрузке
     const gameContainer = document.getElementById('gameContainer');
     const authContainer = document.getElementById('authContainer');
+    
+    // Принудительно скрываем игровой контейнер при загрузке
     if (gameContainer) gameContainer.style.display = 'none';
     if (authContainer) authContainer.style.display = 'block';
     
@@ -258,8 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
-        const gameContainerEl = document.getElementById('gameContainer');
-        if (gameContainerEl) gameContainerEl.style.display = 'block';
+        // Показываем игровой контейнер только после полной загрузки
+        if (gameContainer) gameContainer.style.display = 'block';
         hideSplash();
         if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
     }
@@ -349,6 +350,9 @@ document.addEventListener('DOMContentLoaded', () => {
             stopWeatherEffects();
             stopTimeWeatherUpdates();
             await auth.signOut();
+            // При выходе скрываем игру и показываем форму авторизации
+            if (gameContainer) gameContainer.style.display = 'none';
+            if (authContainer) authContainer.style.display = 'block';
             hideSplash();
         });
     }
