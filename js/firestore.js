@@ -1,5 +1,5 @@
 import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData, energy, setEnergy, lastEnergyUpdate } from './gameState.js';
+import { health, hunger, cold, money, inventory, equipped, setStats, updateUI, accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getActionLog, setActionLog, experience, level, setExpData, energy, setEnergy } from './gameState.js';
 import { showMessage } from './utils.js';
 
 let db = null;
@@ -12,8 +12,7 @@ export async function saveGameData() {
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
-    // Получаем текущую локацию динамически
-    const { currentLocation } = await import('./gameState.js');
+    const { currentLocation, lastEnergyUpdate } = await import('./gameState.js');
     
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
@@ -25,8 +24,8 @@ export async function saveGameData() {
         actionLog: getActionLog(),
         experience,
         level,
-        energy,                    // сохраняем энергию
-        lastEnergyUpdate,          // сохраняем время последнего обновления энергии
+        energy,
+        lastEnergyUpdate,
         lastUpdated: new Date().toISOString()
     }, { merge: true });
     console.log("Данные сохранены");
@@ -51,16 +50,17 @@ export async function loadGameData(userId) {
         setActionLog(data.actionLog ?? []);
         setExpData(data.experience ?? 0, data.level ?? 1);
         
-        // Восстанавливаем энергию
+        // Восстанавливаем энергию через функцию setEnergy
         const savedEnergy = data.energy ?? 100;
-        const savedLastEnergyUpdate = data.lastEnergyUpdate ?? Date.now();
         setEnergy(savedEnergy);
-        // Обновляем lastEnergyUpdate отдельно, так как setEnergy его перезаписывает
+        
+        // Восстанавливаем lastEnergyUpdate через динамический импорт и присвоение (костыль)
+        const savedLastUpdate = data.lastEnergyUpdate ?? Date.now();
         import('./gameState.js').then(m => {
-            m.lastEnergyUpdate = savedLastEnergyUpdate;
+            m.lastEnergyUpdate = savedLastUpdate;
         });
         
-        // Восстанавливаем локацию через функцию setCurrentLocation, а не присваиванием
+        // Восстанавливаем локацию
         const savedLocation = data.currentLocation || 'church';
         const { setCurrentLocation } = await import('./gameState.js');
         setCurrentLocation(savedLocation);
