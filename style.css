@@ -1077,3 +1077,255 @@ body {
 .game-container-hidden {
     display: none !important;
 }
+
+/* ===== НОВЫЙ ИНВЕНТАРЬ: СЕТКА И ТУЛТИПЫ ===== */
+
+/* Сетка инвентаря */
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    padding: 16px;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    margin-bottom: 16px;
+}
+
+.inventory-slot {
+    aspect-ratio: 1 / 1;
+    background: var(--card-bg);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 2px solid transparent;
+    position: relative;
+    padding: 8px;
+}
+
+.inventory-slot:hover {
+    transform: scale(1.05);
+    border-color: var(--accent-gold);
+    background: var(--accent-glow);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.inventory-slot.empty-slot {
+    background: rgba(0,0,0,0.2);
+    cursor: default;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+.inventory-slot.empty-slot:hover {
+    transform: none;
+    border-color: transparent;
+    background: rgba(0,0,0,0.2);
+}
+
+.item-image {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: 4px;
+}
+
+.item-count {
+    position: absolute;
+    bottom: 4px;
+    right: 8px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: var(--accent-gold);
+}
+
+.item-actions {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+}
+
+.slot-use-btn {
+    background: rgba(0,0,0,0.6);
+    border: none;
+    border-radius: 20px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: 0.05s linear;
+    color: white;
+}
+
+.slot-use-btn:hover {
+    background: var(--buy-btn-bg);
+    transform: scale(1.05);
+}
+
+/* Заголовок инвентаря с пагинацией */
+.inventory-grid-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px 12px 16px;
+    font-weight: bold;
+    color: var(--accent-gold);
+    border-bottom: 1px solid var(--card-border);
+    margin-bottom: 12px;
+}
+
+/* Пагинация */
+.inventory-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--card-border);
+}
+
+.page-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 8px 20px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.05s linear;
+}
+
+.page-btn:active {
+    transform: translateY(2px);
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.page-info {
+    font-weight: bold;
+    color: var(--accent-gold);
+}
+
+/* Пустой инвентарь */
+.empty-inventory {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+}
+
+/* ===== ТУЛТИП ПРИ НАВЕДЕНИИ ===== */
+.item-tooltip {
+    background: var(--card-bg);
+    border: 1px solid var(--accent-gold);
+    border-radius: 20px;
+    padding: 12px 16px;
+    min-width: 200px;
+    max-width: 280px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    pointer-events: none;
+    font-size: 0.85rem;
+    animation: tooltipFadeIn 0.15s ease;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tooltip-header {
+    font-size: 1rem;
+    margin-bottom: 8px;
+    color: var(--accent-gold);
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 4px;
+}
+
+.tooltip-content {
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.tooltip-divider {
+    height: 1px;
+    background: var(--card-border);
+    margin: 8px 0;
+}
+
+/* Экипировка с картинками */
+.slot-item-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    margin: 0 8px;
+}
+
+.slot {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Адаптация сетки для мобильных */
+@media (max-width: 768px) {
+    .inventory-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        padding: 12px;
+    }
+    
+    .item-image {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .item-count {
+        font-size: 0.6rem;
+        padding: 1px 5px;
+    }
+    
+    .inventory-grid-header {
+        font-size: 0.9rem;
+    }
+    
+    .page-btn {
+        padding: 6px 16px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .inventory-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    
+    .item-image {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .slot-use-btn {
+        font-size: 0.6rem;
+        padding: 2px 4px;
+    }
+}
