@@ -1442,3 +1442,66 @@ body {
 .equipment-total-bonus strong {
     font-size: 1.2rem;
 }
+/* ===== МОИ ПРЕДЛОЖЕНИЯ (ФИКС ВИЗУАЛА) ===== */
+#myOffersModal .modal-content {
+    max-width: 700px;
+}
+
+#myOffersList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+#myOffersList .inventory-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    padding: 16px;
+    gap: 16px;
+    border-left: 4px solid var(--accent-gold);
+}
+
+#myOffersList .inventory-item .item-info {
+    flex: 2;
+    font-size: 0.85rem;
+}
+
+#myOffersList .inventory-item .item-info strong {
+    color: var(--accent-gold);
+    font-size: 1rem;
+}
+
+#myOffersList .inventory-item div:last-child {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#myOffersList button {
+    white-space: nowrap;
+}
+
+/* Стили для групп входящих/исходящих */
+.offers-group {
+    margin-top: 16px;
+}
+
+.offers-group-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--accent-gold);
+    margin: 16px 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.offers-group-title:first-of-type {
+    margin-top: 0;
+}
