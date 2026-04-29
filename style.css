@@ -1329,3 +1329,116 @@ body {
         padding: 2px 4px;
     }
 }
+
+/* ===== ЭКИПИРОВКА (НОВАЯ СЕТКА) ===== */
+.equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    padding: 16px;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+    .equipment-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.equipment-slot {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    border: 2px solid transparent;
+    position: relative;
+}
+
+.equipment-slot.occupied {
+    border-color: var(--accent-gold);
+    background: linear-gradient(135deg, var(--card-bg), rgba(255, 179, 71, 0.1));
+}
+
+.equipment-slot.empty {
+    background: rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    border: 2px dashed var(--card-border);
+}
+
+.equipment-slot.empty:hover {
+    border-color: var(--accent-gold);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.equipment-image {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.equipment-empty-icon {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+.equipment-slot-name {
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: var(--accent-gold);
+}
+
+.equipment-item-name {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.equipment-effects {
+    display: flex;
+    gap: 8px;
+    font-size: 0.7rem;
+    background: rgba(0,0,0,0.4);
+    padding: 4px 8px;
+    border-radius: 20px;
+}
+
+.equipment-empty-text {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.equipment-empty-hint {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.equipment-slot .unequip-btn {
+    margin-top: 8px;
+    width: 80%;
+    background: var(--reset-bg);
+    color: var(--reset-text);
+    padding: 6px;
+    font-size: 0.7rem;
+}
+
+.equipment-total-bonus {
+    text-align: center;
+    padding: 12px;
+    background: var(--card-bg);
+    border-radius: 40px;
+    font-size: 0.9rem;
+    color: var(--accent-gold);
+    margin-top: 8px;
+}
+
+.equipment-total-bonus strong {
+    font-size: 1.2rem;
+}
