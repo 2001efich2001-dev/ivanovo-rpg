@@ -94,51 +94,52 @@ export async function loadGameData(userId) {
         
         updateUI();
         console.log("Данные загружены");
-   } else {
-    // Импортируем gameState для явной установки
-    const gameState = await import('./gameState.js');
-    
-    // Устанавливаем через экспортированные функции
-    gameState.setStats(100, 100, 100, 200);
-    
-    // Очищаем и заполняем инвентарь
-    gameState.inventory.length = 0;
-    gameState.inventory.push(
-        { id: "bread", count: 2 }, { id: "vodka", count: 1 }, { id: "cigarettes", count: 1 },
-        { id: "medkit", count: 1 }, { id: "ushanka", count: 1 }, { id: "puhovik", count: 1 }
-    );
-    
-    // Сбрасываем экипировку
-    gameState.equipped.head = null;
-    gameState.equipped.body = null;
-    gameState.equipped.legs = null;
-    gameState.equipped.feet = null;
-    
-    // Устанавливаем время и погоду напрямую
-    gameState.accumulatedMinutes = 720;
-    gameState.currentWeather = 'sunny';
-    gameState.currentTemperature = 15;
-    
-    // Сбрасываем лог
-    gameState.setActionLog([]);
-    
-    // Сбрасываем опыт и уровень
-    gameState.setExpData(0, 1);
-    
-    // Устанавливаем энергию
-    gameState.setEnergy(100);
-    gameState.lastEnergyUpdate = Date.now();
-    
-    // Устанавливаем локацию
-    await gameState.setCurrentLocation('church');
-    
-    // Обновляем UI
-    gameState.updateUI();
-    
-    // Сохраняем в БД
-    await saveGameData();
-    
-    showMessage('Новый аккаунт создан', '#4caf50');
+    } else {
+        // Импортируем gameState для явной установки
+        const gameState = await import('./gameState.js');
+        
+        // Устанавливаем через экспортированные функции
+        gameState.setStats(100, 100, 100, 200);
+        
+        // Очищаем и заполняем инвентарь
+        gameState.inventory.length = 0;
+        gameState.inventory.push(
+            { id: "bread", count: 2 }, { id: "vodka", count: 1 }, { id: "cigarettes", count: 1 },
+            { id: "medkit", count: 1 }, { id: "ushanka", count: 1 }, { id: "puhovik", count: 1 }
+        );
+        
+        // Сбрасываем экипировку
+        gameState.equipped.head = null;
+        gameState.equipped.body = null;
+        gameState.equipped.legs = null;
+        gameState.equipped.feet = null;
+        
+        // Устанавливаем время и погоду напрямую
+        gameState.accumulatedMinutes = 720;
+        gameState.currentWeather = 'sunny';
+        gameState.currentTemperature = 15;
+        
+        // Сбрасываем лог
+        gameState.setActionLog([]);
+        
+        // Сбрасываем опыт и уровень
+        gameState.setExpData(0, 1);
+        
+        // Устанавливаем энергию
+        gameState.setEnergy(100);
+        gameState.lastEnergyUpdate = Date.now();
+        
+        // Устанавливаем локацию
+        await gameState.setCurrentLocation('church');
+        
+        // Обновляем UI
+        gameState.updateUI();
+        
+        // Сохраняем в БД
+        await saveGameData();
+        
+        showMessage('Новый аккаунт создан', '#4caf50');
+    }
 }
 
 // ========== REAL-TIME ПОДПИСКА НА ИЗМЕНЕНИЯ ==========
