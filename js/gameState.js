@@ -12,16 +12,15 @@ export let money = 500;
 // ========== ЭНЕРГИЯ ==========
 export let energy = 100;
 export let maxEnergy = 100;
-export let lastEnergyUpdate = Date.now(); // время последнего восстановления энергии
+export let lastEnergyUpdate = Date.now();
 
 export let inventory = [];
 export let equipped = { head: null, body: null, legs: null, feet: null };
 
-// Текущая локация (по умолчанию 'church' — церковь)
 export let currentLocation = 'church';
 
 // ========== ВРЕМЯ И ПОГОДА ==========
-export let accumulatedMinutes = 0;
+export let accumulatedMinutes = 720;
 export let currentWeather = 'sunny';
 export let currentTemperature = 15;
 
@@ -37,7 +36,7 @@ export let requiredExp = 100;
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
-export let energyValueSpan, energyFill; // для отображения энергии
+export let energyValueSpan, energyFill;
 
 let onLocationChangeCallback = null;
 let onLogUpdateCallback = null;
@@ -58,28 +57,34 @@ export function initDOM() {
     expRequiredSpan = document.getElementById('expRequired');
     expFill = document.getElementById('expFill');
     
-    // Элементы для энергии
     energyValueSpan = document.getElementById('energyValue');
     energyFill = document.getElementById('energyFill');
 }
 
 export function updateUI() {
-    if (healthValueSpan) healthValueSpan.innerText = `${Math.floor(health)} / ${maxHealth}`;
-    if (hungerValueSpan) hungerValueSpan.innerText = `${Math.floor(hunger)} / ${maxHunger}`;
-    if (coldValueSpan) coldValueSpan.innerText = `${Math.floor(cold)} / ${maxCold}`;
-    if (moneyValueSpan) moneyValueSpan.innerText = Math.floor(money);
-    if (healthFill) healthFill.style.width = (health / maxHealth) * 100 + '%';
-    if (hungerFill) hungerFill.style.width = (hunger / maxHunger) * 100 + '%';
-    if (coldFill) coldFill.style.width = (cold / maxCold) * 100 + '%';
+    const safeHealth = isNaN(health) ? 100 : health;
+    const safeHunger = isNaN(hunger) ? 100 : hunger;
+    const safeCold = isNaN(cold) ? 100 : cold;
+    const safeMoney = isNaN(money) ? 500 : money;
+    const safeEnergy = isNaN(energy) ? 100 : energy;
+    const safeExp = isNaN(experience) ? 0 : experience;
+    const safeLevel = isNaN(level) ? 1 : level;
     
-    if (levelValueSpan) levelValueSpan.innerText = level;
-    if (expValueSpan) expValueSpan.innerText = Math.floor(experience);
+    if (healthValueSpan) healthValueSpan.innerText = `${Math.floor(safeHealth)} / ${maxHealth}`;
+    if (hungerValueSpan) hungerValueSpan.innerText = `${Math.floor(safeHunger)} / ${maxHunger}`;
+    if (coldValueSpan) coldValueSpan.innerText = `${Math.floor(safeCold)} / ${maxCold}`;
+    if (moneyValueSpan) moneyValueSpan.innerText = Math.floor(safeMoney);
+    if (healthFill) healthFill.style.width = (safeHealth / maxHealth) * 100 + '%';
+    if (hungerFill) hungerFill.style.width = (safeHunger / maxHunger) * 100 + '%';
+    if (coldFill) coldFill.style.width = (safeCold / maxCold) * 100 + '%';
+    
+    if (levelValueSpan) levelValueSpan.innerText = safeLevel;
+    if (expValueSpan) expValueSpan.innerText = Math.floor(safeExp);
     if (expRequiredSpan) expRequiredSpan.innerText = requiredExp;
-    if (expFill) expFill.style.width = (experience / requiredExp) * 100 + '%';
+    if (expFill) expFill.style.width = (safeExp / requiredExp) * 100 + '%';
     
-    // Обновляем отображение энергии
-    if (energyValueSpan) energyValueSpan.innerText = `${Math.floor(energy)} / ${maxEnergy}`;
-    if (energyFill) energyFill.style.width = (energy / maxEnergy) * 100 + '%';
+    if (energyValueSpan) energyValueSpan.innerText = `${Math.floor(safeEnergy)} / ${maxEnergy}`;
+    if (energyFill) energyFill.style.width = (safeEnergy / maxEnergy) * 100 + '%';
 }
 
 export function setStats(h, hu, c, m) {
@@ -90,19 +95,17 @@ export function setStats(h, hu, c, m) {
     updateUI();
 }
 
-// ========== Функции для энергии ==========
 export function setEnergyUpdateCallback(callback) {
     onEnergyUpdateCallback = callback;
 }
 
-// Восстановление энергии (вызывать перед действиями или по таймеру)
 export function updateEnergy() {
     const now = Date.now();
     const secondsPassed = (now - lastEnergyUpdate) / 1000;
-    // Восстанавливаем 1 энергию каждые 2 минуты (120 секунд)
     const energyToAdd = Math.floor(secondsPassed / 120);
     if (energyToAdd > 0 && energy < maxEnergy) {
-        energy = Math.min(maxEnergy, energy + energyToAdd);
+        const safeEnergy = isNaN(energy) ? 100 : energy;
+        energy = Math.min(maxEnergy, safeEnergy + energyToAdd);
         lastEnergyUpdate = now;
         updateUI();
         if (onEnergyUpdateCallback) onEnergyUpdateCallback();
@@ -112,24 +115,29 @@ export function updateEnergy() {
     }
 }
 
-// Принудительная установка энергии (при загрузке или сне)
 export function setEnergy(newEnergy) {
-    energy = Math.min(maxEnergy, Math.max(0, newEnergy));
+    const safeEnergy = Number(newEnergy);
+    if (isNaN(safeEnergy)) {
+        console.warn('setEnergy получил NaN, устанавливаем 100');
+        energy = 100;
+    } else {
+        energy = Math.min(maxEnergy, Math.max(0, safeEnergy));
+    }
     lastEnergyUpdate = Date.now();
     updateUI();
 }
 
-// Проверка, хватает ли энергии на действие
 export function hasEnoughEnergy(cost) {
-    updateEnergy(); // обновляем перед проверкой
-    return energy >= cost;
+    updateEnergy();
+    const safeEnergy = isNaN(energy) ? 100 : energy;
+    return safeEnergy >= cost;
 }
 
-// Трата энергии
 export function spendEnergy(cost) {
     if (cost === undefined || cost === null) return true;
-    if (energy >= cost) {
-        energy -= cost;
+    const safeEnergy = isNaN(energy) ? 100 : energy;
+    if (safeEnergy >= cost) {
+        energy = safeEnergy - cost;
         lastEnergyUpdate = Date.now();
         updateUI();
         return true;
@@ -138,21 +146,19 @@ export function spendEnergy(cost) {
     return false;
 }
 
-// ========== Функции для опыта и уровней ==========
 function calculateRequiredExp(lvl) {
     return Math.floor(100 * Math.pow(1.2, lvl - 1));
 }
 
 export function addExperience(amount) {
     if (amount <= 0) return;
-    experience += amount;
-    let leveledUp = false;
+    const safeAmount = isNaN(amount) ? 0 : amount;
+    experience += safeAmount;
     
     while (experience >= requiredExp) {
         experience -= requiredExp;
         level++;
         requiredExp = calculateRequiredExp(level);
-        leveledUp = true;
         addLogEntry(`🎉 Повышение уровня до ${level}!`, 'system');
         showMessage(`🎉 Поздравляем! Вы достигли ${level} уровня!`, '#ffd966');
     }
@@ -170,13 +176,12 @@ export function setExpUpdateCallback(callback) {
 }
 
 export function setExpData(exp, lvl) {
-    experience = exp || 0;
-    level = lvl || 1;
+    experience = isNaN(exp) ? 0 : exp;
+    level = isNaN(lvl) ? 1 : lvl;
     requiredExp = calculateRequiredExp(level);
     updateUI();
 }
 
-// ========== Функции для лога действий ==========
 export function setLogUpdateCallback(callback) {
     onLogUpdateCallback = callback;
 }
@@ -205,13 +210,30 @@ export function getActionLog() {
     return actionLog;
 }
 
-// ========== Функции для времени и погоды ==========
 export function setTimeWeather(minutes, weather, temp) {
-    accumulatedMinutes = minutes;
-    currentWeather = weather;
-    currentTemperature = temp;
-    if (typeof updateTimeWeatherUI === 'function') {
-        updateTimeWeatherUI();
+    const safeMinutes = isNaN(minutes) ? 720 : minutes;
+    const safeWeather = weather || 'sunny';
+    const safeTemp = isNaN(temp) ? 15 : temp;
+    
+    accumulatedMinutes = safeMinutes;
+    currentWeather = safeWeather;
+    currentTemperature = safeTemp;
+    
+    // Обновляем UI времени, если функция уже загружена
+    if (typeof window.updateTimeWeatherUIFn === 'function') {
+        window.updateTimeWeatherUIFn();
+    } else {
+        setTimeout(async () => {
+            try {
+                const timeWeather = await import('./timeWeather.js');
+                if (typeof timeWeather.updateTimeWeatherUI === 'function') {
+                    window.updateTimeWeatherUIFn = timeWeather.updateTimeWeatherUI;
+                    timeWeather.updateTimeWeatherUI();
+                }
+            } catch(e) {
+                console.warn('updateTimeWeatherUI пока не доступна');
+            }
+        }, 100);
     }
 }
 
@@ -248,6 +270,7 @@ export function setCurrentLocation(locationId) {
         onLocationChangeCallback(currentLocation);
     }
 }
+
 export function setLastEnergyUpdate(value) {
-    lastEnergyUpdate = value;
+    lastEnergyUpdate = isNaN(value) ? Date.now() : value;
 }
