@@ -23,40 +23,47 @@ export async function saveGameData() {
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
-    const { currentLocation, lastEnergyUpdate } = await import('./gameState.js');
+    // Импортируем актуальные значения напрямую из модуля
+    const gameState = await import('./gameState.js');
     
-    // Добавляем значения по умолчанию для полей, которые могут быть undefined
-    const safeHealth = health ?? 100;
-    const safeHunger = hunger ?? 100;
-    const safeCold = cold ?? 100;
-    const safeMoney = money ?? 200;
-    const safeEnergy = energy ?? 100;
-    const safeCurrentWeather = currentWeather ?? 'sunny';
-    const safeCurrentTemperature = currentTemperature ?? 15;
-    const safeAccumulatedMinutes = accumulatedMinutes ?? 720;
-    const safeExperience = experience ?? 0;
-    const safeLevel = level ?? 1;
+    // Получаем значения с защитой от undefined
+    const healthVal = gameState.health ?? 100;
+    const hungerVal = gameState.hunger ?? 100;
+    const coldVal = gameState.cold ?? 100;
+    const moneyVal = gameState.money ?? 200;
+    const energyVal = gameState.energy ?? 100;
+    const currentWeatherVal = gameState.currentWeather ?? 'sunny';
+    const currentTemperatureVal = gameState.currentTemperature ?? 15;
+    const accumulatedMinutesVal = gameState.accumulatedMinutes ?? 720;
+    const experienceVal = gameState.experience ?? 0;
+    const levelVal = gameState.level ?? 1;
+    const currentLocationVal = gameState.currentLocation ?? 'church';
+    const lastEnergyUpdateVal = gameState.lastEnergyUpdate ?? Date.now();
     
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
-        health: safeHealth,
-        hunger: safeHunger,
-        cold: safeCold,
-        money: safeMoney,
-        inventory: inventory || [],
-        equipped: equipped || { head: null, body: null, legs: null, feet: null },
-        accumulatedMinutes: safeAccumulatedMinutes,
-        currentWeather: safeCurrentWeather,
-        currentTemperature: safeCurrentTemperature,
-        currentLocation: currentLocation || 'church',
-        actionLog: getActionLog() || [],
-        experience: safeExperience,
-        level: safeLevel,
-        energy: safeEnergy,
-        lastEnergyUpdate: lastEnergyUpdate ?? Date.now(),
+        health: healthVal,
+        hunger: hungerVal,
+        cold: coldVal,
+        money: moneyVal,
+        inventory: gameState.inventory || [],
+        equipped: gameState.equipped || { head: null, body: null, legs: null, feet: null },
+        accumulatedMinutes: accumulatedMinutesVal,
+        currentWeather: currentWeatherVal,
+        currentTemperature: currentTemperatureVal,
+        currentLocation: currentLocationVal,
+        actionLog: gameState.getActionLog() || [],
+        experience: experienceVal,
+        level: levelVal,
+        energy: energyVal,
+        lastEnergyUpdate: lastEnergyUpdateVal,
         lastUpdated: new Date().toISOString()
     }, { merge: true });
-    console.log("Данные сохранены");
+    console.log("Данные сохранены", { 
+        currentWeather: currentWeatherVal, 
+        energy: energyVal,
+        temperature: currentTemperatureVal 
+    });
 }
 
 export async function loadGameData(userId) {
