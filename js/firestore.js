@@ -25,18 +25,35 @@ export async function saveGameData() {
     
     const { currentLocation, lastEnergyUpdate } = await import('./gameState.js');
     
+    // Добавляем значения по умолчанию для полей, которые могут быть undefined
+    const safeHealth = health ?? 100;
+    const safeHunger = hunger ?? 100;
+    const safeCold = cold ?? 100;
+    const safeMoney = money ?? 200;
+    const safeEnergy = energy ?? 100;
+    const safeCurrentWeather = currentWeather ?? 'sunny';
+    const safeCurrentTemperature = currentTemperature ?? 15;
+    const safeAccumulatedMinutes = accumulatedMinutes ?? 720;
+    const safeExperience = experience ?? 0;
+    const safeLevel = level ?? 1;
+    
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
-        health, hunger, cold, money, inventory, equipped,
-        accumulatedMinutes,
-        currentWeather,
-        currentTemperature,
+        health: safeHealth,
+        hunger: safeHunger,
+        cold: safeCold,
+        money: safeMoney,
+        inventory: inventory || [],
+        equipped: equipped || { head: null, body: null, legs: null, feet: null },
+        accumulatedMinutes: safeAccumulatedMinutes,
+        currentWeather: safeCurrentWeather,
+        currentTemperature: safeCurrentTemperature,
         currentLocation: currentLocation || 'church',
-        actionLog: getActionLog(),
-        experience,
-        level,
-        energy,
-        lastEnergyUpdate,
+        actionLog: getActionLog() || [],
+        experience: safeExperience,
+        level: safeLevel,
+        energy: safeEnergy,
+        lastEnergyUpdate: lastEnergyUpdate ?? Date.now(),
         lastUpdated: new Date().toISOString()
     }, { merge: true });
     console.log("Данные сохранены");
