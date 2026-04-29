@@ -299,29 +299,89 @@ async function unequipItem(slot) {
 export function renderEquipmentTab() {
     const eqTab = document.getElementById('equipmentTab');
     if (!eqTab) return;
+    
     const slots = [
         { key: 'head', name: 'Головной убор', icon: '🧢' },
         { key: 'body', name: 'Верх', icon: '🧥' },
         { key: 'legs', name: 'Штаны', icon: '👖' },
         { key: 'feet', name: 'Обувь', icon: '👢' }
     ];
-    let html = '';
+    
+    // Заголовок
+    let html = `<div class="inventory-grid-header">
+        <span>👕 Экипировка</span>
+        <span>🎽 Снаряжение</span>
+    </div>`;
+    
+    // Сетка для экипировки (4 слота, как у инвентаря)
+    html += '<div class="equipment-grid">';
+    
     for (let s of slots) {
         const itemId = equipped[s.key];
-        const data = itemId ? itemsDB[itemId] : null;
-        html += `<div class="slot">
-            <div class="slot-info">
-                <span class="slot-icon">${s.icon}</span>
-                <span class="slot-name">${s.name}</span>
-                ${data ? `<img src="${data.image}" class="slot-item-img" alt="${data.name}"><span class="item-name">${data.name}</span>` : `<span class="slot-empty">— пусто —</span>`}
-            </div>
-            ${data ? `<button class="unequip-btn" data-slot="${s.key}">Снять</button>` : ''}
-        </div>`;
+        const itemData = itemId ? itemsDB[itemId] : null;
+        
+        if (itemData) {
+            // Занятый слот
+            html += `
+                <div class="equipment-slot occupied" data-slot="${s.key}">
+                    <img src="${itemData.image}" alt="${itemData.name}" class="equipment-image" loading="lazy">
+                    <span class="equipment-slot-name">${s.name}</span>
+                    <span class="equipment-item-name">${itemData.name}</span>
+                    <div class="equipment-effects">
+                        ${itemData.effect.cold ? `<span>🔥 +${itemData.effect.cold}</span>` : ''}
+                    </div>
+                    <button class="unequip-btn" data-slot="${s.key}">Снять</button>
+                </div>
+            `;
+        } else {
+            // Пустой слот
+            html += `
+                <div class="equipment-slot empty" data-slot="${s.key}">
+                    <div class="equipment-empty-icon">${s.icon}</div>
+                    <span class="equipment-slot-name">${s.name}</span>
+                    <span class="equipment-empty-text">— пусто —</span>
+                    <span class="equipment-empty-hint">Наденьте предмет</span>
+                </div>
+            `;
+        }
     }
+    
+    html += '</div>';
+    
+    // Добавляем бонусы от экипировки
+    const totalColdBonus = calculateEquippedColdBonus();
+    html += `<div class="equipment-total-bonus">
+        🔥 Суммарный бонус тепла: <strong>+${totalColdBonus}</strong>
+    </div>`;
+    
     eqTab.innerHTML = html;
+    
+    // Добавляем обработчики для кнопок "Снять"
     document.querySelectorAll('.unequip-btn').forEach(btn => { 
-        btn.addEventListener('click', () => unequipItem(btn.dataset.slot)); 
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await unequipItem(btn.dataset.slot);
+        });
     });
+    
+    // Добавляем возможность надеть предмет, перетащив из инвентаря? (пока просто клик)
+    document.querySelectorAll('.equipment-slot.empty').forEach(slot => {
+        slot.addEventListener('click', () => {
+            showMessage('Сначала выберите предмет в инвентаре и нажмите "Надеть"', '#ffd966');
+        });
+    });
+}
+
+// Вспомогательная функция для подсчёта бонуса тепла от экипировки
+function calculateEquippedColdBonus() {
+    let bonus = 0;
+    for (const slot of ['head', 'body', 'legs', 'feet']) {
+        const itemId = equipped[slot];
+        if (itemId && itemsDB[itemId] && itemsDB[itemId].effect.cold) {
+            bonus += itemsDB[itemId].effect.cold;
+        }
+    }
+    return bonus;
 }
 
 export function recalcColdFromEquipment() {
