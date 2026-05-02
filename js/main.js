@@ -654,28 +654,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 30000);
         checkNewTradeOffers();
         
-        // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
-        
-        if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
-        bonusIndicatorInterval = setInterval(() => {
-            updateBonusIndicator();
-        }, 60000);
-        
-        // Обработчик клика на индикатор бонуса
-        const bonusIndicator = document.getElementById('dailyBonusIndicator');
+      // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
+// Обновляем индикатор сразу
+updateBonusIndicator();
+
+// И обновляем каждую минуту
+if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
+bonusIndicatorInterval = setInterval(() => {
+    updateBonusIndicator();
+}, 60000);
+
+// Обработчик клика на индикатор бонуса
+const bonusIndicator = document.getElementById('dailyBonusIndicator');
 if (bonusIndicator) {
     bonusIndicator.addEventListener('click', async () => {
         const dailyBonus = await import('./dailyBonus.js');
         const canClaim = await dailyBonus.canClaimBonus();
         
         if (canClaim) {
-            // Выдаём бонус
             await dailyBonus.claimDailyBonus();
-            // Обновляем индикатор
             await updateBonusIndicator();
             showMessage('🎁 Бонус получен! Загляни завтра снова!', '#4caf50');
         } else {
-            // Показываем информацию
             const streak = await dailyBonus.getCurrentStreak();
             showMessage(`📅 Бонус уже получен сегодня! Серия: ${streak} день(ей) подряд 🔥`, '#ffd966');
         }
