@@ -1078,6 +1078,108 @@ body {
     display: none !important;
 }
 
+/* ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" ===== */
+.about-content {
+    max-width: 500px;
+    text-align: center;
+    position: relative;
+}
+
+.about-header {
+    position: relative;
+    height: 0;
+}
+
+.close-about {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s;
+    z-index: 10;
+}
+
+.close-about:hover {
+    color: var(--accent-gold);
+}
+
+.about-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 20px auto 16px;
+    border: 3px solid var(--accent-gold);
+    display: block;
+}
+
+.about-text {
+    text-align: center;
+    padding: 16px 20px;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    margin: 16px 0;
+    line-height: 1.8;
+}
+
+.about-email {
+    color: var(--accent-gold);
+    text-decoration: underline;
+    word-break: break-all;
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 0.9em;
+}
+
+.about-close-btn {
+    margin-top: 8px;
+    width: auto;
+    padding: 8px 24px;
+}
+
+/* Пиксельный шрифт */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+.pixel-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+}
+
+/* Стиль для ссылки разработчика */
+.developer-link {
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color 0.2s, text-shadow 0.2s;
+    display: inline-block;
+}
+
+.developer-link:hover {
+    color: var(--accent-gold);
+    text-shadow: 0 0 4px var(--accent-glow);
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .pixel-text {
+        font-size: 8px;
+    }
+    
+    .about-image {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .about-text {
+        padding: 12px;
+    }
+}
+
 /* ===== НОВЫЙ ИНВЕНТАРЬ: СЕТКА И ТУЛТИПЫ ===== */
 
 /* Сетка инвентаря */
