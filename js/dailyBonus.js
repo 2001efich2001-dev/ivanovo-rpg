@@ -1,6 +1,5 @@
 // js/dailyBonus.js
 import { showMessage } from './utils.js';
-import { saveGameData } from './firestore.js';
 import { addExperience, money, setStats, inventory, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
 
@@ -16,7 +15,7 @@ const rewards = {
     4: { money: 750, exp: 20, item: null },
     5: { money: 1000, exp: 25, item: 'medkit' },
     6: { money: 1500, exp: 30, item: null },
-    7: { money: 2000, exp: 50, item: 'random' } // random = случайный ценный предмет
+    7: { money: 2000, exp: 50, item: 'random' }
 };
 
 // Случайные предметы для 7-го дня
@@ -26,30 +25,29 @@ const rareItems = ['puhovik', 'ushanka', 'termo', 'bercy'];
 export function setDailyBonusData(lastClaim, streak) {
     dailyBonusLastClaim = lastClaim;
     dailyBonusStreak = streak || 0;
+    console.log('📦 Загружены данные бонуса:', { lastClaim, streak: dailyBonusStreak });
 }
 
 // Проверка, можно ли получить бонус
 export function canClaimBonus() {
-    if (!dailyBonusLastClaim) return true; // Никогда не получал
+    if (!dailyBonusLastClaim) {
+        console.log('🎁 Бонус доступен (никогда не получал)');
+        return true;
+    }
     
     const lastDate = new Date(dailyBonusLastClaim);
     const today = new Date();
     
-    // Сравниваем по дате (без времени)
     const isToday = lastDate.getDate() === today.getDate() &&
                     lastDate.getMonth() === today.getMonth() &&
                     lastDate.getFullYear() === today.getFullYear();
     
-    if (isToday) return false;
+    if (isToday) {
+        console.log('🎁 Бонус НЕ доступен (уже получен сегодня)');
+        return false;
+    }
     
-    // Проверяем, был ли пропущен день
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    const wasYesterday = lastDate.getDate() === yesterday.getDate() &&
-                         lastDate.getMonth() === yesterday.getMonth() &&
-                         lastDate.getFullYear() === yesterday.getFullYear();
-    
+    console.log('🎁 Бонус доступен (новый день)');
     return true;
 }
 
@@ -66,7 +64,6 @@ export function getCurrentStreak() {
     
     if (isToday) return dailyBonusStreak;
     
-    // Проверяем, был ли вчера
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     
@@ -79,8 +76,10 @@ export function getCurrentStreak() {
 
 // Выдача бонуса
 export async function claimDailyBonus() {
+    console.log('🔍 claimDailyBonus вызван');
+    
     if (!canClaimBonus()) {
-        console.log('Бонус уже получен сегодня');
+        console.log('❌ Бонус не доступен');
         return false;
     }
     
@@ -98,14 +97,20 @@ export async function claimDailyBonus() {
         
         if (wasYesterday) {
             newStreak = Math.min(dailyBonusStreak + 1, 7);
+            console.log(`📈 Серия продолжается: ${dailyBonusStreak} → ${newStreak}`);
         } else {
             newStreak = 1;
+            console.log(`🔄 Серия сброшена до 1`);
         }
+    } else {
+        console.log(`🌟 Первое получение бонуса, серия: 1`);
     }
     
     // Получаем награду
     const reward = rewards[newStreak];
     if (!reward) return false;
+    
+    console.log(`🎁 Награда за день ${newStreak}: ${reward.money}₽, ${reward.exp} опыта, предмет: ${reward.item || 'нет'}`);
     
     // Начисляем деньги
     const newMoney = money + reward.money;
@@ -121,6 +126,7 @@ export async function claimDailyBonus() {
     if (itemId === 'random') {
         const randomIndex = Math.floor(Math.random() * rareItems.length);
         itemId = rareItems[randomIndex];
+        console.log(`🎲 Случайный предмет: ${itemId}`);
     }
     
     if (itemId) {
@@ -137,8 +143,18 @@ export async function claimDailyBonus() {
     dailyBonusLastClaim = new Date().toISOString();
     dailyBonusStreak = newStreak;
     
+    console.log('💾 Сохраняем бонус:', { lastClaim: dailyBonusLastClaim, streak: dailyBonusStreak });
+    
     updateUI();
-    await saveGameData();
+    
+    // ===== ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ В FIRESTORE =====
+    try {
+        const { saveGameData } = await import('./firestore.js');
+        await saveGameData();
+        console.log('✅ Бонус успешно сохранён в Firestore');
+    } catch (err) {
+        console.error('❌ Ошибка при сохранении бонуса:', err);
+    }
     
     // Показываем модальное окно с наградой
     showBonusModal(reward.money, reward.exp, itemName, newStreak);
@@ -166,9 +182,12 @@ function showBonusModal(moneyReward, expReward, itemReward, streak) {
     
     modal.style.display = 'flex';
     
-    document.getElementById('bonusOkBtn')?.addEventListener('click', () => {
-        modal.style.display = 'none';
-    });
+    const btn = document.getElementById('bonusOkBtn');
+    if (btn) {
+        btn.onclick = () => {
+            modal.style.display = 'none';
+        };
+    }
 }
 
 // Получить информацию о бонусе для UI
