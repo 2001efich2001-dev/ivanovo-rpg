@@ -516,21 +516,17 @@ async function openMyOffersModal() {
 let realTimeUnsubscribe = null;
 
 function setupRealTimeUpdates(userId) {
-    // Отписываемся от старой подписки
     if (realTimeUnsubscribe) {
         realTimeUnsubscribe();
         realTimeUnsubscribe = null;
     }
     
-    // Подписываемся на изменения
     subscribeToUserChanges(userId, async (newData) => {
         console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
         
-        // Блокируем автосохранение на время обновления
         window._preventAutoSave = true;
         
         try {
-            // Обновляем локальные данные
             const { setStats, inventory, equipped, setExpData, setEnergy, setTimeWeather, setActionLog, setCurrentLocation, updateUI } = await import('./gameState.js');
             const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
             const { renderLocation } = await import('./locations.js');
@@ -555,13 +551,40 @@ function setupRealTimeUpdates(userId) {
             console.error('Ошибка при обновлении данных:', err);
         }
         
-        // Снимаем блокировку через 2 секунды
         setTimeout(() => {
             window._preventAutoSave = false;
         }, 2000);
     });
     
     realTimeUnsubscribe = () => unsubscribeFromUserChanges();
+}
+
+// ========== ЕЖЕДНЕВНЫЙ БОНУС ==========
+let bonusIndicatorInterval = null;
+
+async function checkDailyBonus() {
+    try {
+        const dailyBonus = await import('./dailyBonus.js');
+        if (dailyBonus.canClaimBonus()) {
+            await dailyBonus.claimDailyBonus();
+        }
+        updateBonusIndicator();
+    } catch (err) {
+        console.error('Ошибка при проверке бонуса:', err);
+    }
+}
+
+async function updateBonusIndicator() {
+    const indicator = document.getElementById('dailyBonusIndicator');
+    if (!indicator) return;
+    
+    try {
+        const dailyBonus = await import('./dailyBonus.js');
+        const canClaim = dailyBonus.canClaimBonus();
+        indicator.style.display = canClaim ? 'inline-block' : 'none';
+    } catch (err) {
+        console.error('Ошибка при обновлении индикатора бонуса:', err);
+    }
 }
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
@@ -580,16 +603,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function afterLogin() {
         const user = window.auth?.currentUser;
         
-        // Очищаем старые флаги обмена после логина
         if (user) {
             const key = 'trade_needs_refresh_' + user.uid;
             localStorage.removeItem(key);
         }
         
-        // Снимаем блокировку автосохранения
         window._preventAutoSave = false;
         
-        // Настраиваем Real-time обновления
         if (user) {
             setupRealTimeUpdates(user.uid);
         }
@@ -617,6 +637,30 @@ document.addEventListener('DOMContentLoaded', () => {
             checkNewTradeOffers();
         }, 30000);
         checkNewTradeOffers();
+        
+        // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
+        setTimeout(() => {
+            checkDailyBonus();
+        }, 1000);
+        
+        if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
+        bonusIndicatorInterval = setInterval(() => {
+            updateBonusIndicator();
+        }, 60000);
+        
+        // Обработчик клика на индикатор бонуса
+        const bonusIndicator = document.getElementById('dailyBonusIndicator');
+        if (bonusIndicator) {
+            bonusIndicator.addEventListener('click', async () => {
+                const dailyBonus = await import('./dailyBonus.js');
+                if (dailyBonus.canClaimBonus()) {
+                    await dailyBonus.claimDailyBonus();
+                    updateBonusIndicator();
+                } else {
+                    showMessage('Бонус уже получен сегодня! Загляни завтра 🎁', '#ffd966');
+                }
+            });
+        }
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
@@ -723,10 +767,14 @@ document.addEventListener('DOMContentLoaded', () => {
             stopWeatherEffects();
             stopTimeWeatherUpdates();
             
-            // Отписываемся от Real-time обновлений
             if (realTimeUnsubscribe) {
                 realTimeUnsubscribe();
                 realTimeUnsubscribe = null;
+            }
+            
+            if (bonusIndicatorInterval) {
+                clearInterval(bonusIndicatorInterval);
+                bonusIndicatorInterval = null;
             }
             
             await auth.signOut();
