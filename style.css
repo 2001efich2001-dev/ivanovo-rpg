@@ -1226,7 +1226,48 @@ body {
     color: var(--text-secondary);
     font-size: 1.2rem;
 }
+/* ===== ЕЖЕДНЕВНЫЙ БОНУС ===== */
+.bonus-indicator {
+    display: inline-block;
+    margin-left: 12px;
+    cursor: pointer;
+    animation: bonusPulse 1s infinite;
+    font-size: 1.2rem;
+    background: rgba(0,0,0,0.3);
+    border-radius: 50%;
+    padding: 2px 4px;
+    transition: transform 0.1s ease;
+}
 
+.bonus-indicator:hover {
+    transform: scale(1.15);
+    animation: none;
+    background: rgba(0,0,0,0.5);
+}
+
+@keyframes bonusPulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+        text-shadow: 0 0 5px var(--accent-gold);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 0.7;
+    }
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .bonus-indicator {
+        margin-left: 8px;
+        font-size: 1rem;
+    }
+}
 /* ===== ТУЛТИП ПРИ НАВЕДЕНИИ ===== */
 .item-tooltip {
     background: var(--card-bg);
