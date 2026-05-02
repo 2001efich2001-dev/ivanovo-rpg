@@ -147,10 +147,19 @@ export async function claimDailyBonus() {
     
     updateUI();
     
-    // ===== ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ В FIRESTORE =====
+    // ===== ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ (обходим блокировку) =====
     try {
         const { saveGameData } = await import('./firestore.js');
+        
+        // Временно отключаем блокировку автосохранения
+        const originalPrevent = window._preventAutoSave;
+        window._preventAutoSave = false;
+        
         await saveGameData();
+        
+        // Восстанавливаем блокировку
+        window._preventAutoSave = originalPrevent;
+        
         console.log('✅ Бонус успешно сохранён в Firestore');
     } catch (err) {
         console.error('❌ Ошибка при сохранении бонуса:', err);
