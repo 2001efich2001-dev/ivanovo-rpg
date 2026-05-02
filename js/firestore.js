@@ -32,6 +32,10 @@ export async function saveGameData() {
     const currentLocationVal = gameState.currentLocation ?? 'church';
     const lastEnergyUpdateVal = gameState.lastEnergyUpdate ?? Date.now();
     
+    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ ЕЖЕДНЕВНОГО БОНУСА =====
+    const dailyBonusLastClaimVal = gameState.dailyBonusLastClaim ?? null;
+    const dailyBonusStreakVal = gameState.dailyBonusStreak ?? 0;
+    
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
         health: healthVal,
@@ -49,7 +53,10 @@ export async function saveGameData() {
         level: levelVal,
         energy: energyVal,
         lastEnergyUpdate: lastEnergyUpdateVal,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        // ===== НОВЫЕ ПОЛЯ =====
+        dailyBonusLastClaim: dailyBonusLastClaimVal,
+        dailyBonusStreak: dailyBonusStreakVal
     }, { merge: true });
     console.log("Данные сохранены");
 }
@@ -72,8 +79,13 @@ export async function loadGameData(userId) {
         setExpData(data.experience ?? 0, data.level ?? 1);
         setEnergy(data.energy ?? 100);
         await setCurrentLocation(data.currentLocation || 'church');
+        
+        // ===== ЗАГРУЖАЕМ ДАННЫЕ ЕЖЕДНЕВНОГО БОНУСА =====
+        const { setDailyBonusData } = await import('./dailyBonus.js');
+        setDailyBonusData(data.dailyBonusLastClaim ?? null, data.dailyBonusStreak ?? 0);
+        
         updateUI();
-        console.log("Данные загружены");
+        console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak });
     } else {
         const gameState = await import('./gameState.js');
         
@@ -96,6 +108,11 @@ export async function loadGameData(userId) {
         gameState.setEnergy(100);
         gameState.lastEnergyUpdate = Date.now();
         await gameState.setCurrentLocation('church');
+        
+        // ===== ИНИЦИАЛИЗИРУЕМ ДАННЫЕ БОНУСА ДЛЯ НОВОГО АККАУНТА =====
+        const { setDailyBonusData } = await import('./dailyBonus.js');
+        setDailyBonusData(null, 0);
+        
         gameState.updateUI();
         
         await saveGameData();
@@ -181,7 +198,7 @@ export async function cancelTradeOffer(offerId, userId) {
     return true;
 }
 
-// ========== ИСПРАВЛЕННАЯ ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ ==========
+// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ ==========
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
