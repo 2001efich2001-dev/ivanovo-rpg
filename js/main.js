@@ -584,15 +584,19 @@ async function updateBonusIndicator() {
         const canClaim = await dailyBonus.canClaimBonus();
         const streak = await dailyBonus.getCurrentStreak();
         
-        console.log('🔄 Обновление индикатора:', { canClaim, streak });
+        // Индикатор всегда виден
+        indicator.style.display = 'inline-block';
         
-        indicator.style.display = canClaim ? 'inline-block' : 'none';
-        
-        // Обновляем title с информацией о серии
-        if (streak > 0) {
-            indicator.title = `Ежедневный бонус! Серия: ${streak} день(ей) 🔥`;
+        if (canClaim) {
+            // Бонус доступен — пульсация
+            indicator.style.animation = 'bonusPulse 1s infinite';
+            indicator.style.opacity = '1';
+            indicator.title = `🎁 Бонус доступен! Нажми, чтобы получить`;
         } else {
-            indicator.title = 'Ежедневный бонус доступен! Получить 🎁';
+            // Бонус уже получен — без пульсации
+            indicator.style.animation = 'none';
+            indicator.style.opacity = '0.7';
+            indicator.title = `✅ Бонус получен сегодня! Серия: ${streak} день(ей) 🔥`;
         }
     } catch (err) {
         console.error('Ошибка при обновлении индикатора бонуса:', err);
@@ -651,9 +655,6 @@ document.addEventListener('DOMContentLoaded', () => {
         checkNewTradeOffers();
         
         // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
-        setTimeout(() => {
-            checkDailyBonus();
-        }, 1000);
         
         if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
         bonusIndicatorInterval = setInterval(() => {
@@ -662,17 +663,24 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Обработчик клика на индикатор бонуса
         const bonusIndicator = document.getElementById('dailyBonusIndicator');
-        if (bonusIndicator) {
-            bonusIndicator.addEventListener('click', async () => {
-                const dailyBonus = await import('./dailyBonus.js');
-                if (dailyBonus.canClaimBonus()) {
-                    await dailyBonus.claimDailyBonus();
-                    updateBonusIndicator();
-                } else {
-                    showMessage('Бонус уже получен сегодня! Загляни завтра 🎁', '#ffd966');
-                }
-            });
+if (bonusIndicator) {
+    bonusIndicator.addEventListener('click', async () => {
+        const dailyBonus = await import('./dailyBonus.js');
+        const canClaim = await dailyBonus.canClaimBonus();
+        
+        if (canClaim) {
+            // Выдаём бонус
+            await dailyBonus.claimDailyBonus();
+            // Обновляем индикатор
+            await updateBonusIndicator();
+            showMessage('🎁 Бонус получен! Загляни завтра снова!', '#4caf50');
+        } else {
+            // Показываем информацию
+            const streak = await dailyBonus.getCurrentStreak();
+            showMessage(`📅 Бонус уже получен сегодня! Серия: ${streak} день(ей) подряд 🔥`, '#ffd966');
         }
+    });
+}
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
