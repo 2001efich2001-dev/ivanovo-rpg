@@ -567,7 +567,6 @@ async function checkDailyBonus() {
         const dailyBonus = await import('./dailyBonus.js');
         if (await dailyBonus.canClaimBonus()) {
             await dailyBonus.claimDailyBonus();
-            // После получения бонуса принудительно обновляем индикатор
             await updateBonusIndicator();
         }
     } catch (err) {
@@ -584,22 +583,47 @@ async function updateBonusIndicator() {
         const canClaim = await dailyBonus.canClaimBonus();
         const streak = await dailyBonus.getCurrentStreak();
         
-        // Индикатор всегда виден
         indicator.style.display = 'inline-block';
         
         if (canClaim) {
-            // Бонус доступен — пульсация
             indicator.style.animation = 'bonusPulse 1s infinite';
             indicator.style.opacity = '1';
             indicator.title = `🎁 Бонус доступен! Нажми, чтобы получить`;
         } else {
-            // Бонус уже получен — без пульсации
             indicator.style.animation = 'none';
             indicator.style.opacity = '0.7';
             indicator.title = `✅ Бонус получен сегодня! Серия: ${streak} день(ей) 🔥`;
         }
     } catch (err) {
         console.error('Ошибка при обновлении индикатора бонуса:', err);
+    }
+}
+
+// ========== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" ==========
+function setupAboutModal() {
+    const developerLink = document.getElementById('developerLink');
+    const aboutModal = document.getElementById('aboutModal');
+    const closeAboutBtn = document.getElementById('closeAboutModal');
+    
+    if (developerLink && aboutModal) {
+        developerLink.addEventListener('click', () => {
+            aboutModal.style.display = 'flex';
+            if (typeof window.playClickSound === 'function') window.playClickSound();
+        });
+    }
+    
+    if (closeAboutBtn && aboutModal) {
+        closeAboutBtn.addEventListener('click', () => {
+            aboutModal.style.display = 'none';
+        });
+    }
+    
+    if (aboutModal) {
+        aboutModal.addEventListener('click', (e) => {
+            if (e.target === aboutModal) {
+                aboutModal.style.display = 'none';
+            }
+        });
     }
 }
 
@@ -654,33 +678,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 30000);
         checkNewTradeOffers();
         
-      // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
-// Обновляем индикатор сразу
-updateBonusIndicator();
-
-// И обновляем каждую минуту
-if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
-bonusIndicatorInterval = setInterval(() => {
-    updateBonusIndicator();
-}, 60000);
-
-// Обработчик клика на индикатор бонуса
-const bonusIndicator = document.getElementById('dailyBonusIndicator');
-if (bonusIndicator) {
-    bonusIndicator.addEventListener('click', async () => {
-        const dailyBonus = await import('./dailyBonus.js');
-        const canClaim = await dailyBonus.canClaimBonus();
+        // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
+        updateBonusIndicator();
         
-        if (canClaim) {
-            await dailyBonus.claimDailyBonus();
-            await updateBonusIndicator();
-            showMessage('🎁 Бонус получен! Загляни завтра снова!', '#4caf50');
-        } else {
-            const streak = await dailyBonus.getCurrentStreak();
-            showMessage(`📅 Бонус уже получен сегодня! Серия: ${streak} день(ей) подряд 🔥`, '#ffd966');
+        if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
+        bonusIndicatorInterval = setInterval(() => {
+            updateBonusIndicator();
+        }, 60000);
+        
+        const bonusIndicator = document.getElementById('dailyBonusIndicator');
+        if (bonusIndicator) {
+            bonusIndicator.addEventListener('click', async () => {
+                const dailyBonus = await import('./dailyBonus.js');
+                const canClaim = await dailyBonus.canClaimBonus();
+                
+                if (canClaim) {
+                    await dailyBonus.claimDailyBonus();
+                    await updateBonusIndicator();
+                    showMessage('🎁 Бонус получен! Загляни завтра снова!', '#4caf50');
+                } else {
+                    const streak = await dailyBonus.getCurrentStreak();
+                    showMessage(`📅 Бонус уже получен сегодня! Серия: ${streak} день(ей) подряд 🔥`, '#ffd966');
+                }
+            });
         }
-    });
-}
+        
+        // ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" =====
+        setupAboutModal();
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
