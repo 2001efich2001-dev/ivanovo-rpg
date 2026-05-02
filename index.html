@@ -103,7 +103,10 @@
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
             </div>
-            <footer class="game-footer">Иваново · Версия 0.0.17 · Торговля</footer>
+            <footer class="game-footer">
+                <p>RPG-Иваново · Версия 0.0.19 · Ежедневный бонус</p>
+                <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
+            </footer>
         </div>
     </div>
 
@@ -206,6 +209,26 @@
     <div id="eventModal" class="modal">
         <div class="modal-content" id="eventModalContent" style="max-width: 450px; text-align: center;">
             <!-- Содержимое заполняется динамически -->
+        </div>
+    </div>
+
+    <!-- Модальное окно "Об авторе" -->
+    <div id="aboutModal" class="modal">
+        <div class="modal-content about-content">
+            <div class="about-header">
+                <span id="closeAboutModal" class="close-about">&times;</span>
+            </div>
+            <img src="images/about_image.png" alt="Efich" class="about-image" onerror="this.src='https://via.placeholder.com/200?text=Efich'">
+            <div class="about-text pixel-text">
+                🆕 Хей, народ! 🆕<br><br>
+                Мы — креативная команда из Иваново, и мы в деле!<br>
+                Создаём игру, которая будет огонь! 🔥<br><br>
+                Играйте! Если у вас будут пожелания или вопросы,<br>
+                то пишите нам на почту:<br>
+                📧 <span class="about-email">2001roker@mail.ru</span><br><br>
+                Давай зажигать вместе! 🎮😎
+            </div>
+            <button class="close-modal about-close-btn">Закрыть</button>
         </div>
     </div>
     
