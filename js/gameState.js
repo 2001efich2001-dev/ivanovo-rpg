@@ -33,6 +33,10 @@ export let experience = 0;
 export let level = 1;
 export let requiredExp = 100;
 
+// ========== ЕЖЕДНЕВНЫЙ БОНУС ==========
+export let dailyBonusLastClaim = null;
+export let dailyBonusStreak = 0;
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -273,4 +277,17 @@ export function setCurrentLocation(locationId) {
 
 export function setLastEnergyUpdate(value) {
     lastEnergyUpdate = isNaN(value) ? Date.now() : value;
+}
+
+// ========== ФУНКЦИИ ДЛЯ ЕЖЕДНЕВНОГО БОНУСА ==========
+export function setDailyBonusData(lastClaim, streak) {
+    dailyBonusLastClaim = lastClaim;
+    dailyBonusStreak = streak || 0;
+}
+
+export function getDailyBonusData() {
+    return {
+        dailyBonusLastClaim,
+        dailyBonusStreak
+    };
 }
