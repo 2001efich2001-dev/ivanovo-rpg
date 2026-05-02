@@ -565,10 +565,11 @@ let bonusIndicatorInterval = null;
 async function checkDailyBonus() {
     try {
         const dailyBonus = await import('./dailyBonus.js');
-        if (dailyBonus.canClaimBonus()) {
+        if (await dailyBonus.canClaimBonus()) {
             await dailyBonus.claimDailyBonus();
+            // После получения бонуса принудительно обновляем индикатор
+            await updateBonusIndicator();
         }
-        updateBonusIndicator();
     } catch (err) {
         console.error('Ошибка при проверке бонуса:', err);
     }
@@ -580,8 +581,19 @@ async function updateBonusIndicator() {
     
     try {
         const dailyBonus = await import('./dailyBonus.js');
-        const canClaim = dailyBonus.canClaimBonus();
+        const canClaim = await dailyBonus.canClaimBonus();
+        const streak = await dailyBonus.getCurrentStreak();
+        
+        console.log('🔄 Обновление индикатора:', { canClaim, streak });
+        
         indicator.style.display = canClaim ? 'inline-block' : 'none';
+        
+        // Обновляем title с информацией о серии
+        if (streak > 0) {
+            indicator.title = `Ежедневный бонус! Серия: ${streak} день(ей) 🔥`;
+        } else {
+            indicator.title = 'Ежедневный бонус доступен! Получить 🎁';
+        }
     } catch (err) {
         console.error('Ошибка при обновлении индикатора бонуса:', err);
     }
