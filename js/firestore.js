@@ -8,12 +8,7 @@ export function initFirestore(auth) {
     db = getFirestore(auth.app);
 }
 
-export async function saveGameData() {
-    if (window._preventAutoSave) {
-        console.log('🛡️ Автосохранение заблокировано');
-        return;
-    }
-    
+export async function saveGameData() {    
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
