@@ -1,11 +1,7 @@
 // js/dailyBonus.js
 import { showMessage } from './utils.js';
-import { addExperience, money, setStats, inventory, updateUI } from './gameState.js';
+import { addExperience, money, setStats, inventory, updateUI, setDailyBonusData as setGameStateBonusData } from './gameState.js';
 import { itemsDB } from './inventory.js';
-
-// Хранилище данных бонуса
-export let dailyBonusLastClaim = null;
-export let dailyBonusStreak = 0;
 
 // Награды по дням
 const rewards = {
@@ -23,13 +19,14 @@ const rareItems = ['puhovik', 'ushanka', 'termo', 'bercy'];
 
 // Установка данных при загрузке
 export function setDailyBonusData(lastClaim, streak) {
-    dailyBonusLastClaim = lastClaim;
-    dailyBonusStreak = streak || 0;
-    console.log('📦 Загружены данные бонуса:', { lastClaim, streak: dailyBonusStreak });
+    setGameStateBonusData(lastClaim, streak);
+    console.log('📦 Загружены данные бонуса:', { lastClaim, streak });
 }
 
 // Проверка, можно ли получить бонус
-export function canClaimBonus() {
+export async function canClaimBonus() {
+    const { dailyBonusLastClaim } = await import('./gameState.js');
+    
     if (!dailyBonusLastClaim) {
         console.log('🎁 Бонус доступен (никогда не получал)');
         return true;
@@ -52,7 +49,9 @@ export function canClaimBonus() {
 }
 
 // Получение текущей серии (для отображения)
-export function getCurrentStreak() {
+export async function getCurrentStreak() {
+    const { dailyBonusLastClaim, dailyBonusStreak } = await import('./gameState.js');
+    
     if (!dailyBonusLastClaim) return 0;
     
     const lastDate = new Date(dailyBonusLastClaim);
@@ -78,15 +77,21 @@ export function getCurrentStreak() {
 export async function claimDailyBonus() {
     console.log('🔍 claimDailyBonus вызван');
     
-    if (!canClaimBonus()) {
+    const canClaim = await canClaimBonus();
+    if (!canClaim) {
         console.log('❌ Бонус не доступен');
         return false;
     }
     
+    // Получаем текущие данные из gameState
+    const gameState = await import('./gameState.js');
+    let currentStreak = gameState.dailyBonusStreak;
+    let currentLastClaim = gameState.dailyBonusLastClaim;
+    
     // Определяем новую серию
     let newStreak = 1;
-    if (dailyBonusLastClaim) {
-        const lastDate = new Date(dailyBonusLastClaim);
+    if (currentLastClaim) {
+        const lastDate = new Date(currentLastClaim);
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
@@ -96,8 +101,8 @@ export async function claimDailyBonus() {
                              lastDate.getFullYear() === yesterday.getFullYear();
         
         if (wasYesterday) {
-            newStreak = Math.min(dailyBonusStreak + 1, 7);
-            console.log(`📈 Серия продолжается: ${dailyBonusStreak} → ${newStreak}`);
+            newStreak = Math.min(currentStreak + 1, 7);
+            console.log(`📈 Серия продолжается: ${currentStreak} → ${newStreak}`);
         } else {
             newStreak = 1;
             console.log(`🔄 Серия сброшена до 1`);
@@ -139,15 +144,15 @@ export async function claimDailyBonus() {
         itemName = itemsDB[itemId]?.name || itemId;
     }
     
-    // Обновляем данные бонуса
-    dailyBonusLastClaim = new Date().toISOString();
-    dailyBonusStreak = newStreak;
+    // Обновляем данные бонуса в gameState
+    const newLastClaim = new Date().toISOString();
+    gameState.setDailyBonusData(newLastClaim, newStreak);
     
-    console.log('💾 Сохраняем бонус:', { lastClaim: dailyBonusLastClaim, streak: dailyBonusStreak });
+    console.log('💾 Сохраняем бонус:', { lastClaim: newLastClaim, streak: newStreak });
     
     updateUI();
     
-    // ===== ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ (обходим блокировку) =====
+    // ===== ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ В FIRESTORE =====
     try {
         const { saveGameData } = await import('./firestore.js');
         
@@ -200,9 +205,9 @@ function showBonusModal(moneyReward, expReward, itemReward, streak) {
 }
 
 // Получить информацию о бонусе для UI
-export function getBonusInfo() {
-    const canClaim = canClaimBonus();
-    const streak = getCurrentStreak();
+export async function getBonusInfo() {
+    const canClaim = await canClaimBonus();
+    const streak = await getCurrentStreak();
     const nextStreak = Math.min(streak + 1, 7);
     const nextReward = rewards[nextStreak];
     
