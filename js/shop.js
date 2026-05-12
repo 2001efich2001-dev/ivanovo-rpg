@@ -10,36 +10,114 @@ function getSellPrice(itemId) {
     return Math.max(1, Math.floor(item.price / 2));
 }
 
-// Рендер вкладки "Купить"
+// Показать тултип
+let activeTooltip = null;
+
+function showTooltip(item, event) {
+    hideTooltip();
+    
+    const sellPrice = getSellPrice(item.id);
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'item-tooltip';
+    tooltip.innerHTML = `
+        <div class="tooltip-header">
+            <strong>${item.name}</strong>
+        </div>
+        <div class="tooltip-content">
+            ${item.description || ''}
+            ${item.effect?.hunger ? `<div>🍗 Голод: ${item.effect.hunger > 0 ? '+' : ''}${item.effect.hunger}</div>` : ''}
+            ${item.effect?.health ? `<div>❤️ Здоровье: ${item.effect.health > 0 ? '+' : ''}${item.effect.health}</div>` : ''}
+            ${item.effect?.cold ? `<div>🔥 Тепло: ${item.effect.cold > 0 ? '+' : ''}${item.effect.cold}</div>` : ''}
+            <div class="tooltip-divider"></div>
+            <div>💰 Покупка: ${item.price}₽</div>
+            <div>💸 Продажа: ${sellPrice}₽</div>
+        </div>
+    `;
+    
+    tooltip.style.position = 'fixed';
+    tooltip.style.left = (event.clientX + 15) + 'px';
+    tooltip.style.top = (event.clientY + 15) + 'px';
+    tooltip.style.zIndex = '10001';
+    
+    document.body.appendChild(tooltip);
+    activeTooltip = tooltip;
+}
+
+function hideTooltip() {
+    if (activeTooltip && activeTooltip.remove) {
+        activeTooltip.remove();
+        activeTooltip = null;
+    }
+}
+
+// Рендер вкладки "Купить" (сетка 5x4)
 export function renderShopBuyTab() {
     const container = document.getElementById('shopBuyTab');
     if (!container) return;
     
     const items = Object.values(itemsDB).filter(item => item.price > 0);
-    let html = '';
-    items.forEach(item => {
+    
+    // Заголовок
+    let html = `<div class="inventory-grid-header">
+        <span>🛍️ Магазин</span>
+        <span>💰 Деньги: ${Math.floor(money)}₽</span>
+    </div>`;
+    
+    html += '<div class="inventory-grid">';
+    
+    for (const item of items) {
         html += `
-            <div class="inventory-item">
-                <div class="item-info">
-                    <span class="item-icon">${item.icon}</span>
-                    <span class="item-name">${item.name}</span>
-                    <span class="item-count">${item.price} ₽</span>
-                </div>
-                <button class="buy-btn" data-id="${item.id}">Купить</button>
+            <div class="inventory-slot shop-slot" data-id="${item.id}" data-name="${item.name}">
+                <img src="${item.image}" alt="${item.name}" class="item-image" loading="lazy" 
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${item.icon}%3C/text%3E%3C/svg%3E'">
+                <span class="item-name">${item.name}</span>
+                <span class="item-price">${item.price}₽</span>
+                <button class="buy-btn shop-action-btn" data-id="${item.id}">Купить</button>
             </div>
         `;
-    });
+    }
+    
+    // Заполняем пустые ячейки до 20 (5x4)
+    const itemsPerPage = 20;
+    const remainingSlots = itemsPerPage - (items.length % itemsPerPage);
+    if (remainingSlots < itemsPerPage) {
+        for (let i = 0; i < remainingSlots; i++) {
+            html += `<div class="inventory-slot empty-slot shop-empty">🔲</div>`;
+        }
+    }
+    
+    html += '</div>';
     container.innerHTML = html;
     
+    // Добавляем обработчики для кнопок покупки
     document.querySelectorAll('.buy-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
             const itemId = btn.dataset.id;
             await buyItem(itemId);
         });
     });
+    
+    // Добавляем тултипы
+    document.querySelectorAll('.shop-slot:not(.shop-empty)').forEach(slot => {
+        const itemId = slot.dataset.id;
+        const item = itemsDB[itemId];
+        
+        slot.addEventListener('mouseenter', (e) => {
+            if (item) showTooltip(item, e);
+        });
+        slot.addEventListener('mouseleave', hideTooltip);
+        slot.addEventListener('mousemove', (e) => {
+            if (activeTooltip) {
+                activeTooltip.style.left = (e.clientX + 15) + 'px';
+                activeTooltip.style.top = (e.clientY + 15) + 'px';
+            }
+        });
+    });
 }
 
-// Рендер вкладки "Продать" (только предметы, которые есть в инвентаре)
+// Рендер вкладки "Продать" (сетка 5x4)
 export function renderShopSellTab() {
     const container = document.getElementById('shopSellTab');
     if (!container) return;
@@ -50,31 +128,63 @@ export function renderShopSellTab() {
     });
     
     if (sellable.length === 0) {
-        container.innerHTML = '<p style="text-align:center;">Нет предметов для продажи</p>';
+        container.innerHTML = '<div class="empty-inventory">📦 Нет предметов для продажи</div>';
         return;
     }
     
-    let html = '';
-    sellable.forEach(item => {
+    let html = `<div class="inventory-grid-header">
+        <span>💰 Продажа</span>
+        <span>💰 Деньги: ${Math.floor(money)}₽</span>
+    </div>`;
+    
+    html += '<div class="inventory-grid">';
+    
+    for (const item of sellable) {
         const dbItem = itemsDB[item.id];
         const sellPrice = getSellPrice(item.id);
+        
         html += `
-            <div class="inventory-item">
-                <div class="item-info">
-                    <span class="item-icon">${dbItem.icon}</span>
-                    <span class="item-name">${dbItem.name}</span>
-                    <span class="item-count">×${item.count} | ${sellPrice} ₽/шт</span>
+            <div class="inventory-slot shop-slot" data-id="${item.id}" data-name="${dbItem.name}">
+                <img src="${dbItem.image}" alt="${dbItem.name}" class="item-image" loading="lazy"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${dbItem.icon}%3C/text%3E%3C/svg%3E'">
+                <span class="item-name">${dbItem.name}</span>
+                <div class="item-info-shop">
+                    <span class="item-count">×${item.count}</span>
+                    <span class="item-price">${sellPrice}₽/шт</span>
                 </div>
-                <button class="sell-btn" data-id="${item.id}">Продать</button>
+                <button class="sell-btn shop-action-btn" data-id="${item.id}">Продать</button>
             </div>
         `;
-    });
+    }
+    
+    html += '</div>';
     container.innerHTML = html;
     
+    // Добавляем обработчики для кнопок продажи
     document.querySelectorAll('.sell-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
             const itemId = btn.dataset.id;
             await sellItem(itemId);
+        });
+    });
+    
+    // Добавляем тултипы
+    document.querySelectorAll('.shop-slot').forEach(slot => {
+        const itemId = slot.dataset.id;
+        const item = itemsDB[itemId];
+        
+        if (!item) return;
+        
+        slot.addEventListener('mouseenter', (e) => {
+            showTooltip(item, e);
+        });
+        slot.addEventListener('mouseleave', hideTooltip);
+        slot.addEventListener('mousemove', (e) => {
+            if (activeTooltip) {
+                activeTooltip.style.left = (e.clientX + 15) + 'px';
+                activeTooltip.style.top = (e.clientY + 15) + 'px';
+            }
         });
     });
 }
@@ -96,8 +206,15 @@ async function buyItem(itemId) {
         await saveGameData();
         showMessage(`✅ Куплено: ${item.name}`, '#4caf50');
         logAction(`Куплен предмет: ${item.name} за ${item.price}₽`, 'economy');
-        // Обновляем вкладку продажи (так как инвентарь изменился)
+        
+        // Обновляем обе вкладки
+        renderShopBuyTab();
         renderShopSellTab();
+        
+        // Обновляем инвентарь в другом окне (если открыт)
+        const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
+        renderItemsTab();
+        renderEquipmentTab();
     } else {
         showMessage(`❌ Не хватает денег! Нужно ${item.price}₽`, '#e74c3c');
     }
@@ -125,5 +242,13 @@ async function sellItem(itemId) {
     await saveGameData();
     showMessage(`💰 Продано: ${item.name} за ${sellPrice}₽`, '#4caf50');
     logAction(`Продан предмет: ${item.name} за ${sellPrice}₽`, 'economy');
-    renderShopSellTab(); // обновляем список продажи
+    
+    // Обновляем обе вкладки
+    renderShopBuyTab();
+    renderShopSellTab();
+    
+    // Обновляем инвентарь в другом окне (если открыт)
+    const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
+    renderItemsTab();
+    renderEquipmentTab();
 }
