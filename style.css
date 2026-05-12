@@ -1929,3 +1929,101 @@ body {
     font-size: 0.6rem !important;
     display: inline-block !important;
 }
+/* ===== ФИНАЛЬНЫЙ ФИКС МАГАЗИНА И ОБМЕНА ===== */
+
+/* Увеличиваем модальные окна */
+#shopModal .modal-content,
+#tradeOfferModal .modal-content {
+    max-width: 900px !important;
+    width: 95% !important;
+}
+
+/* Сетка 5 колонок, но ячейки шире */
+#shopModal .inventory-grid,
+#tradeOfferModal .inventory-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 16px !important;
+    padding: 20px !important;
+}
+
+/* Ячейки */
+#shopModal .shop-slot,
+#tradeOfferModal .trade-slot {
+    aspect-ratio: auto !important;
+    min-height: 140px !important;
+    padding: 12px 8px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+
+/* Картинки */
+#shopModal .shop-slot .item-image,
+#tradeOfferModal .trade-slot .item-image {
+    width: 56px !important;
+    height: 56px !important;
+    margin-bottom: 6px !important;
+}
+
+/* Название предмета - перенос строк */
+#shopModal .shop-slot .item-name,
+#tradeOfferModal .trade-slot .item-name {
+    font-size: 0.7rem !important;
+    text-align: center !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+    line-height: 1.3 !important;
+    max-width: 100% !important;
+    margin: 4px 0 !important;
+}
+
+/* Цена / количество */
+#shopModal .shop-slot .item-price,
+#tradeOfferModal .trade-slot .item-price {
+    font-size: 0.7rem !important;
+    color: var(--accent-gold) !important;
+    margin: 2px 0 !important;
+}
+
+/* Кнопки */
+#shopModal .shop-action-btn,
+#tradeOfferModal .trade-add-btn {
+    margin-top: 8px !important;
+    padding: 5px 12px !important;
+    font-size: 0.65rem !important;
+    width: auto !important;
+    white-space: nowrap !important;
+}
+
+/* Количество предметов в обмене */
+#tradeOfferModal .trade-slot .item-count {
+    position: static !important;
+    background: rgba(0,0,0,0.6) !important;
+    border-radius: 20px !important;
+    padding: 2px 8px !important;
+    font-size: 0.6rem !important;
+    margin-top: 4px !important;
+    display: inline-block !important;
+}
+
+/* Адаптация для маленьких экранов */
+@media (max-width: 768px) {
+    #shopModal .inventory-grid,
+    #tradeOfferModal .inventory-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 12px !important;
+    }
+    
+    #shopModal .shop-slot .item-name,
+    #tradeOfferModal .trade-slot .item-name {
+        font-size: 0.6rem !important;
+    }
+    
+    #shopModal .shop-slot .item-image,
+    #tradeOfferModal .trade-slot .item-image {
+        width: 42px !important;
+        height: 42px !important;
+    }
+}
