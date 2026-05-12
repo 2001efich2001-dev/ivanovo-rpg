@@ -1877,3 +1877,55 @@ body {
     cursor: pointer;
     font-size: 0.7rem;
 }
+
+/* ===== ФИКС ШИРИНЫ МОДАЛЬНЫХ ОКОН ===== */
+#shopModal .modal-content,
+#tradeOfferModal .modal-content {
+    max-width: 800px !important;
+    width: 90% !important;
+}
+
+/* ===== ФИКС РАЗМЕРОВ ЯЧЕЕК ===== */
+#shopModal .inventory-grid,
+#tradeOfferModal .inventory-grid {
+    grid-template-columns: repeat(4, minmax(80px, 100px)) !important;
+    justify-content: center !important;
+    gap: 16px !important;
+}
+
+#shopModal .shop-slot,
+#tradeOfferModal .trade-slot {
+    min-width: 80px;
+    max-width: 100px;
+    padding: 12px 6px !important;
+}
+
+#shopModal .shop-slot .item-image,
+#tradeOfferModal .trade-slot .item-image {
+    width: 48px !important;
+    height: 48px !important;
+}
+
+#shopModal .shop-slot .item-name,
+#tradeOfferModal .trade-slot .item-name {
+    font-size: 0.65rem !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.2 !important;
+}
+
+#shopModal .shop-action-btn,
+#tradeOfferModal .trade-add-btn {
+    font-size: 0.6rem !important;
+    padding: 4px 8px !important;
+    margin-top: 8px !important;
+    width: auto !important;
+}
+
+/* Убираем абсолютное позиционирование у количества */
+#tradeOfferModal .trade-slot .item-count {
+    position: static !important;
+    margin-top: 4px !important;
+    font-size: 0.6rem !important;
+    display: inline-block !important;
+}
