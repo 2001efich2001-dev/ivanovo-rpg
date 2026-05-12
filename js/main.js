@@ -253,8 +253,48 @@ function attachTradeButtons() {
     });
 }
 
-// ========== ТОРГОВЛЯ ==========
+// ========== ТОРГОВЛЯ (обновленная сетка) ==========
 let tradeNotificationInterval = null;
+let activeTradeTooltip = null;
+
+function hideTradeTooltip() {
+    if (activeTradeTooltip && activeTradeTooltip.remove) {
+        activeTradeTooltip.remove();
+        activeTradeTooltip = null;
+    }
+}
+
+function showTradeTooltip(item, event, count = 1) {
+    hideTradeTooltip();
+    
+    const sellPrice = Math.max(1, Math.floor((item.price || 0) / 2));
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'item-tooltip';
+    tooltip.innerHTML = `
+        <div class="tooltip-header">
+            <strong>${item.name}</strong>
+        </div>
+        <div class="tooltip-content">
+            ${item.description || ''}
+            ${item.effect?.hunger ? `<div>🍗 Голод: ${item.effect.hunger > 0 ? '+' : ''}${item.effect.hunger}</div>` : ''}
+            ${item.effect?.health ? `<div>❤️ Здоровье: ${item.effect.health > 0 ? '+' : ''}${item.effect.health}</div>` : ''}
+            ${item.effect?.cold ? `<div>🔥 Тепло: ${item.effect.cold > 0 ? '+' : ''}${item.effect.cold}</div>` : ''}
+            <div class="tooltip-divider"></div>
+            <div>💰 Покупка: ${item.price || 0}₽</div>
+            <div>💸 Продажа: ${sellPrice}₽</div>
+            ${count > 1 ? `<div>📦 В наличии: ${count} шт.</div>` : ''}
+        </div>
+    `;
+    
+    tooltip.style.position = 'fixed';
+    tooltip.style.left = (event.clientX + 15) + 'px';
+    tooltip.style.top = (event.clientY + 15) + 'px';
+    tooltip.style.zIndex = '10001';
+    
+    document.body.appendChild(tooltip);
+    activeTradeTooltip = tooltip;
+}
 
 async function checkNewTradeOffers() {
     const user = auth.currentUser;
@@ -278,8 +318,8 @@ async function openTradeOfferModal(targetUserId, targetUserNick) {
     modal.dataset.targetUserNick = targetUserNick;
     const title = modal.querySelector('.modal-content h3');
     if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
-    document.getElementById('tradeFromItems').innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка инвентаря...</div>';
-    document.getElementById('tradeToItems').innerHTML = '<div class="inventory-item" style="justify-content:center;">Загрузка...</div>';
+    document.getElementById('tradeFromItems').innerHTML = '<div class="inventory-grid-header"><span>📦 Я отдаю</span><span>💰 Ваши деньги: <span id="tradeFromMoneyDisplay">0</span>₽</span></div><div class="inventory-grid" style="min-height: 300px;">Загрузка инвентаря...</div>';
+    document.getElementById('tradeToItems').innerHTML = '<div class="inventory-grid-header"><span>🎁 Я получаю</span><span>💰 Деньги: 0₽</span></div><div class="inventory-grid" style="min-height: 300px;">Загрузка...</div>';
     document.getElementById('tradeFromMoney').value = 0;
     document.getElementById('tradeToMoney').value = 0;
     document.getElementById('tradeSelectedFrom').innerHTML = '';
@@ -287,6 +327,23 @@ async function openTradeOfferModal(targetUserId, targetUserNick) {
     modal.style.display = 'flex';
     await renderTradeInventorySelector('from');
     await renderTradeInventorySelector('to');
+    
+    // Обновляем отображение денег при изменении
+    const fromMoneyInput = document.getElementById('tradeFromMoney');
+    const toMoneyInput = document.getElementById('tradeToMoney');
+    const fromMoneyDisplay = document.getElementById('tradeFromMoneyDisplay');
+    const toMoneyDisplay = document.getElementById('tradeToMoneyDisplay');
+    
+    if (fromMoneyInput) {
+        fromMoneyInput.addEventListener('input', () => {
+            if (fromMoneyDisplay) fromMoneyDisplay.textContent = fromMoneyInput.value;
+        });
+    }
+    if (toMoneyInput) {
+        toMoneyInput.addEventListener('input', () => {
+            if (toMoneyDisplay) toMoneyDisplay.textContent = toMoneyInput.value;
+        });
+    }
 }
 
 async function renderTradeInventorySelector(side) {
@@ -300,53 +357,95 @@ async function renderTradeInventorySelector(side) {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const userInv = userDoc.data()?.inventory || [];
         if (userInv.length === 0) {
-            container.innerHTML = '<div class="inventory-item" style="justify-content:center;">Инвентарь пуст</div>';
+            container.innerHTML = '<div class="empty-inventory">📦 Инвентарь пуст</div>';
             return;
         }
-        let html = '';
+        
+        let html = '<div class="inventory-grid">';
+        
         for (const item of userInv) {
             const itemData = itemsDB[item.id];
             if (!itemData) continue;
+            
             html += `
-                <div class="inventory-item" data-id="${item.id}" data-count="${item.count}">
-                    <div class="item-info">
-                        <span class="item-icon">${itemData.icon}</span>
-                        <span class="item-name">${itemData.name}</span>
-                        <span class="item-count">×${item.count}</span>
-                    </div>
-                    <button class="trade-add-btn" data-id="${item.id}" data-max="${item.count}" data-side="from">➕ Добавить</button>
+                <div class="inventory-slot trade-slot" data-id="${item.id}" data-count="${item.count}" data-side="from">
+                    <img src="${itemData.image}" alt="${itemData.name}" class="item-image" loading="lazy"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${itemData.icon}%3C/text%3E%3C/svg%3E'">
+                    <span class="item-name">${itemData.name}</span>
+                    <span class="item-count">×${item.count}</span>
+                    <button class="trade-add-btn" data-id="${item.id}" data-max="${item.count}" data-side="from">➕</button>
                 </div>
             `;
         }
+        
+        html += '</div>';
         container.innerHTML = html;
+        
+        document.querySelectorAll('#tradeFromItems .trade-slot').forEach(slot => {
+            const itemId = slot.dataset.id;
+            const itemData = itemsDB[itemId];
+            const count = parseInt(slot.dataset.count);
+            
+            slot.addEventListener('mouseenter', (e) => {
+                showTradeTooltip(itemData, e, count);
+            });
+            slot.addEventListener('mouseleave', hideTradeTooltip);
+            slot.addEventListener('mousemove', (e) => {
+                if (activeTradeTooltip) {
+                    activeTradeTooltip.style.left = (e.clientX + 15) + 'px';
+                    activeTradeTooltip.style.top = (e.clientY + 15) + 'px';
+                }
+            });
+        });
+        
     } else {
         const allItems = Object.values(itemsDB);
-        let html = '';
+        
+        let html = '<div class="inventory-grid">';
+        
         for (const item of allItems) {
             html += `
-                <div class="inventory-item" data-id="${item.id}">
-                    <div class="item-info">
-                        <span class="item-icon">${item.icon}</span>
-                        <span class="item-name">${item.name}</span>
-                    </div>
-                    <button class="trade-add-btn" data-id="${item.id}" data-side="to">➕ Добавить</button>
+                <div class="inventory-slot trade-slot" data-id="${item.id}" data-side="to">
+                    <img src="${item.image}" alt="${item.name}" class="item-image" loading="lazy"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${item.icon}%3C/text%3E%3C/svg%3E'">
+                    <span class="item-name">${item.name}</span>
+                    <button class="trade-add-btn" data-id="${item.id}" data-side="to">➕</button>
                 </div>
             `;
         }
+        
+        html += '</div>';
         container.innerHTML = html;
+        
+        document.querySelectorAll('#tradeToItems .trade-slot').forEach(slot => {
+            const itemId = slot.dataset.id;
+            const itemData = itemsDB[itemId];
+            
+            slot.addEventListener('mouseenter', (e) => {
+                showTradeTooltip(itemData, e);
+            });
+            slot.addEventListener('mouseleave', hideTradeTooltip);
+            slot.addEventListener('mousemove', (e) => {
+                if (activeTradeTooltip) {
+                    activeTradeTooltip.style.left = (e.clientX + 15) + 'px';
+                    activeTradeTooltip.style.top = (e.clientY + 15) + 'px';
+                }
+            });
+        });
     }
     
-    container.querySelectorAll('.trade-add-btn').forEach(btn => {
+    document.querySelectorAll('.trade-add-btn').forEach(btn => {
         btn.removeEventListener('click', btn._handler);
         const handler = async (e) => {
             e.stopPropagation();
             const sideType = btn.dataset.side === 'from' ? 'from' : 'to';
             const itemId = btn.dataset.id;
+            const itemData = itemsDB[itemId];
             let maxCount = Infinity;
             if (sideType === 'from') {
                 maxCount = parseInt(btn.dataset.max);
             }
-            const count = prompt(`Сколько ${itemsDB[itemId]?.name} вы хотите ${sideType === 'from' ? 'отдать' : 'получить'}? ${sideType === 'from' ? `(макс. ${maxCount})` : ''}`, '1');
+            const count = prompt(`Сколько ${itemData?.name} вы хотите ${sideType === 'from' ? 'отдать' : 'получить'}? ${sideType === 'from' ? `(макс. ${maxCount})` : ''}`, '1');
             const numCount = parseInt(count);
             if (isNaN(numCount) || numCount < 1 || (sideType === 'from' && numCount > maxCount)) {
                 showMessage('Некорректное количество', '#e74c3c');
@@ -372,7 +471,6 @@ async function renderTradeInventorySelector(side) {
                 }
                 countSpan.textContent = newCount;
             } else {
-                const itemData = itemsDB[itemId];
                 const newItemHtml = `
                     <div class="selected-item" data-id="${itemId}" data-count="${numCount}">
                         <span>${itemData.icon} ${itemData.name} ×<span class="selected-count">${numCount}</span></span>
