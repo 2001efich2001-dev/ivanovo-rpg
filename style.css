@@ -838,3 +838,100 @@ body {
         grid-template-columns: repeat(2, minmax(85px, 95px)) !important;
     }
 }
+/* ===== ФИКС ДЛЯ ОБЕИХ ВКЛАДОК МАГАЗИНА ===== */
+
+#shopBuyTab, #shopSellTab {
+    width: 100%;
+}
+
+#shopBuyTab .inventory-grid,
+#shopSellTab .inventory-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(85px, 100px)) !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    background: var(--stat-bg) !important;
+    border-radius: 32px !important;
+    padding: 16px !important;
+    max-height: 450px !important;
+    overflow-y: auto !important;
+}
+
+#shopBuyTab .shop-slot,
+#shopSellTab .shop-slot {
+    aspect-ratio: 1 / 1 !important;
+    background: var(--card-bg) !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px !important;
+    text-align: center !important;
+    transition: all 0.15s ease !important;
+}
+
+#shopBuyTab .shop-slot:hover,
+#shopSellTab .shop-slot:hover {
+    transform: scale(1.05) !important;
+    background: var(--accent-glow) !important;
+}
+
+#shopBuyTab .shop-slot .item-image,
+#shopSellTab .shop-slot .item-image {
+    width: 48px !important;
+    height: 48px !important;
+    object-fit: contain !important;
+    margin-bottom: 4px !important;
+}
+
+#shopBuyTab .shop-slot .item-name,
+#shopSellTab .shop-slot .item-name {
+    font-size: 0.65rem !important;
+    margin: 4px 0 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.2 !important;
+    max-width: 100% !important;
+}
+
+#shopBuyTab .shop-slot .item-price,
+#shopSellTab .shop-slot .item-price {
+    font-size: 0.65rem !important;
+    color: var(--accent-gold) !important;
+    margin: 2px 0 !important;
+}
+
+#shopBuyTab .shop-action-btn,
+#shopSellTab .shop-action-btn {
+    margin-top: 6px !important;
+    padding: 4px 10px !important;
+    background: var(--buy-btn-bg) !important;
+    border: none !important;
+    border-radius: 20px !important;
+    color: white !important;
+    cursor: pointer !important;
+    font-size: 0.6rem !important;
+}
+
+/* Адаптация */
+@media (max-width: 768px) {
+    #shopBuyTab .inventory-grid,
+    #shopSellTab .inventory-grid {
+        grid-template-columns: repeat(3, minmax(80px, 90px)) !important;
+        gap: 10px !important;
+    }
+    
+    #shopBuyTab .shop-slot .item-image,
+    #shopSellTab .shop-slot .item-image {
+        width: 40px !important;
+        height: 40px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #shopBuyTab .inventory-grid,
+    #shopSellTab .inventory-grid {
+        grid-template-columns: repeat(2, minmax(80px, 90px)) !important;
+    }
+}
