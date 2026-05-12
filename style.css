@@ -381,810 +381,8 @@ body {
     margin-top: 0;
     color: var(--accent-gold);
 }
-.inventory-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-.inventory-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--stat-bg);
-    padding: 10px 16px;
-    border-radius: 40px;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.item-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 2;
-}
-.item-icon {
-    font-size: 1.6rem;
-}
-.item-name {
-    font-weight: bold;
-}
-.item-count {
-    background: var(--card-bg);
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-}
-.use-btn, .equip-btn, .unequip-btn, .action-location-btn {
-    background: var(--buy-btn-bg);
-    border: none;
-    padding: 6px 16px;
-    border-radius: 40px;
-    color: white;
-    cursor: pointer;
-    font-weight: bold;
-}
-.unequip-btn {
-    background: #7f8c8d;
-}
-.equipment-slots {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.slot {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--stat-bg);
-    padding: 12px 16px;
-    border-radius: 40px;
-}
-.slot-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.slot-icon {
-    font-size: 1.5rem;
-}
-.slot-name {
-    font-weight: bold;
-}
-.slot-empty {
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-}
-.close-modal {
-    background: var(--reset-bg);
-    margin-top: 20px;
-    padding: 8px 24px;
-    border: none;
-    border-radius: 40px;
-    cursor: pointer;
-    color: var(--text-primary);
-    width: 100%;
-}
-.global-footer {
-    text-align: center;
-    margin-top: 30px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    opacity: 0.7;
-}
-.global-footer p {
-    margin: 4px 0;
-}
 
-/* Стили для карты */
-.map-container {
-    position: relative;
-    display: inline-block;
-    width: 100%;
-    background: var(--stat-bg);
-    border-radius: 32px;
-    padding: 8px;
-}
-.map-image {
-    width: 100%;
-    height: auto;
-    display: block;
-    border-radius: 24px;
-}
-.map-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
-.map-overlay circle {
-    pointer-events: visible;
-    cursor: pointer;
-    transition: stroke 0.1s, fill 0.1s;
-    fill: rgba(0, 200, 0, 0.25);
-    stroke: rgba(0, 200, 0, 0.6);
-    stroke-width: 2;
-}
-.map-overlay circle:hover {
-    fill: rgba(0, 200, 0, 0.5);
-    stroke: rgba(0, 200, 0, 1);
-}
-.location-tooltip {
-    position: fixed;
-    background: rgba(0,0,0,0.8);
-    color: #ffd966;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.9rem;
-    pointer-events: none;
-    z-index: 1001;
-    white-space: nowrap;
-    font-weight: bold;
-}
-
-/* Блок времени и погоды */
-.time-weather {
-    text-align: center;
-    font-size: 1rem;
-    font-weight: bold;
-    background: var(--stat-bg);
-    padding: 8px 12px;
-    border-radius: 60px;
-    margin: 8px 0;
-    color: var(--accent-gold);
-    letter-spacing: 1px;
-}
-
-/* ===== СЛОИ ДЛЯ ПОГОДНЫХ ЭФФЕКТОВ ===== */
-#darkOverlay,
-#particlesCanvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    z-index: 4;
-}
-#particlesCanvas {
-    z-index: 5;
-}
-.location-zones {
-    z-index: 6 !important;
-}
-/* ===== ЛОГ ДЕЙСТВИЙ (ИСТОРИЯ) ===== */
-.log-container {
-    background: var(--panel-bg);
-    border-radius: 48px;
-    padding: 12px 16px;
-    margin: 8px 0;
-}
-
-.log-header {
-    font-size: 0.85rem;
-    font-weight: bold;
-    color: var(--accent-gold);
-    text-align: center;
-    margin-bottom: 8px;
-    letter-spacing: 1px;
-}
-
-.log-panel {
-    max-height: 150px;
-    overflow-y: auto;
-    font-size: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-right: 4px;
-}
-
-/* Стили для отдельных записей лога */
-.log-entry {
-    padding: 4px 8px;
-    border-radius: 20px;
-    background: rgba(0, 0, 0, 0.2);
-    border-left: 3px solid var(--accent-gold);
-    color: var(--text-secondary);
-    transition: 0.1s;
-}
-
-.log-entry:hover {
-    background: rgba(255, 255, 255, 0.05);
-}
-
-/* Цвета для разных типов сообщений */
-.log-entry.location {
-    border-left-color: #3498db;
-}
-.log-entry.item {
-    border-left-color: #2ecc71;
-}
-.log-entry.combat {
-    border-left-color: #e74c3c;
-}
-.log-entry.economy {
-    border-left-color: #f1c40f;
-}
-.log-entry.weather {
-    border-left-color: #9b59b6;
-}
-.log-entry.system {
-    border-left-color: #95a5a6;
-}
-
-/* Время в логе */
-.log-time {
-    color: var(--accent-gold);
-    font-size: 0.65rem;
-    margin-right: 8px;
-    font-weight: bold;
-}
-
-/* Скроллбар для лога */
-.log-panel::-webkit-scrollbar {
-    width: 4px;
-}
-.log-panel::-webkit-scrollbar-track {
-    background: var(--stat-bg);
-    border-radius: 4px;
-}
-.log-panel::-webkit-scrollbar-thumb {
-    background: var(--accent-gold);
-    border-radius: 4px;
-}
-
-/* ===== БЛОК ОПЫТА И УРОВНЯ ===== */
-.exp-panel {
-    background: var(--panel-bg);
-    border-radius: 48px;
-    padding: 12px 16px;
-    margin: 8px 0;
-}
-
-.exp-header {
-    font-size: 0.85rem;
-    font-weight: bold;
-    text-align: center;
-    color: var(--accent-gold);
-    margin-bottom: 6px;
-    letter-spacing: 1px;
-}
-
-.exp-bar {
-    height: 12px;
-    background: var(--stat-bg);
-    border-radius: 12px;
-    overflow: hidden;
-    margin: 6px 0;
-}
-
-.exp-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #9b59b6, #8e44ad);
-    border-radius: 12px;
-    width: 0%;
-    transition: width 0.3s ease;
-}
-
-.exp-text {
-    font-size: 0.7rem;
-    text-align: center;
-    color: var(--text-secondary);
-}
-
-/* ===== ТОП ИГРОКОВ (ПОДСВЕТКА МЕСТ) ===== */
-.top-player-1 {
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 215, 0, 0.1));
-    border-left: 5px solid #FFD700;
-    font-weight: bold;
-}
-.top-player-2 {
-    background: linear-gradient(135deg, rgba(192, 192, 192, 0.3), rgba(192, 192, 192, 0.1));
-    border-left: 5px solid #C0C0C0;
-}
-.top-player-3 {
-    background: linear-gradient(135deg, rgba(205, 127, 50, 0.3), rgba(205, 127, 50, 0.1));
-    border-left: 5px solid #CD7F32;
-}
-.player-rank {
-    display: inline-block;
-    width: 35px;
-    font-weight: bold;
-}
-.player-level {
-    background: var(--card-bg);
-    padding: 2px 8px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    margin-left: 12px;
-}
-.player-exp {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    margin-left: 12px;
-}
-.top-refresh-btn {
-    background: var(--buy-btn-bg);
-    border: none;
-    padding: 6px 16px;
-    border-radius: 40px;
-    color: white;
-    cursor: pointer;
-    font-size: 0.8rem;
-    margin-bottom: 12px;
-    display: inline-block;
-}
-
-/* ===== КАСТОМНЫЕ СТИЛИ ДЛЯ ТОПА ===== */
-#topModal .player-nick {
-    font-size: 0.9rem;  /* ник помельче */
-    font-weight: normal;
-    background: var(--card-bg);
-    padding: 2px 12px;
-    border-radius: 40px;
-    margin: 0 8px;
-}
-
-#topModal .player-rank {
-    font-size: 1.2rem;   /* ранг крупнее */
-    font-weight: bold;
-    width: 50px;
-    display: inline-block;
-}
-
-#topModal .player-level {
-    font-size: 1rem;     /* уровень крупнее */
-    font-weight: bold;
-    background: none;
-    padding: 0;
-}
-
-#topModal .player-exp {
-    font-size: 0.85rem;  /* опыт крупнее */
-    color: var(--accent-gold);
-    margin-left: 12px;
-}
-
-#topModal .player-item {
-    padding: 12px 16px;   /* больше отступы в строках */
-    margin-bottom: 4px;
-}
-
-/* ===== МОДАЛЬНОЕ ОКНО ДЛЯ СОБЫТИЙ (УВЕЛИЧЕННОЕ, С ЦЕНТРИРОВАНИЕМ) ===== */
-#eventModal .modal-content {
-    max-width: 550px;
-    width: 90%;
-    text-align: center;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-#eventModal h3 {
-    font-size: 1.6rem;
-    margin-top: 0;
-    margin-bottom: 16px;
-    color: var(--accent-gold);
-    text-align: center;
-}
-
-#eventModal img {
-    width: auto;
-    max-width: 100%;
-    max-height: 300px;
-    height: auto;
-    border-radius: 32px;
-    margin: 0 auto 16px;
-    display: block;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    object-fit: contain;
-}
-
-#eventModal p {
-    font-size: 1.1rem;
-    line-height: 1.4;
-    margin-bottom: 20px;
-    color: var(--text-primary);
-    text-align: center;
-}
-
-#eventModal .action-btn {
-    font-size: 1rem;
-    padding: 10px 24px;
-    margin: 5px;
-    min-width: 120px;
-    background: var(--buy-btn-bg);
-    border: none;
-    border-radius: 40px;
-    font-weight: bold;
-    color: white;
-    cursor: pointer;
-    box-shadow: 0 2px 0 var(--buy-btn-shadow);
-    transition: 0.05s linear;
-}
-
-#eventModal .action-btn:active {
-    transform: translateY(2px);
-}
-
-#eventModal .event-choice-btn {
-    background: var(--buy-btn-bg);
-    border: none;
-    padding: 10px 20px;
-    border-radius: 40px;
-    font-weight: bold;
-    color: white;
-    cursor: pointer;
-    font-size: 1rem;
-    margin: 6px;
-    transition: 0.05s linear;
-    box-shadow: 0 2px 0 var(--buy-btn-shadow);
-}
-
-#eventModal .event-choice-btn:active {
-    transform: translateY(2px);
-}
-
-/* ===== ТОРГОВЛЯ (УВЕДОМЛЕНИЯ И ВЫБРАННЫЕ ПРЕДМЕТЫ) ===== */
-.trade-notification {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: #e74c3c;
-    color: white;
-    border-radius: 20px;
-    padding: 2px 6px;
-    font-size: 0.7rem;
-    font-weight: bold;
-    min-width: 20px;
-    text-align: center;
-}
-
-.action-btn {
-    position: relative;
-}
-
-.selected-items-list {
-    background: var(--stat-bg);
-    border-radius: 32px;
-    padding: 8px 12px;
-    margin-top: 8px;
-    min-height: 50px;
-}
-
-.selected-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--card-bg);
-    padding: 4px 12px;
-    border-radius: 40px;
-    margin: 4px;
-    font-size: 0.8rem;
-}
-
-.selected-item .remove-item-btn {
-    background: none;
-    border: none;
-    color: #e74c3c;
-    cursor: pointer;
-    font-size: 0.9rem;
-    padding: 0 4px;
-}
-
-/* Стили для модальных окон торговли */
-#tradeOfferModal .modal-content,
-#myOffersModal .modal-content {
-    max-width: 900px;
-    width: 90%;
-}
-
-#tradeOfferModal .inventory-grid {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.trade-add-btn {
-    background: var(--buy-btn-bg);
-    border: none;
-    padding: 4px 12px;
-    border-radius: 40px;
-    color: white;
-    cursor: pointer;
-    font-size: 0.8rem;
-}
-
-.accept-offer-btn, .reject-offer-btn, .cancel-offer-btn {
-    background: var(--buy-btn-bg);
-    border: none;
-    padding: 6px 12px;
-    border-radius: 40px;
-    color: white;
-    cursor: pointer;
-    font-size: 0.8rem;
-    margin: 4px;
-}
-
-.reject-offer-btn, .cancel-offer-btn {
-    background: #7f8c8d;
-}
-
-@media (max-width: 768px) {
-    #tradeOfferModal .modal-content {
-        max-width: 95%;
-        padding: 16px;
-    }
-    #tradeOfferModal > div > div {
-        flex-direction: column;
-    }
-}
-
-/* ========== АДАПТИВНОСТЬ (МЕДИА-ЗАПРОСЫ) ========== */
-
-/* Десктопы, планшеты (ширина ≥ 901px) */
-@media (min-width: 901px) {
-    .game-container {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-    }
-    .game-left {
-        flex: 2 !important;
-        width: auto !important;
-    }
-    .game-right {
-        flex: 1.2 !important;
-        width: auto !important;
-    }
-}
-
-/* Планшеты и узкие десктопы (769px - 900px) */
-@media (min-width: 769px) and (max-width: 900px) {
-    .game-container {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 16px;
-        padding: 16px;
-    }
-    .game-left {
-        flex: 1.8 !important;
-        width: auto !important;
-    }
-    .game-right {
-        flex: 1.2 !important;
-        width: auto !important;
-    }
-}
-
-/* Мобильные устройства (горизонтальная ориентация) */
-@media (max-width: 768px) and (orientation: landscape) {
-    .game-container {
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 12px;
-        padding: 12px;
-    }
-    .game-left {
-        flex: 1.5 !important;
-        min-width: 200px;
-        aspect-ratio: 16 / 10;
-    }
-    .game-right {
-        flex: 1 !important;
-        min-width: 220px;
-        gap: 8px;
-    }
-    .avatar-gif {
-        max-width: 120px;
-    }
-    .stats-panel {
-        padding: 6px 10px;
-    }
-    .stat {
-        margin-bottom: 4px;
-    }
-    .stat-header {
-        font-size: 0.65rem;
-    }
-    .action-btn {
-        padding: 6px 0;
-        font-size: 0.65rem;
-    }
-    .log-panel {
-        max-height: 80px;
-    }
-    .time-weather {
-        font-size: 0.65rem;
-        padding: 4px 8px;
-    }
-    .exp-panel {
-        padding: 6px 10px;
-    }
-    .exp-header {
-        font-size: 0.65rem;
-    }
-    .exp-text {
-        font-size: 0.55rem;
-    }
-}
-
-/* Мобильные устройства (вертикальная ориентация) */
-@media (max-width: 768px) and (orientation: portrait) {
-    .game-container {
-        flex-direction: column !important;
-        align-items: center;
-        gap: 16px;
-        padding: 16px;
-    }
-    .game-left {
-        width: 100%;
-        aspect-ratio: 16 / 9;
-    }
-    .avatar-gif {
-        max-width: 200px;
-    }
-    .game-right {
-        width: 100%;
-    }
-}
-
-/* Очень маленькие экраны (до 480px) */
-@media (max-width: 480px) {
-    .action-btn { 
-        font-size: 0.7rem; 
-        padding: 8px 0; 
-    }
-    .inventory-item { 
-        flex-direction: column; 
-        text-align: center; 
-    }
-    .item-info { 
-        justify-content: center; 
-    }
-    .slot { 
-        flex-direction: column; 
-        text-align: center; 
-        gap: 8px; 
-    }
-}
-
-/* Ультраширокие экраны (2000px+) */
-@media (min-width: 2000px) {
-    .game-container {
-        width: 80%;
-        max-width: 1800px;
-    }
-}
-
-/* Промежуточные экраны (ноутбуки) */
-@media (max-width: 1200px) and (min-width: 901px) {
-    .game-container {
-        width: 98%;
-        padding: 16px;
-        gap: 16px;
-    }
-    .location-name {
-        font-size: 1.1rem;
-        top: 8px;
-        left: 8px;
-        right: 8px;
-    }
-}
-
-.game-container-hidden {
-    display: none !important;
-}
-
-/* ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" ===== */
-.about-content {
-    max-width: 500px;
-    text-align: center;
-    position: relative;
-}
-
-.about-header {
-    position: relative;
-    height: 0;
-}
-
-.close-about {
-    position: absolute;
-    top: -10px;
-    right: -10px;
-    font-size: 28px;
-    font-weight: bold;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: color 0.2s;
-    z-index: 10;
-}
-
-.close-about:hover {
-    color: var(--accent-gold);
-}
-
-.about-image {
-    width: 100%;
-    max-width: 500px;
-    height: auto;
-    aspect-ratio: 1 / 1;
-    object-fit: cover;
-    margin: 20px auto 16px;
-    border: 3px solid var(--accent-gold);
-    border-radius: 0;
-    display: block;
-}
-
-.about-text {
-    text-align: center;
-    padding: 16px 20px;
-    background: var(--stat-bg);
-    border-radius: 32px;
-    margin: 16px 0;
-    line-height: 1.8;
-}
-
-.about-email {
-    color: var(--accent-gold);
-    text-decoration: underline;
-    word-break: break-all;
-    display: inline-block;
-    margin-top: 8px;
-    font-size: 0.9em;
-}
-
-.about-close-btn {
-    margin-top: 8px;
-    width: auto;
-    padding: 8px 24px;
-}
-
-/* Пиксельный шрифт */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-.pixel-text {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    line-height: 1.8;
-    color: var(--text-primary);
-    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
-}
-
-/* Стиль для ссылки разработчика */
-.developer-link {
-    cursor: pointer;
-    text-decoration: underline;
-    transition: color 0.2s, text-shadow 0.2s;
-    display: inline-block;
-}
-
-.developer-link:hover {
-    color: var(--accent-gold);
-    text-shadow: 0 0 4px var(--accent-glow);
-}
-
-/* Адаптация для мобильных */
-@media (max-width: 768px) {
-    .pixel-text {
-        font-size: 8px;
-    }
-    
-    .about-image {
-        width: 150px;
-        height: 150px;
-    }
-    
-    .about-text {
-        padding: 12px;
-    }
-}
-
-/* ===== НОВЫЙ ИНВЕНТАРЬ: СЕТКА И ТУЛТИПЫ ===== */
-
-/* Сетка инвентаря */
+/* ===== ОСНОВНЫЕ СТИЛИ ДЛЯ СЕТКИ (ОБЩИЕ) ===== */
 .inventory-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -1330,6 +528,7 @@ body {
     color: var(--text-secondary);
     font-size: 1.2rem;
 }
+
 /* ===== ЕЖЕДНЕВНЫЙ БОНУС ===== */
 .bonus-indicator {
     display: inline-block;
@@ -1350,29 +549,12 @@ body {
 }
 
 @keyframes bonusPulse {
-    0% {
-        transform: scale(1);
-        opacity: 0.7;
-    }
-    50% {
-        transform: scale(1.1);
-        opacity: 1;
-        text-shadow: 0 0 5px var(--accent-gold);
-    }
-    100% {
-        transform: scale(1);
-        opacity: 0.7;
-    }
+    0% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; text-shadow: 0 0 5px var(--accent-gold); }
+    100% { transform: scale(1); opacity: 0.7; }
 }
 
-/* Адаптация для мобильных */
-@media (max-width: 768px) {
-    .bonus-indicator {
-        margin-left: 8px;
-        font-size: 1rem;
-    }
-}
-/* ===== ТУЛТИП ПРИ НАВЕДЕНИИ ===== */
+/* ===== ТУЛТИП ===== */
 .item-tooltip {
     background: var(--card-bg);
     border: 1px solid var(--accent-gold);
@@ -1385,17 +567,12 @@ body {
     pointer-events: none;
     font-size: 0.85rem;
     animation: tooltipFadeIn 0.15s ease;
+    z-index: 10001;
 }
 
 @keyframes tooltipFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(5px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .tooltip-header {
@@ -1417,65 +594,7 @@ body {
     margin: 8px 0;
 }
 
-/* Экипировка с картинками */
-.slot-item-img {
-    width: 32px;
-    height: 32px;
-    object-fit: contain;
-    margin: 0 8px;
-}
-
-.slot {
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-/* Адаптация сетки для мобильных */
-@media (max-width: 768px) {
-    .inventory-grid {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 8px;
-        padding: 12px;
-    }
-    
-    .item-image {
-        width: 36px;
-        height: 36px;
-    }
-    
-    .item-count {
-        font-size: 0.6rem;
-        padding: 1px 5px;
-    }
-    
-    .inventory-grid-header {
-        font-size: 0.9rem;
-    }
-    
-    .page-btn {
-        padding: 6px 16px;
-        font-size: 0.8rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .inventory-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 8px;
-    }
-    
-    .item-image {
-        width: 32px;
-        height: 32px;
-    }
-    
-    .slot-use-btn {
-        font-size: 0.6rem;
-        padding: 2px 4px;
-    }
-}
-
-/* ===== ЭКИПИРОВКА (НОВАЯ СЕТКА) ===== */
+/* ===== ЭКИПИРОВКА ===== */
 .equipment-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -1487,9 +606,7 @@ body {
 }
 
 @media (min-width: 768px) {
-    .equipment-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
+    .equipment-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 .equipment-slot {
@@ -1529,69 +646,80 @@ body {
     border-radius: 12px;
 }
 
-.equipment-empty-icon {
-    font-size: 3rem;
-    opacity: 0.5;
-}
+.equipment-empty-icon { font-size: 3rem; opacity: 0.5; }
+.equipment-slot-name { font-weight: bold; font-size: 0.85rem; color: var(--accent-gold); }
+.equipment-item-name { font-size: 0.8rem; color: var(--text-secondary); }
+.equipment-effects { display: flex; gap: 8px; font-size: 0.7rem; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 20px; }
+.equipment-empty-text { font-size: 0.7rem; color: var(--text-secondary); }
+.equipment-empty-hint { font-size: 0.6rem; color: var(--text-secondary); opacity: 0.6; }
+.equipment-slot .unequip-btn { margin-top: 8px; width: 80%; background: var(--reset-bg); color: var(--reset-text); padding: 6px; font-size: 0.7rem; }
+.equipment-total-bonus { text-align: center; padding: 12px; background: var(--card-bg); border-radius: 40px; font-size: 0.9rem; color: var(--accent-gold); margin-top: 8px; }
+.equipment-total-bonus strong { font-size: 1.2rem; }
 
-.equipment-slot-name {
-    font-weight: bold;
-    font-size: 0.85rem;
-    color: var(--accent-gold);
-}
+/* ===== МАГАЗИН И ОКНО ОБМЕНА ===== */
+#shopModal .modal-content { max-width: 700px; width: 90%; }
+#tradeOfferModal .modal-content { max-width: 1000px; width: 95%; }
 
-.equipment-item-name {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-.equipment-effects {
+.shop-slot, .trade-slot {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    padding: 12px 8px;
+    position: relative;
+    background: var(--card-bg);
+    border-radius: 16px;
+    transition: all 0.15s ease;
+    border: 2px solid transparent;
+}
+
+.shop-slot:hover, .trade-slot:hover {
+    transform: scale(1.05);
+    border-color: var(--accent-gold);
+    background: var(--accent-glow);
+}
+
+.shop-slot .item-name, .trade-slot .item-name {
+    font-size: 0.7rem;
+    margin: 4px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.shop-slot .item-price, .trade-slot .item-price {
+    font-size: 0.7rem;
+    color: var(--accent-gold);
+    font-weight: bold;
+}
+
+.shop-action-btn, .trade-add-btn {
+    margin-top: 8px;
+    width: auto;
+    padding: 4px 12px;
+    background: var(--buy-btn-bg);
+    border: none;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: 0.05s linear;
+}
+
+.shop-action-btn:active, .trade-add-btn:active { transform: translateY(2px); }
+
+.item-info-shop {
+    display: flex;
+    justify-content: center;
     gap: 8px;
     font-size: 0.7rem;
-    background: rgba(0,0,0,0.4);
-    padding: 4px 8px;
-    border-radius: 20px;
+    margin: 4px 0;
 }
 
-.equipment-empty-text {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-}
-
-.equipment-empty-hint {
-    font-size: 0.6rem;
-    color: var(--text-secondary);
-    opacity: 0.6;
-}
-
-.equipment-slot .unequip-btn {
-    margin-top: 8px;
-    width: 80%;
-    background: var(--reset-bg);
-    color: var(--reset-text);
-    padding: 6px;
-    font-size: 0.7rem;
-}
-
-.equipment-total-bonus {
-    text-align: center;
-    padding: 12px;
-    background: var(--card-bg);
-    border-radius: 40px;
-    font-size: 0.9rem;
-    color: var(--accent-gold);
-    margin-top: 8px;
-}
-
-.equipment-total-bonus strong {
-    font-size: 1.2rem;
-}
-/* ===== МОИ ПРЕДЛОЖЕНИЯ (ФИКС ВИЗУАЛА) ===== */
-#myOffersModal .modal-content {
-    max-width: 700px;
-}
-
+/* ===== МОИ ПРЕДЛОЖЕНИЯ ===== */
+#myOffersModal .modal-content { max-width: 700px; }
 #myOffersList {
     display: flex;
     flex-direction: column;
@@ -1600,7 +728,6 @@ body {
     overflow-y: auto;
     padding: 8px;
 }
-
 #myOffersList .inventory-item {
     display: flex;
     justify-content: space-between;
@@ -1612,151 +739,245 @@ body {
     gap: 16px;
     border-left: 4px solid var(--accent-gold);
 }
+#myOffersList .inventory-item .item-info { flex: 2; font-size: 0.85rem; }
+#myOffersList .inventory-item .item-info strong { color: var(--accent-gold); font-size: 1rem; }
+#myOffersList .inventory-item div:last-child { display: flex; gap: 8px; flex-wrap: wrap; }
+#myOffersList button { white-space: nowrap; }
 
-#myOffersList .inventory-item .item-info {
-    flex: 2;
-    font-size: 0.85rem;
-}
-
-#myOffersList .inventory-item .item-info strong {
-    color: var(--accent-gold);
-    font-size: 1rem;
-}
-
-#myOffersList .inventory-item div:last-child {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-#myOffersList button {
-    white-space: nowrap;
-}
-
-/* Стили для групп входящих/исходящих */
-.offers-group {
-    margin-top: 16px;
-}
-
-.offers-group-title {
-    font-size: 1rem;
+/* ===== ТОРГОВЛЯ ===== */
+.trade-notification {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #e74c3c;
+    color: white;
+    border-radius: 20px;
+    padding: 2px 6px;
+    font-size: 0.7rem;
     font-weight: bold;
-    color: var(--accent-gold);
-    margin: 16px 0 12px 0;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--card-border);
-}
-
-.offers-group-title:first-of-type {
-    margin-top: 0;
-}
-/* ===== МАГАЗИН И ОКНО ОБМЕНА (СЕТКА) ===== */
-.shop-slot, .trade-slot {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
+    min-width: 20px;
     text-align: center;
-    padding: 12px 8px;
-    position: relative;
 }
-
-.shop-slot .item-name,
-.trade-slot .item-name {
-    font-size: 0.7rem;
-    margin: 4px 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 100%;
-}
-
-.shop-slot .item-price,
-.trade-slot .item-price {
-    font-size: 0.7rem;
-    color: var(--accent-gold);
-    font-weight: bold;
-}
-
-.shop-action-btn {
+.action-btn { position: relative; }
+.selected-items-list {
+    background: var(--stat-bg);
+    border-radius: 32px;
+    padding: 8px 12px;
     margin-top: 8px;
-    width: 80%;
+    min-height: 50px;
+}
+.selected-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-bg);
+    padding: 4px 12px;
+    border-radius: 40px;
+    margin: 4px;
+    font-size: 0.8rem;
+}
+.selected-item .remove-item-btn {
+    background: none;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0 4px;
+}
+.accept-offer-btn, .reject-offer-btn, .cancel-offer-btn {
     background: var(--buy-btn-bg);
     border: none;
-    padding: 4px 8px;
-    border-radius: 20px;
+    padding: 6px 12px;
+    border-radius: 40px;
     color: white;
     cursor: pointer;
-    font-size: 0.7rem;
-    transition: 0.05s linear;
+    font-size: 0.8rem;
+    margin: 4px;
 }
+.reject-offer-btn, .cancel-offer-btn { background: #7f8c8d; }
 
-.shop-action-btn:active {
-    transform: translateY(2px);
-}
-
-.item-info-shop {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    font-size: 0.7rem;
-    margin: 4px 0;
-}
-
-/* Адаптация для мобильных */
-@media (max-width: 768px) {
-    .shop-slot .item-name,
-    .trade-slot .item-name {
-        font-size: 0.6rem;
-    }
-    
-    .shop-action-btn {
-        font-size: 0.6rem;
-        padding: 3px 6px;
-    }
-}
-/* ===== ТУЛТИП ДЛЯ МАГАЗИНА И ОБМЕНА ===== */
-.item-tooltip {
-    background: var(--card-bg);
-    border: 1px solid var(--accent-gold);
-    border-radius: 20px;
-    padding: 12px 16px;
-    min-width: 200px;
-    max-width: 280px;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    pointer-events: none;
-    font-size: 0.85rem;
-    animation: tooltipFadeIn 0.15s ease;
-    z-index: 10001;
-}
-
-@keyframes tooltipFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(5px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.tooltip-header {
-    font-size: 1rem;
-    margin-bottom: 8px;
-    color: var(--accent-gold);
-    border-bottom: 1px solid var(--card-border);
-    padding-bottom: 4px;
-}
-
-.tooltip-content {
+/* ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" ===== */
+.about-content { max-width: 500px; text-align: center; position: relative; }
+.about-header { position: relative; height: 0; }
+.close-about {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    font-size: 28px;
+    font-weight: bold;
     color: var(--text-secondary);
-    line-height: 1.4;
+    cursor: pointer;
+    transition: color 0.2s;
+    z-index: 10;
+}
+.close-about:hover { color: var(--accent-gold); }
+.about-image {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    margin: 20px auto 16px;
+    border: 3px solid var(--accent-gold);
+    border-radius: 0;
+    display: block;
+}
+.about-text {
+    text-align: center;
+    padding: 16px 20px;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    margin: 16px 0;
+    line-height: 1.8;
+}
+.about-email { color: var(--accent-gold); text-decoration: underline; word-break: break-all; display: inline-block; margin-top: 8px; font-size: 0.9em; }
+.about-close-btn { margin-top: 8px; width: auto; padding: 8px 24px; }
+
+/* Пиксельный шрифт */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+.pixel-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+}
+.developer-link {
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color 0.2s, text-shadow 0.2s;
+    display: inline-block;
+}
+.developer-link:hover { color: var(--accent-gold); text-shadow: 0 0 4px var(--accent-glow); }
+
+/* ===== КАРТА ===== */
+.map-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    padding: 8px;
+}
+.map-image { width: 100%; height: auto; display: block; border-radius: 24px; }
+.map-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.map-overlay circle {
+    pointer-events: visible;
+    cursor: pointer;
+    transition: stroke 0.1s, fill 0.1s;
+    fill: rgba(0, 200, 0, 0.25);
+    stroke: rgba(0, 200, 0, 0.6);
+    stroke-width: 2;
+}
+.map-overlay circle:hover { fill: rgba(0, 200, 0, 0.5); stroke: rgba(0, 200, 0, 1); }
+.location-tooltip {
+    position: fixed;
+    background: rgba(0,0,0,0.8);
+    color: #ffd966;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    pointer-events: none;
+    z-index: 1001;
+    white-space: nowrap;
+    font-weight: bold;
 }
 
-.tooltip-divider {
-    height: 1px;
-    background: var(--card-border);
+/* ===== ПОГОДА ===== */
+.time-weather {
+    text-align: center;
+    font-size: 1rem;
+    font-weight: bold;
+    background: var(--stat-bg);
+    padding: 8px 12px;
+    border-radius: 60px;
+    margin: 8px 0;
+    color: var(--accent-gold);
+    letter-spacing: 1px;
+}
+#darkOverlay, #particlesCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4;
+}
+#particlesCanvas { z-index: 5; }
+.location-zones { z-index: 6 !important; }
+
+/* ===== ЛОГ ДЕЙСТВИЙ ===== */
+.log-container {
+    background: var(--panel-bg);
+    border-radius: 48px;
+    padding: 12px 16px;
     margin: 8px 0;
 }
+.log-header {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--accent-gold);
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+.log-panel {
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 4px;
+}
+.log-entry {
+    padding: 4px 8px;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.2);
+    border-left: 3px solid var(--accent-gold);
+    color: var(--text-secondary);
+    transition: 0.1s;
+}
+.log-entry:hover { background: rgba(255, 255, 255, 0.05); }
+.log-entry.location { border-left-color: #3498db; }
+.log-entry.item { border-left-color: #2ecc71; }
+.log-entry.combat { border-left-color: #e74c3c; }
+.log-entry.economy { border-left-color: #f1c40f; }
+.log-entry.weather { border-left-color: #9b59b6; }
+.log-entry.system { border-left-color: #95a5a6; }
+.log-time { color: var(--accent-gold); font-size: 0.65rem; margin-right: 8px; font-weight: bold; }
+.log-panel::-webkit-scrollbar { width: 4px; }
+.log-panel::-webkit-scrollbar-track { background: var(--stat-bg); border-radius: 4px; }
+.log-panel::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 4px; }
+
+/* ===== ОПЫТ ===== */
+.exp-panel {
+    background: var(--panel-bg);
+    border-radius: 48px;
+    padding: 12px 16px;
+    margin: 8px 0;
+}
+.exp-header {
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-align: center;
+    color: var(--accent-gold);
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+}
+.exp-bar { height: 12px; background: var(--stat-bg); border-radius: 12px; overflow: hidden; margin: 6px 0; }
+.exp-fill { height: 100%; background: linear-gradient(90deg, #9b59b6, #8e44ad); border-radius: 12px; width: 0%; transition: width 0.3s ease; }
+.exp-text { font-size: 0.7rem; text-align: center; color: var(--text-secondary); }
+
+/* ===== ТОП ИГРОКОВ ===== */
+.top-player-1 { background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 215, 0, 0.1)); border-left: 5px solid #FFD700; font-weight: bold; }
+.top-player-2 { background: linear-gradient(135deg, rgba(192, 192, 192, 0.3), rgba(192, 192, 192, 0.1)); border-left: 5px solid #C0C0C0; }
+.top-player-3 { background: linear-gradient(135deg, rgba(205, 127, 50, 0.3), rgba(205, 127, 50, 0.1)); border-left: 5px solid #CD7F32; }
+.player-rank { display: inline-block; width: 35px; font-weight: bold; }
+.player-level { background: var(--card-bg); padding: 2px 8px; border-radius: 20px; font-size: 0.8rem; margin-left: 12px; }
+.player-exp { font-size: 0.7rem; color: var(--text-secondary); margin-left: 12px; }
+#topModal .player-nick { font-size: 0.9rem; font-weight: normal; background: var(--card-bg); padding: 2px 12px; border-radius: 40px; margin: 0 8px; }
+#topModal .player-rank { font-size: 1.2rem; font-weight: bold; width: 50px; display: inline-block; }
+#topModal .player-level { font-size: 1rem; font-weight: bold; background: none; padding: 0; }
+#topModal .player-exp { font-size: 
