@@ -1650,3 +1650,68 @@ body {
 .offers-group-title:first-of-type {
     margin-top: 0;
 }
+/* ===== МАГАЗИН И ОКНО ОБМЕНА (СЕТКА) ===== */
+.shop-slot, .trade-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    padding: 12px 8px;
+    position: relative;
+}
+
+.shop-slot .item-name,
+.trade-slot .item-name {
+    font-size: 0.7rem;
+    margin: 4px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+.shop-slot .item-price,
+.trade-slot .item-price {
+    font-size: 0.7rem;
+    color: var(--accent-gold);
+    font-weight: bold;
+}
+
+.shop-action-btn {
+    margin-top: 8px;
+    width: 80%;
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 4px 8px;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: 0.05s linear;
+}
+
+.shop-action-btn:active {
+    transform: translateY(2px);
+}
+
+.item-info-shop {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    margin: 4px 0;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .shop-slot .item-name,
+    .trade-slot .item-name {
+        font-size: 0.6rem;
+    }
+    
+    .shop-action-btn {
+        font-size: 0.6rem;
+        padding: 3px 6px;
+    }
+}
