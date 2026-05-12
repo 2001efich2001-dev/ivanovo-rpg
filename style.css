@@ -1760,3 +1760,120 @@ body {
     background: var(--card-border);
     margin: 8px 0;
 }
+/* ===== ФИКС МАГАЗИНА (точечный) ===== */
+#shopModal .inventory-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 12px !important;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    padding: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+#shopModal .shop-slot {
+    aspect-ratio: 1 / 1;
+    background: var(--card-bg);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    text-align: center;
+}
+
+#shopModal .shop-slot .item-image {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: 4px;
+}
+
+#shopModal .shop-slot .item-name {
+    font-size: 0.7rem;
+    margin: 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+#shopModal .shop-slot .item-price {
+    font-size: 0.7rem;
+    color: var(--accent-gold);
+}
+
+#shopModal .shop-action-btn {
+    margin-top: 6px;
+    padding: 4px 12px;
+    background: var(--buy-btn-bg);
+    border: none;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.7rem;
+}
+
+/* ===== ФИКС ОКНА ОБМЕНА (точечный) ===== */
+#tradeOfferModal .inventory-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 12px !important;
+    background: var(--stat-bg);
+    border-radius: 32px;
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#tradeOfferModal .trade-slot {
+    aspect-ratio: 1 / 1;
+    background: var(--card-bg);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    text-align: center;
+    position: relative;
+}
+
+#tradeOfferModal .trade-slot .item-image {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-bottom: 4px;
+}
+
+#tradeOfferModal .trade-slot .item-name {
+    font-size: 0.7rem;
+    margin: 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+#tradeOfferModal .trade-slot .item-count {
+    position: absolute;
+    bottom: 4px;
+    right: 8px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 20px;
+    padding: 2px 6px;
+    font-size: 0.6rem;
+}
+
+#tradeOfferModal .trade-add-btn {
+    margin-top: 6px;
+    padding: 4px 12px;
+    background: var(--buy-btn-bg);
+    border: none;
+    border-radius: 20px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.7rem;
+}
