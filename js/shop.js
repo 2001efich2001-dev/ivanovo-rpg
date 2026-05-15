@@ -10,6 +10,14 @@ function getSellPrice(itemId) {
     return Math.max(1, Math.floor(item.price / 2));
 }
 
+// Функция для обновления отображения денег в шапке магазина
+function updateShopMoneyDisplay() {
+    const moneySpan = document.getElementById('shopMoneyValue');
+    if (moneySpan) {
+        moneySpan.textContent = Math.floor(money);
+    }
+}
+
 // Показать тултип
 let activeTooltip = null;
 
@@ -51,19 +59,18 @@ function hideTooltip() {
     }
 }
 
-// Рендер вкладки "Купить" (как в inventory.js)
+// Рендер вкладки "Купить"
 export function renderShopBuyTab() {
     const container = document.getElementById('shopBuyTab');
     if (!container) return;
     
     const items = Object.values(itemsDB).filter(item => item.price > 0);
+    const itemsPerPage = 20;
     
-    let html = `<div class="inventory-grid-header">
-        <span>🛍️ Магазин</span>
-        <span>💰 Деньги: ${Math.floor(money)}₽</span>
-    </div>`;
+    // Обновляем отображение денег
+    updateShopMoneyDisplay();
     
-    html += '<div class="inventory-grid">';
+    let html = '<div class="inventory-grid">';
     
     for (const item of items) {
         html += `
@@ -80,7 +87,6 @@ export function renderShopBuyTab() {
     }
     
     // Заполняем пустые ячейки до 20 (5x4)
-    const itemsPerPage = 20;
     const remainingSlots = itemsPerPage - (items.length % itemsPerPage);
     if (remainingSlots < itemsPerPage) {
         for (let i = 0; i < remainingSlots; i++) {
@@ -118,7 +124,7 @@ export function renderShopBuyTab() {
     });
 }
 
-// Рендер вкладки "Продать" (как в inventory.js)
+// Рендер вкладки "Продать"
 export function renderShopSellTab() {
     const container = document.getElementById('shopSellTab');
     if (!container) return;
@@ -128,17 +134,17 @@ export function renderShopSellTab() {
         return dbItem && dbItem.price > 0;
     });
     
+    const itemsPerPage = 20;
+    
+    // Обновляем отображение денег
+    updateShopMoneyDisplay();
+    
     if (sellable.length === 0) {
         container.innerHTML = '<div class="empty-inventory">📦 Нет предметов для продажи</div>';
         return;
     }
     
-    let html = `<div class="inventory-grid-header">
-        <span>💰 Продажа</span>
-        <span>💰 Деньги: ${Math.floor(money)}₽</span>
-    </div>`;
-    
-    html += '<div class="inventory-grid">';
+    let html = '<div class="inventory-grid">';
     
     for (const item of sellable) {
         const dbItem = itemsDB[item.id];
@@ -158,6 +164,14 @@ export function renderShopSellTab() {
                 </div>
             </div>
         `;
+    }
+    
+    // Заполняем пустые ячейки до 20 (5x4)
+    const remainingSlots = itemsPerPage - (sellable.length % itemsPerPage);
+    if (remainingSlots < itemsPerPage) {
+        for (let i = 0; i < remainingSlots; i++) {
+            html += `<div class="inventory-slot empty-slot">🔲</div>`;
+        }
     }
     
     html += '</div>';
@@ -212,6 +226,7 @@ async function buyItem(itemId) {
         
         renderShopBuyTab();
         renderShopSellTab();
+        updateShopMoneyDisplay();
         
         const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
         renderItemsTab();
@@ -246,6 +261,7 @@ async function sellItem(itemId) {
     
     renderShopBuyTab();
     renderShopSellTab();
+    updateShopMoneyDisplay();
     
     const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
     renderItemsTab();
