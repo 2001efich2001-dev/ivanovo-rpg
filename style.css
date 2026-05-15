@@ -671,7 +671,17 @@ body {
 .offers-group-title:first-of-type { margin-top: 0; }
 /* ===== ФИКС МАГАЗИНА И ОБМЕНА (ОДИН РАБОЧИЙ ВАРИАНТ) ===== */
 #shopBuyTab .inventory-grid,
-#shopSellTab .inventory-grid,
+#shopSellTab .inventory-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    background: var(--stat-bg) !important;
+    border-radius: 32px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+
 #tradeFromItems .inventory-grid,
 #tradeToItems .inventory-grid {
     display: grid !important;
@@ -680,9 +690,8 @@ body {
     padding: 16px !important;
     background: var(--stat-bg) !important;
     border-radius: 32px !important;
-    /* Убираем max-height и overflow-y */
-    max-height: none !important;
-    overflow-y: visible !important;
+    max-height: 450px !important;
+    overflow-y: auto !important;
 }
 
 #shopBuyTab .inventory-slot,
