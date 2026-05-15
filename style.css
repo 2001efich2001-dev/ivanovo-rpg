@@ -786,6 +786,6 @@ body {
 
 /* Ширина модального окна магазина */
 #shopModal .modal-content {
-    max-width: 800px !important;
-    width: 90% !important;
+    max-width: 850px !important;
+    width: 100% !important;
 }
