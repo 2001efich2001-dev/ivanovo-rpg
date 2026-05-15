@@ -165,17 +165,20 @@
     </div>
 
     <!-- Остальные модальные окна без изменений -->
-    <div id="inventoryModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header" style="display:flex; gap:16px; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+  <div id="inventoryModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+            <div style="display:flex; gap:16px;">
                 <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
                 <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
             </div>
-            <div id="itemsTab" class="inventory-grid"></div>
-            <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
-            <button class="close-modal">Закрыть</button>
+            <div id="inventoryPageInfo" class="page-info" style="font-size:0.85rem;">Страница 1 / 1</div>
         </div>
+        <div id="itemsTab" class="inventory-grid"></div>
+        <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
+        <button class="close-modal">Закрыть</button>
     </div>
+</div>
 
     <div id="mapModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
