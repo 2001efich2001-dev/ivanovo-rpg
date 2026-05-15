@@ -51,31 +51,13 @@ function hideTooltip() {
     }
 }
 
-// Функция для принудительного обновления сетки (фикс бага с отображением)
-function forceRefreshGrid() {
-    setTimeout(() => {
-        const buyGrid = document.querySelector('#shopBuyTab .inventory-grid');
-        const sellGrid = document.querySelector('#shopSellTab .inventory-grid');
-        
-        if (buyGrid) {
-            buyGrid.style.display = 'none';
-            setTimeout(() => { buyGrid.style.display = 'grid'; }, 10);
-        }
-        if (sellGrid) {
-            sellGrid.style.display = 'none';
-            setTimeout(() => { sellGrid.style.display = 'grid'; }, 10);
-        }
-    }, 30);
-}
-
-// Рендер вкладки "Купить" (сетка 5x4)
+// Рендер вкладки "Купить" (как в inventory.js)
 export function renderShopBuyTab() {
     const container = document.getElementById('shopBuyTab');
     if (!container) return;
     
     const items = Object.values(itemsDB).filter(item => item.price > 0);
     
-    // Заголовок
     let html = `<div class="inventory-grid-header">
         <span>🛍️ Магазин</span>
         <span>💰 Деньги: ${Math.floor(money)}₽</span>
@@ -85,12 +67,14 @@ export function renderShopBuyTab() {
     
     for (const item of items) {
         html += `
-            <div class="inventory-slot shop-slot" data-id="${item.id}" data-name="${item.name}">
+            <div class="inventory-slot" data-id="${item.id}" data-name="${item.name}">
                 <img src="${item.image}" alt="${item.name}" class="item-image" loading="lazy" 
                      onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${item.icon}%3C/text%3E%3C/svg%3E'">
                 <span class="item-name">${item.name}</span>
                 <span class="item-price">${item.price}₽</span>
-                <button class="buy-btn shop-action-btn" data-id="${item.id}">Купить</button>
+                <div class="item-actions">
+                    <button class="buy-btn slot-use-btn" data-id="${item.id}">Купить</button>
+                </div>
             </div>
         `;
     }
@@ -100,7 +84,7 @@ export function renderShopBuyTab() {
     const remainingSlots = itemsPerPage - (items.length % itemsPerPage);
     if (remainingSlots < itemsPerPage) {
         for (let i = 0; i < remainingSlots; i++) {
-            html += `<div class="inventory-slot empty-slot shop-empty">🔲</div>`;
+            html += `<div class="inventory-slot empty-slot">🔲</div>`;
         }
     }
     
@@ -117,7 +101,7 @@ export function renderShopBuyTab() {
     });
     
     // Добавляем тултипы
-    document.querySelectorAll('.shop-slot:not(.shop-empty)').forEach(slot => {
+    document.querySelectorAll('.inventory-slot:not(.empty-slot)').forEach(slot => {
         const itemId = slot.dataset.id;
         const item = itemsDB[itemId];
         
@@ -132,12 +116,9 @@ export function renderShopBuyTab() {
             }
         });
     });
-    
-    // Принудительно обновляем сетку
-    forceRefreshGrid();
 }
 
-// Рендер вкладки "Продать" (сетка 5x4)
+// Рендер вкладки "Продать" (как в inventory.js)
 export function renderShopSellTab() {
     const container = document.getElementById('shopSellTab');
     if (!container) return;
@@ -164,7 +145,7 @@ export function renderShopSellTab() {
         const sellPrice = getSellPrice(item.id);
         
         html += `
-            <div class="inventory-slot shop-slot" data-id="${item.id}" data-name="${dbItem.name}">
+            <div class="inventory-slot" data-id="${item.id}" data-name="${dbItem.name}">
                 <img src="${dbItem.image}" alt="${dbItem.name}" class="item-image" loading="lazy"
                      onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${dbItem.icon}%3C/text%3E%3C/svg%3E'">
                 <span class="item-name">${dbItem.name}</span>
@@ -172,7 +153,9 @@ export function renderShopSellTab() {
                     <span class="item-count">×${item.count}</span>
                     <span class="item-price">${sellPrice}₽/шт</span>
                 </div>
-                <button class="sell-btn shop-action-btn" data-id="${item.id}">Продать</button>
+                <div class="item-actions">
+                    <button class="sell-btn slot-use-btn" data-id="${item.id}">Продать</button>
+                </div>
             </div>
         `;
     }
@@ -190,7 +173,7 @@ export function renderShopSellTab() {
     });
     
     // Добавляем тултипы
-    document.querySelectorAll('.shop-slot').forEach(slot => {
+    document.querySelectorAll('.inventory-slot:not(.empty-slot)').forEach(slot => {
         const itemId = slot.dataset.id;
         const item = itemsDB[itemId];
         
@@ -207,9 +190,6 @@ export function renderShopSellTab() {
             }
         });
     });
-    
-    // Принудительно обновляем сетку
-    forceRefreshGrid();
 }
 
 // Покупка предмета
@@ -230,11 +210,9 @@ async function buyItem(itemId) {
         showMessage(`✅ Куплено: ${item.name}`, '#4caf50');
         logAction(`Куплен предмет: ${item.name} за ${item.price}₽`, 'economy');
         
-        // Обновляем обе вкладки
         renderShopBuyTab();
         renderShopSellTab();
         
-        // Обновляем инвентарь в другом окне (если открыт)
         const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
         renderItemsTab();
         renderEquipmentTab();
@@ -266,11 +244,9 @@ async function sellItem(itemId) {
     showMessage(`💰 Продано: ${item.name} за ${sellPrice}₽`, '#4caf50');
     logAction(`Продан предмет: ${item.name} за ${sellPrice}₽`, 'economy');
     
-    // Обновляем обе вкладки
     renderShopBuyTab();
     renderShopSellTab();
     
-    // Обновляем инвентарь в другом окне (если открыт)
     const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
     renderItemsTab();
     renderEquipmentTab();
