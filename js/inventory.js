@@ -106,13 +106,14 @@ export function renderItemsTab() {
     const end = start + ITEMS_PER_PAGE;
     const pageItems = allItems.slice(start, end);
     
-    // Создаём сетку
-    let html = `<div class="inventory-grid-header">
+    // Создаём сетку с заголовком внутри
+    let html = '<div class="inventory-grid">';
+    
+    // Заголовок внутри сетки
+    html += `<div class="inventory-grid-header">
         <span>🎒 Инвентарь</span>
         <span>Страница ${currentPage + 1} / ${Math.max(1, totalPages)}</span>
     </div>`;
-    
-    html += '<div class="inventory-grid">';
     
     // Заполняем ячейки
     for (let i = 0; i < ITEMS_PER_PAGE; i++) {
