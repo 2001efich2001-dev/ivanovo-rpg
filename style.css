@@ -848,3 +848,9 @@ body {
         grid-template-columns: repeat(2, minmax(80px, 90px)) !important;
     }
 }
+#shopBuyTab .inventory-grid,
+#shopSellTab .inventory-grid {
+    display: grid !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
