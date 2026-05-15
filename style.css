@@ -775,4 +775,17 @@ body {
         grid-template-columns: repeat(2, 1fr) !important;
     }
 }
+/* Деньги в шапке магазина */
+.shop-money-info {
+    background: rgba(0,0,0,0.3);
+    padding: 4px 12px;
+    border-radius: 40px;
+    font-weight: bold;
+    white-space: nowrap;
+}
 
+/* Ширина модального окна магазина */
+#shopModal .modal-content {
+    max-width: 800px !important;
+    width: 90% !important;
+}
