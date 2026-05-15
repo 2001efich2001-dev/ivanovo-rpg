@@ -680,6 +680,9 @@ body {
     padding: 16px !important;
     background: var(--stat-bg) !important;
     border-radius: 32px !important;
+    /* Убираем max-height и overflow-y */
+    max-height: none !important;
+    overflow-y: visible !important;
 }
 
 #shopBuyTab .inventory-slot,
@@ -788,4 +791,22 @@ body {
 #shopModal .modal-content {
     max-width: 830px !important;
     width: 100% !important;
+}
+
+/* Увеличиваем высоту модального окна обмена */
+#tradeOfferModal .modal-content {
+    max-width: 800px !important;
+    width: 90% !important;
+    max-height: 90vh !important;
+}
+
+/* Чтобы сетка не убегала за пределы */
+#tradeFromItems,
+#tradeToItems {
+    overflow: visible !important;
+}
+
+/* Контейнер с двумя колонками в обмене */
+#tradeOfferModal .modal-content > div:first-child {
+    align-items: stretch !important;
 }
