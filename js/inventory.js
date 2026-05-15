@@ -86,6 +86,16 @@ function updateInventoryPageInfo(currentPageNum, totalPagesNum) {
     }
 }
 
+// Функция для обновления отображения бонуса тепла в шапке
+function updateEquipmentBonusDisplay() {
+    const bonusElement = document.getElementById('equipmentTotalBonus');
+    if (bonusElement) {
+        const totalColdBonus = calculateEquippedColdBonus();
+        bonusElement.textContent = `🔥 +${totalColdBonus}`;
+        bonusElement.title = `Суммарный бонус тепла от одежды: +${totalColdBonus}`;
+    }
+}
+
 // Функция для рендера сетки инвентаря
 export function renderItemsTab() {
     const itemsTab = document.getElementById('itemsTab');
@@ -197,6 +207,7 @@ export function renderItemsTab() {
                 currentPage--;
                 renderItemsTab();
                 renderEquipmentTab();
+                updateEquipmentBonusDisplay();
             }
         });
     }
@@ -207,12 +218,13 @@ export function renderItemsTab() {
                 currentPage++;
                 renderItemsTab();
                 renderEquipmentTab();
+                updateEquipmentBonusDisplay();
             }
         });
     }
 }
 
-// Функции useItem, equipItem, unequipItem остаются без изменений
+// Функции useItem, equipItem, unequipItem
 async function useItem(itemId) {
     playClick();
     const itemIndex = inventory.findIndex(i => i.id === itemId);
@@ -241,6 +253,7 @@ async function useItem(itemId) {
     await saveGameData();
     renderItemsTab();
     renderEquipmentTab();
+    updateEquipmentBonusDisplay();
     showMessage(`🍺 Использовали ${itemData.name}. ${effText}`, "#4caf50");
     logAction(`Использован предмет: ${itemData.name} (${effText.trim()})`, 'item');
 }
@@ -276,6 +289,7 @@ async function equipItem(itemId) {
     await saveGameData();
     renderItemsTab();
     renderEquipmentTab();
+    updateEquipmentBonusDisplay();
     showMessage(`👕 Надели ${itemData.name}`, "#4caf50");
     logAction(`Надет предмет: ${itemData.name}`, 'item');
 }
@@ -299,6 +313,7 @@ async function unequipItem(slot) {
     await saveGameData();
     renderItemsTab();
     renderEquipmentTab();
+    updateEquipmentBonusDisplay();
     showMessage(`🧥 Сняли ${itemData.name}`, "#6c757d");
     logAction(`Снят предмет: ${itemData.name}`, 'item');
 }
@@ -348,7 +363,6 @@ export function renderEquipmentTab() {
     }
     
     html += '</div>';
-    
     eqTab.innerHTML = html;
     
     // Добавляем обработчики для кнопок "Снять"
@@ -365,32 +379,9 @@ export function renderEquipmentTab() {
             showMessage('Сначала выберите предмет в инвентаре и нажмите "Надеть"', '#ffd966');
         });
     });
-}
     
-    html += '</div>';
-    
-    // Добавляем бонусы от экипировки
-    const totalColdBonus = calculateEquippedColdBonus();
-    html += `<div class="equipment-total-bonus">
-        🔥 Суммарный бонус тепла: <strong>+${totalColdBonus}</strong>
-    </div>`;
-    
-    eqTab.innerHTML = html;
-    
-    // Добавляем обработчики для кнопок "Снять"
-    document.querySelectorAll('.unequip-btn').forEach(btn => { 
-        btn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            await unequipItem(btn.dataset.slot);
-        });
-    });
-    
-    // Добавляем возможность надеть предмет, перетащив из инвентаря? (пока просто клик)
-    document.querySelectorAll('.equipment-slot.empty').forEach(slot => {
-        slot.addEventListener('click', () => {
-            showMessage('Сначала выберите предмет в инвентаре и нажмите "Надеть"', '#ffd966');
-        });
-    });
+    // Обновляем отображение бонуса в шапке
+    updateEquipmentBonusDisplay();
 }
 
 // Вспомогательная функция для подсчёта бонуса тепла от экипировки
