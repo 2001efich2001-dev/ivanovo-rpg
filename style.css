@@ -681,8 +681,8 @@ body {
     background: var(--stat-bg) !important;
     border-radius: 32px !important;
     /* Убираем max-height и overflow-y */
-    max-height: none  !important;
-    overflow-y: auto !important;
+    max-height: none !important;
+    overflow-y: visible !important;
 }
 
 #shopBuyTab .inventory-slot,
