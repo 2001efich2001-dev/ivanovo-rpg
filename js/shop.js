@@ -51,6 +51,23 @@ function hideTooltip() {
     }
 }
 
+// Функция для принудительного обновления сетки (фикс бага с отображением)
+function forceRefreshGrid() {
+    setTimeout(() => {
+        const buyGrid = document.querySelector('#shopBuyTab .inventory-grid');
+        const sellGrid = document.querySelector('#shopSellTab .inventory-grid');
+        
+        if (buyGrid) {
+            buyGrid.style.display = 'none';
+            setTimeout(() => { buyGrid.style.display = 'grid'; }, 10);
+        }
+        if (sellGrid) {
+            sellGrid.style.display = 'none';
+            setTimeout(() => { sellGrid.style.display = 'grid'; }, 10);
+        }
+    }, 30);
+}
+
 // Рендер вкладки "Купить" (сетка 5x4)
 export function renderShopBuyTab() {
     const container = document.getElementById('shopBuyTab');
@@ -115,6 +132,9 @@ export function renderShopBuyTab() {
             }
         });
     });
+    
+    // Принудительно обновляем сетку
+    forceRefreshGrid();
 }
 
 // Рендер вкладки "Продать" (сетка 5x4)
@@ -187,6 +207,9 @@ export function renderShopSellTab() {
             }
         });
     });
+    
+    // Принудительно обновляем сетку
+    forceRefreshGrid();
 }
 
 // Покупка предмета
