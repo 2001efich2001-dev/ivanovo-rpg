@@ -792,8 +792,8 @@ body {
 
 /* Увеличиваем высоту модального окна обмена */
 #tradeOfferModal .modal-content {
-    max-width: 800px !important;
-    width: 90% !important;
+    max-width: 850px !important;
+    width: 95% !important;
     max-height: 100vh !important;
 }
 
