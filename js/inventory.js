@@ -78,6 +78,14 @@ function hideTooltip() {
     }
 }
 
+// Функция для обновления информации о странице в шапке
+function updateInventoryPageInfo(currentPageNum, totalPagesNum) {
+    const pageInfo = document.getElementById('inventoryPageInfo');
+    if (pageInfo) {
+        pageInfo.textContent = `Страница ${currentPageNum + 1} / ${Math.max(1, totalPagesNum)}`;
+    }
+}
+
 // Функция для рендера сетки инвентаря
 export function renderItemsTab() {
     const itemsTab = document.getElementById('itemsTab');
@@ -97,6 +105,7 @@ export function renderItemsTab() {
     
     if (allItems.length === 0) {
         itemsTab.innerHTML = '<div class="empty-inventory">🧺 Инвентарь пуст</div>';
+        updateInventoryPageInfo(0, 1);
         return;
     }
     
@@ -106,13 +115,11 @@ export function renderItemsTab() {
     const end = start + ITEMS_PER_PAGE;
     const pageItems = allItems.slice(start, end);
     
-    // Создаём сетку (заголовок перед сеткой)
-    let html = `<div class="inventory-grid-header">
-        <span>🎒 Инвентарь</span>
-        <span>Страница ${currentPage + 1} / ${Math.max(1, totalPages)}</span>
-    </div>`;
+    // Обновляем информацию о странице в шапке
+    updateInventoryPageInfo(currentPage, totalPages);
     
-    html += '<div class="inventory-grid">';
+    // Создаём сетку (без заголовка, только сетка)
+    let html = '<div class="inventory-grid">';
     
     // Заполняем ячейки
     for (let i = 0; i < ITEMS_PER_PAGE; i++) {
@@ -204,6 +211,7 @@ export function renderItemsTab() {
         });
     }
 }
+
 // Функции useItem, equipItem, unequipItem остаются без изменений
 async function useItem(itemId) {
     playClick();
