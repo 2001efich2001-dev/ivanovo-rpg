@@ -314,14 +314,8 @@ export function renderEquipmentTab() {
         { key: 'feet', name: 'Обувь', icon: '👢' }
     ];
     
-    // Заголовок
-    let html = `<div class="inventory-grid-header">
-        <span>👕 Экипировка</span>
-        <span>🎽 Снаряжение</span>
-    </div>`;
-    
-    // Сетка для экипировки (4 слота, как у инвентаря)
-    html += '<div class="equipment-grid">';
+    // Убираем заголовок, только сетка
+    let html = '<div class="equipment-grid">';
     
     for (let s of slots) {
         const itemId = equipped[s.key];
@@ -352,6 +346,26 @@ export function renderEquipmentTab() {
             `;
         }
     }
+    
+    html += '</div>';
+    
+    eqTab.innerHTML = html;
+    
+    // Добавляем обработчики для кнопок "Снять"
+    document.querySelectorAll('.unequip-btn').forEach(btn => { 
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await unequipItem(btn.dataset.slot);
+        });
+    });
+    
+    // Добавляем возможность надеть предмет, перетащив из инвентаря? (пока просто клик)
+    document.querySelectorAll('.equipment-slot.empty').forEach(slot => {
+        slot.addEventListener('click', () => {
+            showMessage('Сначала выберите предмет в инвентаре и нажмите "Надеть"', '#ffd966');
+        });
+    });
+}
     
     html += '</div>';
     
