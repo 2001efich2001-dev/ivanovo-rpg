@@ -349,235 +349,8 @@ body {
 
 .empty-inventory { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 1.2rem; }
 
-/* ===== МАГАЗИН (ПОЛНАЯ КОПИЯ СТИЛЕЙ ИНВЕНТАРЯ) ===== */
 
-/* Окно магазина */
-#shopModal .modal-content {
-    max-width: 800px !important;
-    width: 90% !important;
-}
 
-/* Сетка магазина — точь-в-точь как в инвентаре */
-#shopModal .inventory-grid {
-    display: grid !important;
-    grid-template-columns: repeat(5, 1fr) !important;
-    gap: 12px !important;
-    padding: 16px !important;
-    background: var(--stat-bg) !important;
-    border-radius: 32px !important;
-    margin-bottom: 0 !important;
-}
-
-/* Ячейка магазина — копия inventory-slot */
-#shopModal .inventory-slot {
-    aspect-ratio: 1 / 1 !important;
-    background: var(--card-bg) !important;
-    border-radius: 16px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease !important;
-    border: 2px solid transparent !important;
-    position: relative !important;
-    padding: 8px !important;
-}
-
-#shopModal .inventory-slot:hover {
-    transform: scale(1.05) !important;
-    border-color: var(--accent-gold) !important;
-    background: var(--accent-glow) !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-}
-
-/* Картинка в магазине */
-#shopModal .inventory-slot .item-image {
-    width: 48px !important;
-    height: 48px !important;
-    object-fit: contain !important;
-    margin-bottom: 4px !important;
-}
-
-/* Название предмета */
-#shopModal .inventory-slot .item-name {
-    font-size: 0.7rem !important;
-    text-align: center !important;
-    margin: 4px 0 !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    line-height: 1.2 !important;
-    max-width: 100% !important;
-}
-
-/* Цена в магазине */
-#shopModal .inventory-slot .item-price {
-    font-size: 0.7rem !important;
-    color: var(--accent-gold) !important;
-    font-weight: bold !important;
-    margin: 2px 0 !important;
-}
-
-/* Кнопка действия — как в инвентаре */
-#shopModal .inventory-slot .slot-use-btn {
-    background: rgba(0,0,0,0.6) !important;
-    border: none !important;
-    border-radius: 20px !important;
-    padding: 4px 10px !important;
-    font-size: 0.65rem !important;
-    cursor: pointer !important;
-    transition: 0.05s linear !important;
-    color: white !important;
-    margin-top: 6px !important;
-}
-
-#shopModal .inventory-slot .slot-use-btn:hover {
-    background: var(--buy-btn-bg) !important;
-    transform: scale(1.05) !important;
-}
-
-/* Пустые ячейки */
-#shopModal .inventory-slot.empty-slot {
-    background: rgba(0,0,0,0.2) !important;
-    cursor: default !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-size: 2rem !important;
-    opacity: 0.5 !important;
-}
-
-#shopModal .inventory-slot.empty-slot:hover {
-    transform: none !important;
-    border-color: transparent !important;
-    background: rgba(0,0,0,0.2) !important;
-}
-
-/* Заголовок магазина */
-#shopModal .inventory-grid-header {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    padding: 12px 16px !important;
-    font-weight: bold !important;
-    color: var(--accent-gold) !important;
-    border-bottom: 1px solid var(--card-border) !important;
-    margin-bottom: 12px !important;
-    background: var(--panel-bg) !important;
-    border-radius: 32px 32px 0 0 !important;
-}
-
-/* Адаптация для мобильных */
-@media (max-width: 768px) {
-    #shopModal .inventory-grid {
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 10px !important;
-        padding: 12px !important;
-    }
-    
-    #shopModal .inventory-slot .item-image {
-        width: 36px !important;
-        height: 36px !important;
-    }
-    
-    #shopModal .inventory-slot .item-name {
-        font-size: 0.6rem !important;
-    }
-    
-    #shopModal .inventory-slot .item-price {
-        font-size: 0.6rem !important;
-    }
-    
-    #shopModal .inventory-slot .slot-use-btn {
-        font-size: 0.55rem !important;
-        padding: 3px 8px !important;
-    }
-}
-
-@media (max-width: 480px) {
-    #shopModal .inventory-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-    }
-}
-
-/* ========== ОКНО ОБМЕНА ========== */
-#tradeOfferModal .modal-content {
-    max-width: 800px !important;
-    width: 90% !important;
-}
-
-#tradeFromItems .inventory-grid,
-#tradeToItems .inventory-grid {
-    display: grid !important;
-    grid-template-columns: repeat(5, minmax(85px, 100px)) !important;
-    justify-content: center !important;
-    gap: 12px !important;
-    background: var(--stat-bg) !important;
-    border-radius: 32px !important;
-    padding: 16px !important;
-    max-height: 350px !important;
-    overflow-y: auto !important;
-}
-
-#tradeFromItems .trade-slot,
-#tradeToItems .trade-slot {
-    aspect-ratio: 1 / 1 !important;
-    background: var(--card-bg) !important;
-    border-radius: 16px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 8px !important;
-    text-align: center !important;
-    position: relative !important;
-}
-
-#tradeFromItems .trade-slot:hover,
-#tradeToItems .trade-slot:hover {
-    transform: scale(1.05) !important;
-    background: var(--accent-glow) !important;
-}
-
-#tradeFromItems .trade-slot .item-image,
-#tradeToItems .trade-slot .item-image {
-    width: 48px !important;
-    height: 48px !important;
-    object-fit: contain !important;
-    margin-bottom: 4px !important;
-}
-
-#tradeFromItems .trade-slot .item-name,
-#tradeToItems .trade-slot .item-name {
-    font-size: 0.65rem !important;
-    margin: 4px 0 !important;
-    white-space: normal !important;
-    word-break: break-word !important;
-    line-height: 1.2 !important;
-}
-
-#tradeFromItems .trade-add-btn,
-#tradeToItems .trade-add-btn {
-    margin-top: 6px !important;
-    padding: 4px 10px !important;
-    background: var(--buy-btn-bg) !important;
-    border: none !important;
-    border-radius: 20px !important;
-    color: white !important;
-    cursor: pointer !important;
-    font-size: 0.6rem !important;
-}
-
-#tradeFromItems .trade-slot .item-count,
-#tradeToItems .trade-slot .item-count {
-    position: absolute !important;
-    bottom: 4px !important;
-    right: 8px !important;
-    background: rgba(0,0,0,0.7) !important;
-    border-radius: 20px !important;
-    padding: 2px 6px !important;
-    font-size: 0.6rem !important;
-}
 
 /* ========== ОСТАЛЬНЫЕ СТИЛИ ========== */
 .equipment-grid {
@@ -896,23 +669,101 @@ body {
 .offers-group { margin-top: 16px; }
 .offers-group-title { font-size: 1rem; font-weight: bold; color: var(--accent-gold); margin: 16px 0 12px 0; padding-bottom: 8px; border-bottom: 1px solid var(--card-border); }
 .offers-group-title:first-of-type { margin-top: 0; }
+/* ===== ФИКС МАГАЗИНА И ОБМЕНА (ОДИН РАБОЧИЙ ВАРИАНТ) ===== */
+#shopBuyTab .inventory-grid,
+#shopSellTab .inventory-grid,
+#tradeFromItems .inventory-grid,
+#tradeToItems .inventory-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    background: var(--stat-bg) !important;
+    border-radius: 32px !important;
+}
 
-/* Адаптация мобильных для магазина и обмена */
+#shopBuyTab .inventory-slot,
+#shopSellTab .inventory-slot,
+#tradeFromItems .trade-slot,
+#tradeToItems .trade-slot {
+    aspect-ratio: 1 / 1 !important;
+    background: var(--card-bg) !important;
+    border-radius: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8px !important;
+    text-align: center !important;
+    transition: all 0.15s ease !important;
+}
+
+#shopBuyTab .inventory-slot:hover,
+#shopSellTab .inventory-slot:hover,
+#tradeFromItems .trade-slot:hover,
+#tradeToItems .trade-slot:hover {
+    transform: scale(1.05) !important;
+    background: var(--accent-glow) !important;
+}
+
+#shopBuyTab .inventory-slot .item-image,
+#shopSellTab .inventory-slot .item-image,
+#tradeFromItems .trade-slot .item-image,
+#tradeToItems .trade-slot .item-image {
+    width: 48px !important;
+    height: 48px !important;
+    object-fit: contain !important;
+    margin-bottom: 4px !important;
+}
+
+#shopBuyTab .inventory-slot .item-name,
+#shopSellTab .inventory-slot .item-name,
+#tradeFromItems .trade-slot .item-name,
+#tradeToItems .trade-slot .item-name {
+    font-size: 0.7rem !important;
+    margin: 4px 0 !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
+#shopBuyTab .inventory-slot .item-price,
+#shopSellTab .inventory-slot .item-price {
+    font-size: 0.7rem !important;
+    color: var(--accent-gold) !important;
+}
+
+#shopBuyTab .slot-use-btn,
+#shopSellTab .slot-use-btn,
+#tradeFromItems .trade-add-btn,
+#tradeToItems .trade-add-btn {
+    margin-top: 6px !important;
+    padding: 4px 10px !important;
+    background: var(--buy-btn-bg) !important;
+    border: none !important;
+    border-radius: 20px !important;
+    color: white !important;
+    cursor: pointer !important;
+    font-size: 0.65rem !important;
+}
+
+#tradeFromItems .trade-slot .item-count,
+#tradeToItems .trade-slot .item-count {
+    position: absolute !important;
+    bottom: 4px !important;
+    right: 8px !important;
+    background: rgba(0,0,0,0.7) !important;
+    border-radius: 20px !important;
+    padding: 2px 6px !important;
+    font-size: 0.6rem !important;
+}
+
 @media (max-width: 768px) {
     #shopBuyTab .inventory-grid,
     #shopSellTab .inventory-grid,
     #tradeFromItems .inventory-grid,
     #tradeToItems .inventory-grid {
-        grid-template-columns: repeat(3, minmax(80px, 90px)) !important;
+        grid-template-columns: repeat(3, 1fr) !important;
         gap: 10px !important;
-    }
-    
-    #shopBuyTab .shop-slot .item-image,
-    #shopSellTab .shop-slot .item-image,
-    #tradeFromItems .trade-slot .item-image,
-    #tradeToItems .trade-slot .item-image {
-        width: 40px !important;
-        height: 40px !important;
     }
 }
 
@@ -921,12 +772,6 @@ body {
     #shopSellTab .inventory-grid,
     #tradeFromItems .inventory-grid,
     #tradeToItems .inventory-grid {
-        grid-template-columns: repeat(2, minmax(80px, 90px)) !important;
+        grid-template-columns: repeat(2, 1fr) !important;
     }
-}
-#shopBuyTab .inventory-grid,
-#shopSellTab .inventory-grid {
-    display: grid !important;
-    visibility: visible !important;
-    opacity: 1 !important;
 }
