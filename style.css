@@ -775,3 +775,15 @@ body {
         grid-template-columns: repeat(2, 1fr) !important;
     }
 }
+/* ===== ШИРИНА МОДАЛЬНОГО ОКНА ИНВЕНТАРЯ ===== */
+#inventoryModal .modal-content {
+    max-width: 700px !important;
+    width: 90% !important;
+}
+
+/* ===== ШИРИНА МОДАЛЬНЫХ ОКОН МАГАЗИНА И ОБМЕНА ===== */
+#shopModal .modal-content,
+#tradeOfferModal .modal-content {
+    max-width: 800px !important;
+    width: 90% !important;
+}
