@@ -454,7 +454,7 @@ body {
 }
 .reject-offer-btn, .cancel-offer-btn { background: #7f8c8d; }
 @media (max-width: 768px) {
-    #tradeOfferModal .modal-content { max-width: 95%; padding: 16px; }
+    #tradeOfferModal .modal-content { max-width: 100%; padding: 16px; }
     #tradeOfferModal > div > div { flex-direction: column; }
 }
 
@@ -599,7 +599,7 @@ body {
 /* События */
 #eventModal .modal-content { max-width: 550px; width: 90%; text-align: center; padding: 20px; display: flex; flex-direction: column; align-items: center; }
 #eventModal h3 { font-size: 1.6rem; margin-top: 0; margin-bottom: 16px; color: var(--accent-gold); text-align: center; }
-#eventModal img { width: auto; max-width: 100%; max-height: 300px; height: auto; border-radius: 32px; margin: 0 auto 16px; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.3); object-fit: contain; }
+#eventModal img { width: auto; max-width: 100%; height: auto; border-radius: 32px; margin: 0 auto 16px; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.3); object-fit: contain; }
 #eventModal p { font-size: 1.1rem; line-height: 1.4; margin-bottom: 20px; color: var(--text-primary); text-align: center; }
 #eventModal .action-btn, #eventModal .event-choice-btn {
     background: var(--buy-btn-bg);
