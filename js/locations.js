@@ -2,7 +2,7 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
-import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy } from './gameState.js';
+import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction } from './gameState.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
 function playClick() {
@@ -23,6 +23,22 @@ const energyCosts = {
     eat: 5,       // поесть в столовой
     sleep: 0      // сон (восстанавливает энергию, не тратит)
 };
+
+// Модификация риска в зависимости от опьянения (чем выше опьянение, тем выше шанс неудачи)
+function applyIntoxicationToRisk(originalRisk, intoxicationLevel) {
+    if (intoxicationLevel < 20) return originalRisk;
+    if (intoxicationLevel < 50) return originalRisk + 10;  // +10% к риску
+    if (intoxicationLevel < 80) return originalRisk + 25;  // +25% к риску
+    return originalRisk + 50;  // +50% к риску
+}
+
+// Модификация урона/потери здоровья в зависимости от опьянения
+function applyIntoxicationToDamage(originalDamage, intoxicationLevel, isSuccess = true) {
+    if (!isSuccess) return originalDamage; // при неудаче не модифицируем
+    const modifier = getIntoxicationDamageModifier();
+    if (modifier === 1.0) return originalDamage;
+    return Math.floor(originalDamage * modifier);
+}
 
 // База локаций с фонами, зонами и действиями
 export const locationsDB = {
@@ -94,20 +110,20 @@ export const locationsDB = {
             { id: "get_food", name: "Попросить еду", desc: "Дадут хлеб", effect: { items: ["bread"] }, risk: 0 }
         ]
     },
-  bar: {
-    id: "bar",
-    name: "Бар",
-    description: "Можно выпить, подраться или найти работу.",
-    bgImage: "images/bar_bg.jpg",
-    zones: [
-        { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
-        { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" }
-    ],
-    actions: [
-        { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, стоит 40₽", effect: { health: 10, hunger: -5 }, cost: 40, risk: 0 },
-        { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
-    ]
-}
+    bar: {
+        id: "bar",
+        name: "Бар",
+        description: "Можно выпить, подраться или найти работу.",
+        bgImage: "images/bar_bg.jpg",
+        zones: [
+            { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
+            { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" }
+        ],
+        actions: [
+            { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, стоит 40₽", effect: { health: 10, hunger: -5 }, cost: 40, risk: 0 },
+            { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
+        ]
+    }
 };
 
 // Функция для отрисовки локации на главном экране
@@ -235,76 +251,86 @@ async function executeAction(locationId, action) {
         }
     }
     
+    // Проверка возможности выполнения действия (из-за сильного опьянения)
+    if (!canPerformAction(action.name)) {
+        return;
+    }
+    
     let success = true;
     let msg = "";
     let actionLogMessage = '';
     let gainedExp = 0;
     
     // Обработка сна (затемнение и пропуск времени)
-if (action.id === 'sleep') {
-    // Проверяем деньги
-    if (action.cost && action.cost > 0) {
-        if (money < action.cost) { 
-            showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); 
-            return; 
+    if (action.id === 'sleep') {
+        // Проверяем деньги
+        if (action.cost && action.cost > 0) {
+            if (money < action.cost) { 
+                showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); 
+                return; 
+            }
+            setStats(health, hunger, cold, money - action.cost);
+            actionLogMessage += `-${action.cost}₽. `;
         }
-        setStats(health, hunger, cold, money - action.cost);
-        actionLogMessage += `-${action.cost}₽. `;
-    }
-    
-    // Восстанавливаем здоровье
-    if (action.effect && action.effect.health) {
-        const add = Array.isArray(action.effect.health) ? Math.floor(Math.random()*(action.effect.health[1]-action.effect.health[0]+1)+action.effect.health[0]) : action.effect.health;
-        const newHealth = Math.min(maxHealth, Math.max(0, health + add));
-        setStats(newHealth, hunger, cold, money);
-        msg += `Здоровье +${add}. `;
-        actionLogMessage += `Здоровье +${add}. `;
-    }
-    
-    // Восстанавливаем энергию (50)
-    setEnergy(Math.min(100, energy + 50));
-    actionLogMessage += `+50⚡. `;
-    
-    // Затемняем экран
-    const overlay = document.createElement('div');
-    overlay.id = 'sleepOverlay';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100%';
-    overlay.style.height = '100%';
-    overlay.style.backgroundColor = 'black';
-    overlay.style.zIndex = '10002';
-    overlay.style.transition = 'opacity 0.5s ease';
-    overlay.style.opacity = '0';
-    document.body.appendChild(overlay);
-    
-    // Плавное затемнение
-    setTimeout(() => { overlay.style.opacity = '1'; }, 10);
-    
-    // Через 0.5 секунды добавляем 8 часов к игровому времени
-    setTimeout(async () => {
-        const { addGameHours } = await import('./timeWeather.js');
-        addGameHours(8);
-        updateUI();
-    }, 500);
-    
-    // Через 3.5 секунды убираем затемнение
-    setTimeout(() => {
+        
+        // Восстанавливаем здоровье
+        if (action.effect && action.effect.health) {
+            const add = Array.isArray(action.effect.health) ? Math.floor(Math.random()*(action.effect.health[1]-action.effect.health[0]+1)+action.effect.health[0]) : action.effect.health;
+            const newHealth = Math.min(maxHealth, Math.max(0, health + add));
+            setStats(newHealth, hunger, cold, money);
+            msg += `Здоровье +${add}. `;
+            actionLogMessage += `Здоровье +${add}. `;
+        }
+        
+        // Восстанавливаем энергию (50)
+        setEnergy(Math.min(100, energy + 50));
+        actionLogMessage += `+50⚡. `;
+        
+        // Восстанавливаем опьянение (проспался)
+        const { reduceIntoxication } = await import('./gameState.js');
+        reduceIntoxication(30);
+        actionLogMessage += `🍺 Опьянение -30. `;
+        
+        // Затемняем экран
+        const overlay = document.createElement('div');
+        overlay.id = 'sleepOverlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'black';
+        overlay.style.zIndex = '10002';
+        overlay.style.transition = 'opacity 0.5s ease';
         overlay.style.opacity = '0';
-        setTimeout(() => overlay.remove(), 500);
-    }, 3500);
-    
-    updateUI();
-    await saveGameData();
-    showMessage(msg || "Вы крепко выспались! +50 энергии", "#4caf50");
-    logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
-    document.getElementById('locationModal').style.display = 'none';
-    if (document.getElementById('inventoryModal').style.display === 'flex') {
-        import('./inventory.js').then(m => { m.renderItemsTab(); m.renderEquipmentTab(); });
+        document.body.appendChild(overlay);
+        
+        // Плавное затемнение
+        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        
+        // Через 0.5 секунды добавляем 8 часов к игровому времени
+        setTimeout(async () => {
+            const { addGameHours } = await import('./timeWeather.js');
+            addGameHours(8);
+            updateUI();
+        }, 500);
+        
+        // Через 3.5 секунды убираем затемнение
+        setTimeout(() => {
+            overlay.style.opacity = '0';
+            setTimeout(() => overlay.remove(), 500);
+        }, 3500);
+        
+        updateUI();
+        await saveGameData();
+        showMessage(msg || "Вы крепко выспались! +50 энергии", "#4caf50");
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
+        document.getElementById('locationModal').style.display = 'none';
+        if (document.getElementById('inventoryModal').style.display === 'flex') {
+            import('./inventory.js').then(m => { m.renderItemsTab(); m.renderEquipmentTab(); });
+        }
+        return;
     }
-    return;
-}
     
     // Обычная обработка для остальных действий
     if (action.needsItem) {
@@ -316,20 +342,35 @@ if (action.id === 'sleep') {
         setStats(health, hunger, cold, money - action.cost);
         actionLogMessage += `-${action.cost}₽. `;
     }
+    
+    // Модифицированный риск с учётом опьянения
     if (action.risk && action.risk > 0) {
-        if (Math.random() * 100 < action.risk) {
+        const modifiedRisk = applyIntoxicationToRisk(action.risk, intoxication);
+        const roll = Math.random() * 100;
+        
+        if (roll < modifiedRisk) {
             success = false;
             msg = "❌ Неудача! ";
             if (action.riskEffect) {
                 let newMoney = money + (action.riskEffect.money || 0);
                 let newHealth = health + (action.riskEffect.health || 0);
+                // Применяем модификатор урона от опьянения
+                if (action.riskEffect.health) {
+                    const modifiedDamage = applyIntoxicationToDamage(action.riskEffect.health, intoxication, false);
+                    newHealth = health + modifiedDamage;
+                }
                 let newHunger = hunger + (action.riskEffect.hunger || 0);
                 setStats(Math.min(maxHealth, Math.max(0, newHealth)), Math.min(maxHunger, Math.max(0, newHunger)), cold, Math.max(0, newMoney));
                 msg += `${action.riskEffect.health ? `Здоровье ${action.riskEffect.health>0?'+':''}${action.riskEffect.health}. ` : ''}${action.riskEffect.money ? `Деньги ${action.riskEffect.money>0?'+':''}${action.riskEffect.money}. ` : ''}`;
                 actionLogMessage = `Неудача в действии "${action.name}"! ${msg}`;
+                
+                if (intoxication >= 50) {
+                    addLogEntry(`🥴 Из-за опьянения (${Math.floor(intoxication)}%) шанс неудачи был выше!`, 'system');
+                }
             }
         }
     }
+    
     if (success) {
         msg = "✅ Успех! ";
         if (action.effect) {
