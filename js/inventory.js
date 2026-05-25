@@ -1,7 +1,7 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
-import { renderAchievementsTab } from './achievements.js';
+import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
 
 // Переменные для пагинации
 let currentPage = 0;
@@ -264,8 +264,16 @@ async function useItem(itemId) {
     }
     if (itemData.effect.intoxication) {
         if (itemData.effect.intoxication > 0) {
+            const oldIntoxication = intoxication;
             addIntoxication(itemData.effect.intoxication);
             effText += `Опьянение +${itemData.effect.intoxication}. `;
+            
+            // ===== АЧИВКИ =====
+            updateAchievementStats('totalAlcoholConsumed', 1);
+            
+            if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
+                updateAchievementStats('maxIntoxication', 100);
+            }
         } else if (itemData.effect.intoxication < 0) {
             reduceIntoxication(Math.abs(itemData.effect.intoxication));
             effText += `Опьянение ${itemData.effect.intoxication}. `;
