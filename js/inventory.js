@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 
@@ -15,17 +15,32 @@ function playPurchase() {
 
 // Добавляем поле image для каждого предмета
 export const itemsDB = {
-    bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", image: "images/items/bread.png", effect: { hunger: 20, health: 0, cold: 0 }, price: 25, slot: null, description: "Восстанавливает 20 голода" },
-    vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", image: "images/items/vodka.png", effect: { hunger: -10, health: 15, cold: 0 }, price: 40, slot: null, description: "+15 здоровья, -10 голода" },
-    cigarettes: { id: "cigarettes", name: "Сигареты", type: "drug", icon: "🚬", image: "images/items/cigarettes.png", effect: { hunger: 0, health: -5, cold: 10 }, price: 20, slot: null, description: "+10 тепла, -5 здоровья" },
-    medkit: { id: "medkit", name: "Аптечка", type: "medicine", icon: "💊", image: "images/items/medkit.png", effect: { hunger: 0, health: 30, cold: 0 }, price: 50, slot: null, description: "Восстанавливает 30 здоровья" },
-    water: { id: "water", name: "Бутылка воды", type: "drink", icon: "💧", image: "images/items/water.png", effect: { hunger: 10, health: 0, cold: 0 }, price: 15, slot: null, description: "Восстанавливает 10 голода" },
+    // Еда
+    bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", image: "images/items/bread.png", effect: { hunger: 20, health: 0, cold: 0, intoxication: 0 }, price: 25, slot: null, description: "Восстанавливает 20 голода" },
+    water: { id: "water", name: "Бутылка воды", type: "drink", icon: "💧", image: "images/items/water.png", effect: { hunger: 10, health: 0, cold: 0, intoxication: 0 }, price: 15, slot: null, description: "Восстанавливает 10 голода" },
+    
+    // Алкоголь
+    vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", image: "images/items/vodka.png", effect: { hunger: -10, health: 15, cold: 0, intoxication: 30 }, price: 40, slot: null, description: "+15 здоровья, -10 голода, +30 опьянения" },
+    beer: { id: "beer", name: "Пиво", type: "alcohol", icon: "🍺", image: "images/items/beer.png", effect: { hunger: -5, health: 5, cold: 0, intoxication: 15 }, price: 25, slot: null, description: "+5 здоровья, -5 голода, +15 опьянения" },
+    portwine: { id: "portwine", name: "Портвейн 666", type: "alcohol", icon: "🍷", image: "images/items/portwine.png", effect: { hunger: -8, health: 10, cold: 0, intoxication: 20 }, price: 35, slot: null, description: "+10 здоровья, -8 голода, +20 опьянения" },
+    fanfurik: { id: "fanfurik", name: "Фанфурик", type: "alcohol", icon: "🍸", image: "images/items/fanfurik.png", effect: { hunger: -12, health: 8, cold: 0, intoxication: 25 }, price: 45, slot: null, description: "+8 здоровья, -12 голода, +25 опьянения" },
+    
+    // Лекарства
+    medkit: { id: "medkit", name: "Аптечка", type: "medicine", icon: "💊", image: "images/items/medkit.png", effect: { hunger: 0, health: 30, cold: 0, intoxication: -20 }, price: 50, slot: null, description: "Восстанавливает 30 здоровья, -20 опьянения" },
+    mineralwater: { id: "mineralwater", name: "Минералка", type: "medicine", icon: "💧", image: "images/items/mineralwater.png", effect: { hunger: 5, health: 0, cold: 0, intoxication: -15 }, price: 20, slot: null, description: "+5 голода, -15 опьянения" },
+    
+    // Сигареты
+    cigarettes: { id: "cigarettes", name: "Сигареты", type: "drug", icon: "🚬", image: "images/items/cigarettes.png", effect: { hunger: 0, health: -5, cold: 10, intoxication: 0 }, price: 20, slot: null, description: "+10 тепла, -5 здоровья" },
+    
+    // Одежда
     ushanka: { id: "ushanka", name: "Шапка-ушанка", type: "clothes", icon: "🧢", image: "images/items/ushanka.png", effect: { cold: 15 }, price: 80, slot: "head", description: "+15 к теплу" },
     puhovik: { id: "puhovik", name: "Пуховик", type: "clothes", icon: "🧥", image: "images/items/puhovik.png", effect: { cold: 25 }, price: 200, slot: "body", description: "+25 к теплу" },
     termo: { id: "termo", name: "Термобельё", type: "clothes", icon: "👖", image: "images/items/termo.png", effect: { cold: 10 }, price: 120, slot: "legs", description: "+10 к теплу" },
     bercy: { id: "bercy", name: "Берцы", type: "clothes", icon: "👢", image: "images/items/bercy.png", effect: { cold: 10 }, price: 150, slot: "feet", description: "+10 к теплу" },
-    empty_bottle: { id: "empty_bottle", name: "Пустая бутылка", type: "junk", icon: "🍾", image: "images/items/empty_bottle.png", effect: {}, price: 5, slot: null, description: "Можно продать за 5₽" },
-    old_hat: { id: "old_hat", name: "Старая шапка", type: "clothes", icon: "🧢", image: "images/items/old_hat.png", effect: { cold: 5 }, price: 20, slot: "head", description: "+5 к теплу" }
+    old_hat: { id: "old_hat", name: "Старая шапка", type: "clothes", icon: "🧢", image: "images/items/old_hat.png", effect: { cold: 5 }, price: 20, slot: "head", description: "+5 к теплу" },
+    
+    // Хлам
+    empty_bottle: { id: "empty_bottle", name: "Пустая бутылка", type: "junk", icon: "🍾", image: "images/items/empty_bottle.png", effect: {}, price: 5, slot: null, description: "Можно продать за 5₽" }
 };
 
 // Функция для получения цены продажи
@@ -46,6 +61,13 @@ function showTooltip(item, event, count) {
     
     const sellPrice = getSellPrice(item.id);
     
+    let intoxicationText = '';
+    if (item.effect.intoxication && item.effect.intoxication > 0) {
+        intoxicationText = `<div>🍺 Опьянение: +${item.effect.intoxication}</div>`;
+    } else if (item.effect.intoxication && item.effect.intoxication < 0) {
+        intoxicationText = `<div>💧 Опьянение: ${item.effect.intoxication}</div>`;
+    }
+    
     tooltip.innerHTML = `
         <div class="tooltip-header">
             <strong>${item.name}</strong>
@@ -55,6 +77,7 @@ function showTooltip(item, event, count) {
             ${item.effect.hunger ? `<div>🍗 Голод: ${item.effect.hunger > 0 ? '+' : ''}${item.effect.hunger}</div>` : ''}
             ${item.effect.health ? `<div>❤️ Здоровье: ${item.effect.health > 0 ? '+' : ''}${item.effect.health}</div>` : ''}
             ${item.effect.cold ? `<div>🔥 Тепло: ${item.effect.cold > 0 ? '+' : ''}${item.effect.cold}</div>` : ''}
+            ${intoxicationText}
             <div class="tooltip-divider"></div>
             <div>💰 Покупка: ${item.price}₽</div>
             <div>💸 Продажа: ${sellPrice}₽</div>
@@ -101,7 +124,6 @@ export function renderItemsTab() {
     const itemsTab = document.getElementById('itemsTab');
     if (!itemsTab) return;
     
-    // Собираем ВСЕ предметы в один массив (и расходуемые, и одежда)
     const allItems = [];
     for (const invItem of inventory) {
         const itemData = itemsDB[invItem.id];
@@ -119,19 +141,15 @@ export function renderItemsTab() {
         return;
     }
     
-    // Пагинация
     const totalPages = Math.ceil(allItems.length / ITEMS_PER_PAGE);
     const start = currentPage * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE;
     const pageItems = allItems.slice(start, end);
     
-    // Обновляем информацию о странице в шапке
     updateInventoryPageInfo(currentPage, totalPages);
     
-    // Создаём сетку (без заголовка, только сетка)
     let html = '<div class="inventory-grid">';
     
-    // Заполняем ячейки
     for (let i = 0; i < ITEMS_PER_PAGE; i++) {
         const item = pageItems[i];
         
@@ -147,14 +165,12 @@ export function renderItemsTab() {
                 </div>
             `;
         } else {
-            // Пустая ячейка
             html += `<div class="inventory-slot empty-slot">🔲</div>`;
         }
     }
     
     html += '</div>';
     
-    // Кнопки пагинации
     if (totalPages > 1) {
         html += `<div class="inventory-pagination">
             <button class="page-btn" id="prevPageBtn" ${currentPage === 0 ? 'disabled' : ''}>◀ Назад</button>
@@ -165,7 +181,6 @@ export function renderItemsTab() {
     
     itemsTab.innerHTML = html;
     
-    // Добавляем обработчики для кнопок использования/надевания
     document.querySelectorAll('.slot-use-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -179,7 +194,6 @@ export function renderItemsTab() {
         });
     });
     
-    // Добавляем обработчики для тултипов
     document.querySelectorAll('.inventory-slot:not(.empty-slot)').forEach(slot => {
         const itemId = slot.dataset.id;
         const itemData = itemsDB[itemId];
@@ -197,7 +211,6 @@ export function renderItemsTab() {
         });
     });
     
-    // Обработчики пагинации
     const prevBtn = document.getElementById('prevPageBtn');
     const nextBtn = document.getElementById('nextPageBtn');
     
@@ -232,6 +245,7 @@ async function useItem(itemId) {
     const itemData = itemsDB[itemId];
     if (!itemData) return;
     let effText = "";
+    
     if (itemData.effect.hunger) {
         let newHunger = hunger + itemData.effect.hunger;
         setStats(health, Math.min(maxHunger, Math.max(0, newHunger)), cold, money);
@@ -247,6 +261,16 @@ async function useItem(itemId) {
         setStats(health, hunger, Math.min(maxCold, Math.max(0, newCold)), money);
         effText += `Тепло ${itemData.effect.cold>0?'+':''}${itemData.effect.cold}. `;
     }
+    if (itemData.effect.intoxication) {
+        if (itemData.effect.intoxication > 0) {
+            addIntoxication(itemData.effect.intoxication);
+            effText += `Опьянение +${itemData.effect.intoxication}. `;
+        } else if (itemData.effect.intoxication < 0) {
+            reduceIntoxication(Math.abs(itemData.effect.intoxication));
+            effText += `Опьянение ${itemData.effect.intoxication}. `;
+        }
+    }
+    
     if (inventory[itemIndex].count === 1) inventory.splice(itemIndex,1);
     else inventory[itemIndex].count--;
     updateUI();
@@ -329,7 +353,6 @@ export function renderEquipmentTab() {
         { key: 'feet', name: 'Обувь', icon: '👢' }
     ];
     
-    // Убираем заголовок, только сетка
     let html = '<div class="equipment-grid">';
     
     for (let s of slots) {
@@ -337,7 +360,6 @@ export function renderEquipmentTab() {
         const itemData = itemId ? itemsDB[itemId] : null;
         
         if (itemData) {
-            // Занятый слот
             html += `
                 <div class="equipment-slot occupied" data-slot="${s.key}">
                     <img src="${itemData.image}" alt="${itemData.name}" class="equipment-image" loading="lazy">
@@ -350,7 +372,6 @@ export function renderEquipmentTab() {
                 </div>
             `;
         } else {
-            // Пустой слот
             html += `
                 <div class="equipment-slot empty" data-slot="${s.key}">
                     <div class="equipment-empty-icon">${s.icon}</div>
@@ -365,7 +386,6 @@ export function renderEquipmentTab() {
     html += '</div>';
     eqTab.innerHTML = html;
     
-    // Добавляем обработчики для кнопок "Снять"
     document.querySelectorAll('.unequip-btn').forEach(btn => { 
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -373,18 +393,15 @@ export function renderEquipmentTab() {
         });
     });
     
-    // Добавляем возможность надеть предмет, перетащив из инвентаря? (пока просто клик)
     document.querySelectorAll('.equipment-slot.empty').forEach(slot => {
         slot.addEventListener('click', () => {
             showMessage('Сначала выберите предмет в инвентаре и нажмите "Надеть"', '#ffd966');
         });
     });
     
-    // Обновляем отображение бонуса в шапке
     updateEquipmentBonusDisplay();
 }
 
-// Вспомогательная функция для подсчёта бонуса тепла от экипировки
 function calculateEquippedColdBonus() {
     let bonus = 0;
     for (const slot of ['head', 'body', 'legs', 'feet']) {
@@ -400,7 +417,6 @@ export function recalcColdFromEquipment() {
     console.warn("recalcColdFromEquipment устарела");
 }
 
-// Сброс пагинации при открытии инвентаря (для синхронизации)
 export function resetInventoryPage() {
     currentPage = 0;
 }
