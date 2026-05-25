@@ -3,6 +3,7 @@ import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
 import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction } from './gameState.js';
+import { updateAchievementStats } from './achievements.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
 function playClick() {
@@ -126,6 +127,9 @@ export const locationsDB = {
     }
 };
 
+// Переменная для отслеживания посещённых локаций
+let visitedLocations = JSON.parse(localStorage.getItem('visited_locations_' + (window.auth?.currentUser?.uid || 'guest')) || '[]');
+
 // Функция для отрисовки локации на главном экране
 export function renderLocation(locationId) {
     const loc = locationsDB[locationId];
@@ -219,6 +223,13 @@ export function renderLocation(locationId) {
         updateDarkness();
         updateWeatherEffects();
     }, 50);
+    
+    // ===== АЧИВКИ: отслеживаем посещение новой локации =====
+    if (!visitedLocations.includes(locationId)) {
+        visitedLocations.push(locationId);
+        localStorage.setItem('visited_locations_' + (window.auth?.currentUser?.uid || 'guest'), JSON.stringify(visitedLocations));
+        updateAchievementStats('visitedLocations', visitedLocations.length);
+    }
 }
 
 // Всплывающая подсказка
@@ -432,7 +443,18 @@ async function executeAction(locationId, action) {
             spendEnergy(energyCost);
             actionLogMessage += `-${energyCost}⚡. `;
         }
+        
+        // ===== АЧИВКИ =====
+        // Отслеживаем попрошайничество (beg) и получение еды (get_food)
+        if (action.id === 'beg' || action.id === 'get_food') {
+            updateAchievementStats('totalBegs');
+        }
+        // Отслеживаем выигранные драки
+        if (action.id === 'fight' && success) {
+            updateAchievementStats('fightsWon');
+        }
     }
+    
     updateUI();
     await saveGameData();
     showMessage(msg, success ? "#4caf50" : "#e74c3c");
