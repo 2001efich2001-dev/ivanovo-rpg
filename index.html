@@ -1,247 +1,32 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Иваново · Бомж-симулятор</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-    <!-- Splash screen -->
-    <div id="splash">
-        <img src="splash.png" alt="Загрузка игры">
-        <div class="splash-text">Загрузка...</div>
-    </div>
-
-    <!-- Блок авторизации -->
-    <div id="authContainer" class="auth-container">
-        <h2>🏙️ Иваново</h2>
-        <div id="loginForm">
-            <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
-            <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
-            <button id="loginBtn" class="action-btn" style="width:100%">Войти</button>
-            <div class="switch-link" id="showRegisterLink">Нет аккаунта? Зарегистрироваться</div>
-            <div id="authError" class="error-msg"></div>
-        </div>
-        <div id="registerForm" style="display: none;">
-            <input type="text" id="regNick" placeholder="Ваш игровой ник" autocomplete="off">
-            <input type="email" id="regEmail" placeholder="Email" autocomplete="email">
-            <input type="password" id="regPassword" placeholder="Пароль" autocomplete="new-password">
-            <button id="registerBtn" class="action-btn" style="width:100%">Зарегистрироваться</button>
-            <div class="switch-link" id="showLoginLink">Уже есть аккаунт? Войти</div>
-            <div id="regError" class="error-msg"></div>
-        </div>
-    </div>
-
-    <!-- Игровой контейнер (две колонки) -->
-    <div id="gameContainer" class="game-container">
-        <!-- Левая колонка -->
-        <div class="game-left" id="locationContainer">
-            <div class="location-bg" id="locationBg">
-                <img id="locationBgImg" src="images/church_bg.jpg" alt="Фон локации">
-            </div>
-            <div class="location-name" id="locationName">Церковь</div>
-            <div class="location-zones" id="locationZones"></div>
-        </div>
-
-        <!-- Правая колонка -->
-        <div class="game-right">
-            <img class="avatar-gif" id="avatarGif" src="images/hero2.png" alt="Персонаж"> 
-            <div id="playerNick" class="player-nick">Игрок</div>
-            <div id="timeWeatherPanel" class="time-weather">--:-- | --° | ☀️</div>
-
-            <div class="stats-panel">
-                <div class="stat"><div class="stat-header"><span>❤️ Здоровье</span><span id="healthValue">100 / 100</span></div><div class="stat-bar"><div class="stat-fill health-fill" id="healthFill" style="width: 100%"></div></div></div>
-                <div class="stat"><div class="stat-header"><span>🍗 Голод</span><span id="hungerValue">100 / 100</span></div><div class="stat-bar"><div class="stat-fill hunger-fill" id="hungerFill" style="width: 100%"></div></div></div>
-                <div class="stat"><div class="stat-header"><span>🔥 Тепло</span><span id="coldValue">100 / 100</span></div><div class="stat-bar"><div class="stat-fill cold-fill" id="coldFill" style="width: 100%"></div></div></div>
-             <div class="money">
-    💰 Деньги: <span id="moneyValue">500</span> ₽
-    <span id="dailyBonusIndicator" class="bonus-indicator" style="display: none;" title="Ежедневный бонус доступен! Получить">🎁</span>
+<div class="stats-panel">
+    <div class="stat"><div class="stat-header"><span>❤️ Здоровье</span><span id="healthValue">100 / 100</span></div><div class="stat-bar"><div class="stat-fill health-fill" id="healthFill" style="width: 100%"></div></div></div>
+    <div class="stat"><div class="stat-header"><span>🍗 Голод</span><span id="hungerValue">100 / 100</span></div><div class="stat-bar"><div class="stat-fill hunger-fill" id="hungerFill" style="width: 100%"></div></div></div>
+    <div class="stat"><div class="stat-header"><span>🔥 Тепло</span><span id="coldValue">100 / 100</span></div><div class="stat-bar"><div class="stat-fill cold-fill" id="coldFill" style="width: 100%"></div></div></div>
+    <div class="money">💰 Деньги: <span id="moneyValue">500</span> ₽ <span id="dailyBonusIndicator" class="bonus-indicator" style="display: none;" title="Ежедневный бонус доступен! Получить">🎁</span></div>
 </div>
-            </div>
 
-            <!-- Шкала энергии -->
-            <div class="stats-panel" style="margin-top: 0; padding: 12px 16px;">
-                <div class="stat">
-                    <div class="stat-header">
-                        <span>⚡ Энергия</span>
-                        <span id="energyValue">100 / 100</span>
-                    </div>
-                    <div class="stat-bar">
-                        <div class="stat-fill energy-fill" id="energyFill" style="width: 100%; background: #f1c40f;"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="exp-panel">
-                <div class="exp-header">⭐ Уровень <span id="levelValue">1</span></div>
-                <div class="exp-bar"><div class="exp-fill" id="expFill" style="width: 0%"></div></div>
-                <div class="exp-text"><span id="expValue">0</span> / <span id="expRequired">100</span> опыта</div>
-            </div>
-
-            <div class="log-container">
-                <div class="log-header">📋 История действий</div>
-                <div id="logPanel" class="log-panel"></div>
-            </div>
-
-            <div class="action-buttons">
-                <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
-                <button class="action-btn" id="mapBtn">🗺️ Карта</button>
-                <button class="action-btn" id="shopBtn">🏪 Магазин</button>
-                <button class="action-btn" id="myOffersBtn">
-                    💼 Мои предложения
-                    <span id="tradeNotification" class="trade-notification" style="display: none;">
-                        <span class="trade-count"></span>!
-                    </span>
-                </button>
-                <button class="action-btn" id="topPlayersBtn">🏆 Топ игроков</button>
-                <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
-            </div>
-            <div class="settings-item">
-                <button id="themeToggle" class="reset-btn">🌓 Тема</button>
-                <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
-            </div>
+<!-- Шкала энергии -->
+<div class="stats-panel" style="margin-top: 0; padding: 12px 16px;">
+    <div class="stat">
+        <div class="stat-header">
+            <span>⚡ Энергия</span>
+            <span id="energyValue">100 / 100</span>
         </div>
-    </div>
-
-    <!-- Модальное окно для топа игроков -->
-    <div id="topModal" class="modal">
-        <div class="modal-content" style="max-width: 700px; width: 90%;">
-            <h3 style="text-align:center; margin-bottom:12px;">🏆 Топ игроков</h3>
-            <div id="topPlayersList" class="players-list" style="max-height: 500px; overflow-y: auto;"></div>
-            <div style="text-align: center; margin-top: 16px;">
-                <button id="refreshTopBtn" style="background: var(--buy-btn-bg); border: none; padding: 8px 20px; border-radius: 40px; color: white; cursor: pointer; font-size: 0.9rem;">🔄 Обновить</button>
-                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text); border: none; padding: 8px 20px; border-radius: 40px; cursor: pointer; font-size: 0.9rem; margin-left: 12px;">Закрыть</button>
-            </div>
+        <div class="stat-bar">
+            <div class="stat-fill energy-fill" id="energyFill" style="width: 100%; background: #f1c40f;"></div>
         </div>
-    </div>
-
-    <!-- Модальное окно для предложения обмена -->
-    <div id="tradeOfferModal" class="modal">
-        <div class="modal-content" style="max-width: 900px; width: 90%;">
-            <h3>💼 Предложить обмен</h3>
-            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
-                <div style="flex: 1;">
-                    <strong>📦 Я отдаю:</strong>
-                    <div id="tradeFromItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
-                    <div class="selected-items" style="margin-top: 10px;">
-                        <strong>Выбрано:</strong>
-                        <div id="tradeSelectedFrom" class="selected-items-list"></div>
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <label>💰 Деньги: <input type="number" id="tradeFromMoney" min="0" value="0" style="width: 100px;"></label>
-                    </div>
-                </div>
-                <div style="flex: 1;">
-                    <strong>🎁 Я получаю:</strong>
-                    <div id="tradeToItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
-                    <div class="selected-items" style="margin-top: 10px;">
-                        <strong>Выбрано:</strong>
-                        <div id="tradeSelectedTo" class="selected-items-list"></div>
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <label>💰 Деньги: <input type="number" id="tradeToMoney" min="0" value="0" style="width: 100px;"></label>
-                    </div>
-                </div>
-            </div>
-            <div style="text-align: center; margin-top: 20px;">
-                <button id="sendTradeBtn" class="action-btn">📤 Отправить предложение</button>
-                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно "Мои предложения" -->
-    <div id="myOffersModal" class="modal">
-        <div class="modal-content" style="max-width: 700px; width: 90%;">
-            <h3>💼 Мои предложения обмена</h3>
-            <div id="myOffersList" class="inventory-grid" style="max-height: 500px; overflow-y: auto;"></div>
-            <div style="text-align: center; margin-top: 16px;">
-                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Остальные модальные окна без изменений -->
-<div id="inventoryModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <div style="display:flex; gap:16px;">
-                <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
-                <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
-            </div>
-            <div style="display:flex; gap:16px; align-items: center;">
-                <div id="equipmentTotalBonus" class="equipment-total-bonus-inline" style="font-size:0.8rem; color: var(--accent-gold);">🔥 +0</div>
-                <div id="inventoryPageInfo" class="page-info" style="font-size:0.85rem;">Страница 1 / 1</div>
-            </div>
-        </div>
-        <div id="itemsTab" class="inventory-grid"></div>
-        <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
-        <button class="close-modal">Закрыть</button>
     </div>
 </div>
 
-    <div id="mapModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <h3>🗺️ Карта города Иваново</h3>
-            <div id="mapContainer" class="map-container"></div>
-            <button class="close-modal">Закрыть</button>
+<!-- Шкала опьянения -->
+<div class="stats-panel" style="margin-top: 0; padding: 12px 16px;">
+    <div class="stat">
+        <div class="stat-header">
+            <span>🍺 Опьянение</span>
+            <span id="intoxicationValue">0 / 100</span>
         </div>
-    </div>
-
-    <div id="locationModal" class="modal">
-        <div class="modal-content" id="locationModalContent"></div>
-    </div>
-
-  <div id="shopModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <div style="display:flex; gap:16px;">
-                <button class="tab-btn active" data-shop-tab="buy">🛍️ Купить</button>
-                <button class="tab-btn" data-shop-tab="sell">💰 Продать</button>
-            </div>
-            <div id="shopMoneyInfo" class="shop-money-info" style="font-size:0.85rem; color: var(--accent-gold);">💰 Деньги: <span id="shopMoneyValue">0</span>₽</div>
+        <div class="stat-bar">
+            <div class="stat-fill" id="intoxicationFill" style="width: 0%; background: #2ecc71;"></div>
         </div>
-        <div id="shopBuyTab" class="inventory-grid"></div>
-        <div id="shopSellTab" class="inventory-grid" style="display: none;"></div>
-        <button class="close-modal">Закрыть</button>
     </div>
 </div>
-
-    <!-- Модальное окно для случайных событий -->
-    <div id="eventModal" class="modal">
-        <div class="modal-content" id="eventModalContent" style="max-width: 450px; text-align: center;">
-            <!-- Содержимое заполняется динамически -->
-        </div>
-    </div>
-
-    <!-- Модальное окно "Об авторе" -->
-    <div id="aboutModal" class="modal">
-        <div class="modal-content about-content">
-            <div class="about-header">
-                <span id="closeAboutModal" class="close-about">&times;</span>
-            </div>
-            <img src="images/about_image.png" alt="Efich" class="about-image" onerror="this.src='https://via.placeholder.com/200?text=Efich'">
-            <div class="about-text pixel-text">
-                🆕 Хей, народ! 🆕<br><br>
-                Мы — креативная команда из Иваново, и мы в деле!<br>
-                Создаём игру, которая будет огонь! 🔥<br><br>
-                Играйте! Если у вас будут пожелания или вопросы,<br>
-                то пишите нам на почту:<br>
-                📧 <span class="about-email">2001roker@mail.ru</span><br><br>
-                Давай зажигать вместе! 🎮😎
-            </div>
-            <button class="close-modal about-close-btn">Закрыть</button>
-        </div>
-    </div>
-    
-   <div class="global-footer">
-    <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
-    <p>RPG-Иваново · Альфа 0.0.19 · Ежедневный бонус</p>
-</div>
-
-    <script type="module" src="js/main.js"></script>
-</body>
-</html>
