@@ -1,5 +1,5 @@
 // js/timeWeather.js
-import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon, health, hunger, cold, maxHealth, maxHunger, maxCold, updateUI, setStats, addLogEntry, money } from './gameState.js';
+import { accumulatedMinutes, currentWeather, currentTemperature, setTimeWeather, getCurrentTimeString, getWeatherIcon, getTimeOfDayIcon, health, hunger, cold, maxHealth, maxHunger, maxCold, updateUI, setStats, addLogEntry, money, intoxication, reduceIntoxication } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { updateDarkness, updateWeatherEffects } from './weatherEffects.js';
@@ -59,6 +59,20 @@ function calculateTemperature(weather, totalMinutes) {
     if (weather === 'rain' && baseTemp < 0) baseTemp = 1;
     
     return Math.round(Math.min(28, Math.max(-15, baseTemp)));
+}
+
+// Выветривание опьянения (каждые 3 минуты)
+function applyIntoxicationDecay() {
+    if (intoxication > 0) {
+        const decayAmount = 1;
+        reduceIntoxication(decayAmount);
+        if (intoxication > 0) {
+            // Не спамим в лог, только если опьянение уменьшилось значительно
+            if (Math.floor(intoxication) % 10 === 0) {
+                addLogEntry(`🍺 Опьянение уменьшилось до ${Math.floor(intoxication)}%`, 'system');
+            }
+        }
+    }
 }
 
 // Применение эффектов погоды на характеристики (вызывается каждые 30 секунд)
@@ -259,9 +273,10 @@ export function startTimeWeatherUpdates() {
         updateTimeWeather();
     }, 10000);
     
-    // Эффекты погоды на характеристики (каждые 30 секунд)
+    // Эффекты погоды на характеристики и выветривание опьянения (каждые 30 секунд)
     effectsInterval = setInterval(() => {
         applyWeatherEffects();
+        applyIntoxicationDecay();
     }, 30000);
 }
 
