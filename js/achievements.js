@@ -227,30 +227,103 @@ function showAchievementNotification(achievement) {
     }, 4000);
 }
 
-// Рендер вкладки ачивок
+// Рендер вкладки ачивок (сетка 5x4, как в инвентаре)
 export function renderAchievementsTab() {
     const container = document.getElementById('achievementsTab');
     if (!container) return;
     
-    let html = '<div class="inventory-grid-header"><span>🏆 Достижения</span><span>🎯 Прогресс</span></div>';
-    html += '<div class="achievements-grid">';
+    let html = '<div class="inventory-grid" style="background: transparent; padding: 0;">';
     
     for (const [id, achievement] of Object.entries(achievementsDB)) {
         const isUnlocked = achievements.completed[id];
-        const unlockedClass = isUnlocked ? 'achievement-unlocked' : 'achievement-locked';
         
         html += `
-            <div class="achievement-card ${unlockedClass}">
-                <div class="achievement-card-icon">${achievement.icon}</div>
-                <div class="achievement-card-info">
-                    <div class="achievement-card-name">${achievement.name}</div>
-                    <div class="achievement-card-desc">${achievement.description}</div>
-                    ${!isUnlocked ? '<div class="achievement-card-locked">🔒 Не получено</div>' : '<div class="achievement-card-unlocked">✅ Получено!</div>'}
-                </div>
+            <div class="achievement-slot ${isUnlocked ? 'unlocked' : 'locked'}" 
+                 data-id="${id}"
+                 data-name="${achievement.name}"
+                 data-desc="${achievement.description}"
+                 data-reward-money="${achievement.reward.money || 0}"
+                 data-reward-exp="${achievement.reward.exp || 0}"
+                 data-reward-item="${achievement.reward.item || ''}">
+                <div class="achievement-icon">${achievement.icon}</div>
+                <div class="achievement-name">${achievement.name}</div>
+                ${isUnlocked ? '<div class="achievement-check">✅</div>' : '<div class="achievement-lock">🔒</div>'}
             </div>
         `;
     }
     
+    // Заполняем пустые ячейки до 20 (5x4)
+    const itemsPerPage = 20;
+    const remainingSlots = itemsPerPage - (Object.keys(achievementsDB).length % itemsPerPage);
+    if (remainingSlots < itemsPerPage) {
+        for (let i = 0; i < remainingSlots; i++) {
+            html += `<div class="achievement-slot empty-slot">❓</div>`;
+        }
+    }
+    
     html += '</div>';
     container.innerHTML = html;
+    
+    // Добавляем тултипы для ачивок
+    document.querySelectorAll('.achievement-slot:not(.empty-slot)').forEach(slot => {
+        const isUnlocked = slot.classList.contains('unlocked');
+        const name = slot.dataset.name;
+        const desc = slot.dataset.desc;
+        const rewardMoney = slot.dataset.rewardMoney;
+        const rewardExp = slot.dataset.rewardExp;
+        const rewardItem = slot.dataset.rewardItem;
+        
+        let rewardText = '';
+        if (rewardMoney > 0) rewardText += `💰 +${rewardMoney}₽ `;
+        if (rewardExp > 0) rewardText += `⭐ +${rewardExp} опыта `;
+        if (rewardItem) rewardText += `🎁 +1 ${itemsDB[rewardItem]?.name || rewardItem}`;
+        
+        slot.addEventListener('mouseenter', (e) => {
+            showAchievementTooltip(name, desc, rewardText, isUnlocked, e);
+        });
+        slot.addEventListener('mouseleave', hideAchievementTooltip);
+        slot.addEventListener('mousemove', (e) => {
+            if (activeAchievementTooltip) {
+                activeAchievementTooltip.style.left = (e.clientX + 15) + 'px';
+                activeAchievementTooltip.style.top = (e.clientY + 15) + 'px';
+            }
+        });
+    });
+}
+
+let activeAchievementTooltip = null;
+
+function showAchievementTooltip(name, desc, reward, isUnlocked, event) {
+    hideAchievementTooltip();
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'item-tooltip achievement-tooltip';
+    tooltip.innerHTML = `
+        <div class="tooltip-header">
+            <strong>${name}</strong>
+        </div>
+        <div class="tooltip-content">
+            ${desc}
+            <div class="tooltip-divider"></div>
+            <div>🎁 Награда: ${reward || 'нет'}</div>
+            <div class="tooltip-status ${isUnlocked ? 'status-unlocked' : 'status-locked'}">
+                ${isUnlocked ? '✅ Получено!' : '🔒 Ещё не получено'}
+            </div>
+        </div>
+    `;
+    
+    tooltip.style.position = 'fixed';
+    tooltip.style.left = (event.clientX + 15) + 'px';
+    tooltip.style.top = (event.clientY + 15) + 'px';
+    tooltip.style.zIndex = '10001';
+    
+    document.body.appendChild(tooltip);
+    activeAchievementTooltip = tooltip;
+}
+
+function hideAchievementTooltip() {
+    if (activeAchievementTooltip && activeAchievementTooltip.remove) {
+        activeAchievementTooltip.remove();
+        activeAchievementTooltip = null;
+    }
 }
