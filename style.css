@@ -1006,3 +1006,9 @@ body {
 .status-locked {
     color: #e74c3c;
 }
+
+/* Увеличиваем ширину модального окна инвентаря */
+#inventoryModal .modal-content {
+    max-width: 1000px !important;
+    width: 90% !important;
+}
