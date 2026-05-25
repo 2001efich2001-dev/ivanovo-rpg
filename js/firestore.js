@@ -19,6 +19,7 @@ export async function saveGameData() {
     const coldVal = gameState.cold ?? 100;
     const moneyVal = gameState.money ?? 200;
     const energyVal = gameState.energy ?? 100;
+    const intoxicationVal = gameState.intoxication ?? 0;
     const currentWeatherVal = gameState.currentWeather ?? 'sunny';
     const currentTemperatureVal = gameState.currentTemperature ?? 15;
     const accumulatedMinutesVal = gameState.accumulatedMinutes ?? 720;
@@ -26,6 +27,7 @@ export async function saveGameData() {
     const levelVal = gameState.level ?? 1;
     const currentLocationVal = gameState.currentLocation ?? 'church';
     const lastEnergyUpdateVal = gameState.lastEnergyUpdate ?? Date.now();
+    const lastIntoxicationUpdateVal = gameState.lastIntoxicationUpdate ?? Date.now();
     
     // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ ЕЖЕДНЕВНОГО БОНУСА =====
     const dailyBonusLastClaimVal = gameState.dailyBonusLastClaim ?? null;
@@ -47,7 +49,9 @@ export async function saveGameData() {
         experience: experienceVal,
         level: levelVal,
         energy: energyVal,
+        intoxication: intoxicationVal,
         lastEnergyUpdate: lastEnergyUpdateVal,
+        lastIntoxicationUpdate: lastIntoxicationUpdateVal,
         lastUpdated: new Date().toISOString(),
         // ===== НОВЫЕ ПОЛЯ =====
         dailyBonusLastClaim: dailyBonusLastClaimVal,
@@ -63,7 +67,7 @@ export async function loadGameData(userId) {
     
     if (docSnap.exists()) {
         const data = docSnap.data();
-        const { setStats, inventory, equipped, setTimeWeather, setActionLog, setExpData, setEnergy, updateUI, setCurrentLocation } = await import('./gameState.js');
+        const { setStats, inventory, equipped, setTimeWeather, setActionLog, setExpData, setEnergy, updateUI, setCurrentLocation, setIntoxication, setLastIntoxicationUpdate } = await import('./gameState.js');
         
         setStats(data.health ?? 100, data.hunger ?? 100, data.cold ?? 100, data.money ?? 200);
         inventory.length = 0;
@@ -73,6 +77,10 @@ export async function loadGameData(userId) {
         setActionLog(data.actionLog ?? []);
         setExpData(data.experience ?? 0, data.level ?? 1);
         setEnergy(data.energy ?? 100);
+        setIntoxication(data.intoxication ?? 0);
+        if (data.lastIntoxicationUpdate) {
+            setLastIntoxicationUpdate(data.lastIntoxicationUpdate);
+        }
         await setCurrentLocation(data.currentLocation || 'church');
         
         // ===== ЗАГРУЖАЕМ ДАННЫЕ ЕЖЕДНЕВНОГО БОНУСА =====
@@ -80,7 +88,7 @@ export async function loadGameData(userId) {
         setDailyBonusData(data.dailyBonusLastClaim ?? null, data.dailyBonusStreak ?? 0);
         
         updateUI();
-        console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak });
+        console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication });
     } else {
         const gameState = await import('./gameState.js');
         
@@ -101,7 +109,9 @@ export async function loadGameData(userId) {
         gameState.setActionLog([]);
         gameState.setExpData(0, 1);
         gameState.setEnergy(100);
+        gameState.setIntoxication(0);
         gameState.lastEnergyUpdate = Date.now();
+        gameState.lastIntoxicationUpdate = Date.now();
         await gameState.setCurrentLocation('church');
         
         // ===== ИНИЦИАЛИЗИРУЕМ ДАННЫЕ БОНУСА ДЛЯ НОВОГО АККАУНТА =====
