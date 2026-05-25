@@ -1009,6 +1009,22 @@ body {
 
 /* Увеличиваем ширину модального окна инвентаря */
 #inventoryModal .modal-content {
-    max-width: 1000px !important;
+    max-width: 850px !important;
     width: 90% !important;
+}
+/* ===== ЦЕНТРИРОВАНИЕ ВКЛАДОК ИНВЕНТАРЯ ===== */
+#inventoryModal .inventory-grid,
+#inventoryModal .equipment-grid,
+#inventoryModal .achievements-grid {
+    justify-content: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+#inventoryModal .achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(85px, 100px));
+    gap: 12px;
+    justify-content: center;
+    padding: 16px;
 }
