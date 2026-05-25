@@ -412,3 +412,8 @@ export function getDailyBonusData() {
         dailyBonusStreak
     };
 }
+
+// ========== ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ВРЕМЕНИ ОПЬЯНЕНИЯ ==========
+export function setLastIntoxicationUpdate(value) {
+    lastIntoxicationUpdate = value;
+}
