@@ -240,6 +240,7 @@ export function renderItemsTab() {
 
 // Функции useItem, equipItem, unequipItem
 async function useItem(itemId) {
+    console.trace('useItem вызван!');
     playClick();
     const itemIndex = inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Нет предмета!", "#e74c3c"); return; }
