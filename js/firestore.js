@@ -33,6 +33,15 @@ export async function saveGameData() {
     const dailyBonusLastClaimVal = gameState.dailyBonusLastClaim ?? null;
     const dailyBonusStreakVal = gameState.dailyBonusStreak ?? 0;
     
+    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ АЧИВОК =====
+    let achievementsData = null;
+    try {
+        const { getAchievementsData } = await import('./achievements.js');
+        achievementsData = getAchievementsData();
+    } catch (err) {
+        console.warn('Модуль ачивок не загружен');
+    }
+    
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
         health: healthVal,
@@ -55,9 +64,10 @@ export async function saveGameData() {
         lastUpdated: new Date().toISOString(),
         // ===== НОВЫЕ ПОЛЯ =====
         dailyBonusLastClaim: dailyBonusLastClaimVal,
-        dailyBonusStreak: dailyBonusStreakVal
+        dailyBonusStreak: dailyBonusStreakVal,
+        achievements: achievementsData
     }, { merge: true });
-    console.log("Данные сохранены");
+    console.log("Данные сохранены", { achievements: achievementsData });
 }
 
 export async function loadGameData(userId) {
@@ -86,6 +96,17 @@ export async function loadGameData(userId) {
         // ===== ЗАГРУЖАЕМ ДАННЫЕ ЕЖЕДНЕВНОГО БОНУСА =====
         const { setDailyBonusData } = await import('./dailyBonus.js');
         setDailyBonusData(data.dailyBonusLastClaim ?? null, data.dailyBonusStreak ?? 0);
+        
+        // ===== ЗАГРУЖАЕМ ДАННЫЕ АЧИВОК =====
+        if (data.achievements) {
+            try {
+                const { setAchievementsData } = await import('./achievements.js');
+                setAchievementsData(data.achievements);
+                console.log('🏆 Загружены данные достижений');
+            } catch (err) {
+                console.warn('Модуль ачивок не загружен');
+            }
+        }
         
         updateUI();
         console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication });
@@ -305,9 +326,10 @@ export async function acceptTradeOffer(offerId, userId) {
             const currentUser = window.auth?.currentUser;
             if (currentUser) {
                 await loadGameData(currentUser.uid);
-                const { renderEquipmentTab, renderItemsTab } = await import('./inventory.js');
+                const { renderEquipmentTab, renderItemsTab, initInventoryTabs } = await import('./inventory.js');
                 renderItemsTab();
                 renderEquipmentTab();
+                initInventoryTabs();
             }
             
             // Снимаем блокировку через 5 секунд
