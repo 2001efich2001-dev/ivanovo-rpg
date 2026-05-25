@@ -1,6 +1,7 @@
 import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
+import { renderAchievementsTab } from './achievements.js';
 
 // Переменные для пагинации
 let currentPage = 0;
@@ -419,4 +420,55 @@ export function recalcColdFromEquipment() {
 
 export function resetInventoryPage() {
     currentPage = 0;
+}
+
+// ========== АЧИВКИ ==========
+export function renderAchievementsTabWrapper() {
+    renderAchievementsTab();
+}
+
+// Обновляем initInventoryTabs для поддержки новой вкладки
+export function initInventoryTabs() {
+    const modal = document.getElementById('inventoryModal');
+    if (!modal) return;
+    const tabs = modal.querySelectorAll('.tab-btn');
+    const itemsTab = document.getElementById('itemsTab');
+    const equipmentTab = document.getElementById('equipmentTab');
+    const achievementsTab = document.getElementById('achievementsTab');
+    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab) return;
+    
+    tabs.forEach(tab => { tab.removeEventListener('click', tab._listener); });
+    
+    const switchTab = (tab) => {
+        playClick();
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        if (tab.dataset.tab === 'items') {
+            itemsTab.style.display = 'flex';
+            equipmentTab.style.display = 'none';
+            achievementsTab.style.display = 'none';
+            renderItemsTab();
+        } else if (tab.dataset.tab === 'equipment') {
+            itemsTab.style.display = 'none';
+            equipmentTab.style.display = 'flex';
+            achievementsTab.style.display = 'none';
+            renderEquipmentTab();
+        } else if (tab.dataset.tab === 'achievements') {
+            itemsTab.style.display = 'none';
+            equipmentTab.style.display = 'none';
+            achievementsTab.style.display = 'flex';
+            renderAchievementsTab();
+        }
+    };
+    
+    tabs.forEach(tab => {
+        const handler = () => switchTab(tab);
+        tab.addEventListener('click', handler);
+        tab._listener = handler;
+    });
+    
+    const activeTab = modal.querySelector('.tab-btn.active');
+    if (activeTab) switchTab(activeTab);
+    else if (tabs[0]) switchTab(tabs[0]);
 }
