@@ -1,7 +1,7 @@
 // js/main.js
 import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback } from './gameState.js';
 import { initAuth, auth } from './auth.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB } from './inventory.js';
+import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
@@ -10,6 +10,7 @@ import { logAction, showMessage } from './utils.js';
 import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
+import { setAchievementsData, checkAchievements } from './achievements.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -105,38 +106,6 @@ function hideSplash() {
 }
 
 window.hideSplashOnError = () => hideSplash();
-
-function initInventoryTabs() {
-    const modal = document.getElementById('inventoryModal');
-    if (!modal) return;
-    const tabs = modal.querySelectorAll('.tab-btn');
-    const itemsTab = document.getElementById('itemsTab');
-    const equipmentTab = document.getElementById('equipmentTab');
-    if (!tabs.length || !itemsTab || !equipmentTab) return;
-    tabs.forEach(tab => { tab.removeEventListener('click', tab._listener); });
-    const switchTab = (tab) => {
-        playClick();
-        tabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        if (tab.dataset.tab === 'items') {
-            itemsTab.style.display = 'flex';
-            equipmentTab.style.display = 'none';
-            renderItemsTab();
-        } else {
-            itemsTab.style.display = 'none';
-            equipmentTab.style.display = 'flex';
-            renderEquipmentTab();
-        }
-    };
-    tabs.forEach(tab => {
-        const handler = () => switchTab(tab);
-        tab.addEventListener('click', handler);
-        tab._listener = handler;
-    });
-    const activeTab = modal.querySelector('.tab-btn.active');
-    if (activeTab) switchTab(activeTab);
-    else if (tabs[0]) switchTab(tabs[0]);
-}
 
 function onLocationChanged(newLocationId) {
     console.log(`Смена локации на: ${newLocationId}`);
@@ -626,7 +595,7 @@ function setupRealTimeUpdates(userId) {
         
         try {
             const { setStats, inventory, equipped, setExpData, setEnergy, setTimeWeather, setActionLog, setCurrentLocation, updateUI } = await import('./gameState.js');
-            const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
+            const { renderItemsTab, renderEquipmentTab, initInventoryTabs } = await import('./inventory.js');
             const { renderLocation } = await import('./locations.js');
             
             setStats(newData.health, newData.hunger, newData.cold, newData.money);
@@ -642,6 +611,7 @@ function setupRealTimeUpdates(userId) {
             updateUI();
             renderItemsTab();
             renderEquipmentTab();
+            initInventoryTabs();
             renderLocation(newData.currentLocation || 'church');
             
             showMessage('🔄 Данные синхронизированы после обмена', '#4caf50');
@@ -725,6 +695,29 @@ function setupAboutModal() {
     }
 }
 
+// ========== АЧИВКИ ==========
+async function initAchievements() {
+    try {
+        const { setAchievementsData: setData, checkAchievements: check } = await import('./achievements.js');
+        
+        // Загружаем данные ачивок из Firestore
+        const user = auth.currentUser;
+        if (user) {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists() && userDoc.data().achievements) {
+                setData(userDoc.data().achievements);
+            }
+        }
+        
+        // Проверяем ачивки при старте
+        await check();
+        
+        console.log('🏆 Система достижений инициализирована');
+    } catch (err) {
+        console.error('Ошибка инициализации ачивок:', err);
+    }
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
@@ -750,6 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (user) {
             setupRealTimeUpdates(user.uid);
+            initAchievements(); // Инициализируем ачивки
         }
         
         renderItemsTab();
