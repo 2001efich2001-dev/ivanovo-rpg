@@ -208,7 +208,6 @@ export function renderShopSellTab() {
 
 // Покупка предмета
 async function buyItem(itemId) {
-    console.log('ПРЕДМЕТ ДОБАВЛЕН В ИНВЕНТАРЬ, НО НЕ ИСПОЛЬЗОВАН');
     const item = itemsDB[itemId];
     if (!item) return;
     
@@ -222,16 +221,18 @@ async function buyItem(itemId) {
         }
         setStats(health, hunger, cold, newMoney);
         await saveGameData();
-        showMessage(`✅ Куплено: ${item.name}`, '#4caf50');
+        showMessage(`✅ Куплено: ${item.name}. Предмет добавлен в инвентарь.`, '#4caf50');
         logAction(`Куплен предмет: ${item.name} за ${item.price}₽`, 'economy');
         
+        // Обновляем обе вкладки магазина
         renderShopBuyTab();
         renderShopSellTab();
         updateShopMoneyDisplay();
         
-        const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
-        renderItemsTab();
-        renderEquipmentTab();
+        // НЕ ОБНОВЛЯЕМ ИНВЕНТАРЬ — он обновится сам при открытии
+        // const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
+        // renderItemsTab();
+        // renderEquipmentTab();
     } else {
         showMessage(`❌ Не хватает денег! Нужно ${item.price}₽`, '#e74c3c');
     }
@@ -264,7 +265,9 @@ async function sellItem(itemId) {
     renderShopSellTab();
     updateShopMoneyDisplay();
     
-    const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
-    renderItemsTab();
-    renderEquipmentTab();
+   
+    // Убираем эти строки:
+    // const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
+    // renderItemsTab();
+    // renderEquipmentTab();
 }
