@@ -208,6 +208,7 @@ export function renderShopSellTab() {
 
 // Покупка предмета
 async function buyItem(itemId) {
+    console.log('ПРЕДМЕТ ДОБАВЛЕН В ИНВЕНТАРЬ, НО НЕ ИСПОЛЬЗОВАН');
     const item = itemsDB[itemId];
     if (!item) return;
     
