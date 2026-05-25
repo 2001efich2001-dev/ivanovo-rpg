@@ -14,6 +14,11 @@ export let energy = 100;
 export let maxEnergy = 100;
 export let lastEnergyUpdate = Date.now();
 
+// ========== ОПЬЯНЕНИЕ ==========
+export let intoxication = 0;
+export let maxIntoxication = 100;
+export let lastIntoxicationUpdate = Date.now();
+
 export let inventory = [];
 export let equipped = { head: null, body: null, legs: null, feet: null };
 
@@ -41,11 +46,13 @@ export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
 export let energyValueSpan, energyFill;
+export let intoxicationValueSpan, intoxicationFill;
 
 let onLocationChangeCallback = null;
 let onLogUpdateCallback = null;
 let onExpUpdateCallback = null;
 let onEnergyUpdateCallback = null;
+let onIntoxicationUpdateCallback = null;
 
 export function initDOM() {
     healthValueSpan = document.getElementById('healthValue');
@@ -63,6 +70,9 @@ export function initDOM() {
     
     energyValueSpan = document.getElementById('energyValue');
     energyFill = document.getElementById('energyFill');
+    
+    intoxicationValueSpan = document.getElementById('intoxicationValue');
+    intoxicationFill = document.getElementById('intoxicationFill');
 }
 
 export function updateUI() {
@@ -73,6 +83,7 @@ export function updateUI() {
     const safeEnergy = isNaN(energy) ? 100 : energy;
     const safeExp = isNaN(experience) ? 0 : experience;
     const safeLevel = isNaN(level) ? 1 : level;
+    const safeIntoxication = isNaN(intoxication) ? 0 : intoxication;
     
     if (healthValueSpan) healthValueSpan.innerText = `${Math.floor(safeHealth)} / ${maxHealth}`;
     if (hungerValueSpan) hungerValueSpan.innerText = `${Math.floor(safeHunger)} / ${maxHunger}`;
@@ -89,6 +100,22 @@ export function updateUI() {
     
     if (energyValueSpan) energyValueSpan.innerText = `${Math.floor(safeEnergy)} / ${maxEnergy}`;
     if (energyFill) energyFill.style.width = (safeEnergy / maxEnergy) * 100 + '%';
+    
+    // Обновляем шкалу опьянения с изменением цвета
+    if (intoxicationValueSpan) intoxicationValueSpan.innerText = `${Math.floor(safeIntoxication)} / ${maxIntoxication}`;
+    if (intoxicationFill) {
+        intoxicationFill.style.width = (safeIntoxication / maxIntoxication) * 100 + '%';
+        // Меняем цвет в зависимости от уровня
+        if (safeIntoxication < 20) {
+            intoxicationFill.style.background = '#2ecc71';
+        } else if (safeIntoxication < 50) {
+            intoxicationFill.style.background = '#f39c12';
+        } else if (safeIntoxication < 80) {
+            intoxicationFill.style.background = '#e67e22';
+        } else {
+            intoxicationFill.style.background = '#e74c3c';
+        }
+    }
 }
 
 export function setStats(h, hu, c, m) {
@@ -99,6 +126,7 @@ export function setStats(h, hu, c, m) {
     updateUI();
 }
 
+// ========== Функции для энергии ==========
 export function setEnergyUpdateCallback(callback) {
     onEnergyUpdateCallback = callback;
 }
@@ -150,6 +178,100 @@ export function spendEnergy(cost) {
     return false;
 }
 
+// ========== Функции для опьянения ==========
+export function setIntoxicationUpdateCallback(callback) {
+    onIntoxicationUpdateCallback = callback;
+}
+
+// Обновление опьянения (выветривание)
+export function updateIntoxication() {
+    const now = Date.now();
+    const secondsPassed = (now - lastIntoxicationUpdate) / 1000;
+    // -1 опьянения каждые 3 минуты (180 секунд)
+    const intoxicationToRemove = Math.floor(secondsPassed / 180);
+    if (intoxicationToRemove > 0 && intoxication > 0) {
+        intoxication = Math.max(0, intoxication - intoxicationToRemove);
+        lastIntoxicationUpdate = now;
+        updateUI();
+        if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
+        import('./firestore.js').then(m => {
+            if (typeof m.saveGameData === 'function') m.saveGameData();
+        });
+    }
+}
+
+// Добавление опьянения
+export function addIntoxication(amount) {
+    const safeAmount = isNaN(amount) ? 0 : amount;
+    intoxication = Math.min(maxIntoxication, intoxication + safeAmount);
+    lastIntoxicationUpdate = Date.now();
+    updateUI();
+    
+    // Логируем достижения
+    if (intoxication >= 80 && intoxication - safeAmount < 80) {
+        addLogEntry(`🍺 Ты в стельку! Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
+        showMessage(`🥴 Ты очень пьян! Осторожнее...`, '#e74c3c');
+    } else if (intoxication >= 50 && intoxication - safeAmount < 50) {
+        addLogEntry(`🥴 Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
+    } else if (intoxication >= 100) {
+        addLogEntry(`💀 Отключка! Опьянение 100%`, 'system');
+    }
+    
+    if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
+}
+
+// Уменьшение опьянения (лечение, сон)
+export function reduceIntoxication(amount) {
+    const safeAmount = isNaN(amount) ? 0 : amount;
+    intoxication = Math.max(0, intoxication - safeAmount);
+    lastIntoxicationUpdate = Date.now();
+    updateUI();
+    if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
+}
+
+// Получить модификатор шанса для действий (чем выше опьянение, тем ниже шанс)
+export function getIntoxicationLuckModifier() {
+    if (intoxication < 20) return 1.0;      // норма
+    if (intoxication < 50) return 0.9;      // -10% к шансу
+    if (intoxication < 80) return 0.7;      // -30% к шансу
+    return 0.5;                              // -50% к шансу
+}
+
+// Получить модификатор урона для здоровья
+export function getIntoxicationDamageModifier() {
+    if (intoxication < 20) return 1.0;      // норма
+    if (intoxication < 50) return 1.2;      // +20% урона
+    if (intoxication < 80) return 1.5;      // +50% урона
+    return 2.0;                              // +100% урона
+}
+
+// Проверка, можно ли выполнить действие (при сильном опьянении)
+export function canPerformAction(actionName = 'действие') {
+    updateIntoxication();
+    if (intoxication >= 80) {
+        const randomFail = Math.random();
+        if (randomFail < 0.3) {
+            showMessage(`🥴 Ты слишком пьян, чтобы ${actionName}!`, '#e74c3c');
+            addLogEntry(`❌ Не удалось ${actionName} из-за сильного опьянения`, 'system');
+            return false;
+        }
+    }
+    return true;
+}
+
+// Принудительная установка опьянения (при загрузке)
+export function setIntoxication(newIntoxication) {
+    const safeIntoxication = Number(newIntoxication);
+    if (isNaN(safeIntoxication)) {
+        intoxication = 0;
+    } else {
+        intoxication = Math.min(maxIntoxication, Math.max(0, safeIntoxication));
+    }
+    lastIntoxicationUpdate = Date.now();
+    updateUI();
+}
+
+// ========== Функции для опыта и уровней ==========
 function calculateRequiredExp(lvl) {
     return Math.floor(100 * Math.pow(1.2, lvl - 1));
 }
@@ -223,7 +345,6 @@ export function setTimeWeather(minutes, weather, temp) {
     currentWeather = safeWeather;
     currentTemperature = safeTemp;
     
-    // Обновляем UI времени, если функция уже загружена
     if (typeof window.updateTimeWeatherUIFn === 'function') {
         window.updateTimeWeatherUIFn();
     } else {
