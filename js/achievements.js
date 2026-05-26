@@ -4,6 +4,9 @@ import { saveGameData } from './firestore.js';
 import { addExperience, money, setStats, inventory, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
 
+// Флаг для первичной проверки
+let initialCheckDone = false;
+
 // ========== БАЗА ДАННЫХ АЧИВОК ==========
 export const achievementsDB = {
     first_blood: {
@@ -132,7 +135,15 @@ export async function updateAchievementStats(statName, value = 1) {
 }
 
 // Проверка и выдача ачивок
-export async function checkAchievements() {
+export async function checkAchievements(force = false) {
+    // При первом вызове после загрузки страницы проверяем всё
+    // Но не показываем уведомления для уже полученных
+    if (!force && initialCheckDone) {
+        console.log('⚠️ Повторная проверка ачивок заблокирована');
+        return;
+    }
+    initialCheckDone = true;
+    
     const stats = {
         money: (await import('./gameState.js')).money,
         totalAlcoholConsumed: achievements.stats.totalAlcoholConsumed,
@@ -143,12 +154,18 @@ export async function checkAchievements() {
         maxIntoxication: achievements.stats.maxIntoxication
     };
     
+    console.log('🔍 Проверка ачивок, уже полученные:', Object.keys(achievements.completed));
+    
     for (const [id, achievement] of Object.entries(achievementsDB)) {
-        // Пропускаем уже полученные
-        if (achievements.completed[id]) continue;
+        const isCompleted = !!achievements.completed[id];
+        const conditionMet = achievement.checkCondition(stats);
         
-        // Проверяем условие
-        if (achievement.checkCondition(stats)) {
+        console.log(`🔍 ${id}: получена=${isCompleted}, условие=${conditionMet}`);
+        
+        if (isCompleted) continue;
+        
+        if (conditionMet) {
+            console.log(`🏆 Условие выполнено! Выдаём ${id}`);
             await unlockAchievement(id, achievement);
         }
     }
@@ -156,7 +173,13 @@ export async function checkAchievements() {
 
 // Выдача ачивки
 async function unlockAchievement(id, achievement) {
-    console.log(`🏆 Ачивка разблокирована: ${achievement.name}`);
+    // Жёсткая защита от повторного получения
+    if (achievements.completed[id]) {
+        console.log(`🔒 Ачивка "${achievement.name}" уже есть, пропускаем повторную выдачу`);
+        return;
+    }
+    
+    console.log(`🏆 Новая ачивка: ${achievement.name}`);
     
     // Отмечаем как полученную
     achievements.completed[id] = Date.now();
@@ -204,6 +227,12 @@ async function unlockAchievement(id, achievement) {
 
 // Показать уведомление о получении ачивки
 function showAchievementNotification(achievement) {
+    // Проверяем, что ачивка действительно только что получена
+    if (!achievements.completed[achievement.id]) {
+        console.log('⚠️ Не показываем уведомление для ещё не полученной ачивки');
+        return;
+    }
+    
     const notification = document.createElement('div');
     notification.className = 'achievement-notification';
     notification.innerHTML = `
