@@ -1028,11 +1028,11 @@ body {
     justify-content: center;
     padding: 16px;
 }
-/* ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" (РАСШИРЕННОЕ) ===== */
+/* ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" (ОБНОВЛЁННОЕ) ===== */
 #aboutModal .modal-content {
-    max-width: 1000px !important;
+    max-width: 600px !important;
     width: 90% !important;
-    padding: 20px !important;
+    padding: 24px !important;
 }
 
 #aboutModal .about-content {
@@ -1040,55 +1040,90 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 16px;
+    position: relative;
+}
+
+/* Скрываем старый крестик */
+#aboutModal .close-about {
+    display: none !important;
 }
 
 #aboutModal .about-image {
     width: 100%;
-    max-width: 400px;
+    max-width: 350px;
     height: auto;
     aspect-ratio: 1 / 1;
     object-fit: cover;
-    margin: 0 auto;
-    border-radius: 20px;
+    margin: 8px auto;
+    border-radius: 24px;
+    border: 3px solid var(--accent-gold);
 }
 
 #aboutModal .about-text {
     width: 100%;
     padding: 20px;
-    font-size: 14px;
+    font-size: 1rem;
     line-height: 1.8;
     text-align: center;
+    background: var(--stat-bg);
+    border-radius: 32px;
 }
 
 #aboutModal .pixel-text {
-    font-size: 12px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    line-height: 1.8;
 }
 
 #aboutModal .about-email {
-    display: inline-block;
-    margin-top: 8px;
+    color: var(--accent-gold);
+    text-decoration: underline;
     word-break: break-all;
+    display: inline-block;
+    margin-top: 12px;
+    font-size: 1rem;
 }
 
 #aboutModal .about-close-btn {
-    margin-top: 8px;
-    padding: 10px 24px;
+    margin-top: 16px;
+    padding: 12px 28px;
     width: auto;
-    min-width: 120px;
+    min-width: 140px;
+    background: var(--buy-btn-bg);
+    border: none;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: 0.05s linear;
+}
+
+#aboutModal .about-close-btn:active {
+    transform: translateY(2px);
 }
 
 /* Адаптация для мобильных */
 @media (max-width: 768px) {
     #aboutModal .modal-content {
         max-width: 95% !important;
+        padding: 16px !important;
     }
     
     #aboutModal .about-text {
         padding: 16px;
-        font-size: 12px;
     }
     
     #aboutModal .pixel-text {
-        font-size: 9px;
+        font-size: 10px;
+    }
+    
+    #aboutModal .about-email {
+        font-size: 0.9rem;
+    }
+    
+    #aboutModal .about-close-btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
     }
 }
