@@ -1,12 +1,14 @@
 // js/weatherEffects.js
 
-import { accumulatedMinutes, currentWeather } from './gameState.js';
+import { accumulatedMinutes, currentWeather, intoxication } from './gameState.js';
 
 let darkOverlay = null;
 let particlesCanvas = null;
 let animationId = null;
 let particles = [];
 let currentEffectType = null;
+let intoxicationAnimationId = null;
+let lastIntoxicationLevel = 0;
 
 // Принудительное обновление размеров canvas
 function resizeCanvas() {
@@ -65,7 +67,11 @@ export function createWeatherLayers(container) {
     setTimeout(() => {
         updateDarkness();
         updateWeatherEffects();
+        updateIntoxicationEffects();
     }, 30);
+    
+    // Запускаем анимацию эффектов опьянения
+    startIntoxicationEffects();
 }
 
 // Удаление слоёв
@@ -73,6 +79,7 @@ export function removeWeatherLayers() {
     if (darkOverlay && darkOverlay.remove) darkOverlay.remove();
     if (particlesCanvas && particlesCanvas.remove) particlesCanvas.remove();
     stopParticleAnimation();
+    stopIntoxicationEffects();
     darkOverlay = null;
     particlesCanvas = null;
 }
@@ -211,9 +218,82 @@ export function updateWeatherEffects() {
     }
 }
 
+// ========== ЭФФЕКТЫ ОПЬЯНЕНИЯ ==========
+function updateIntoxicationEffects() {
+    const container = document.getElementById('gameContainer');
+    if (!container) return;
+    
+    const intoLevel = intoxication || 0;
+    
+    // Сбрасываем эффекты, если опьянения нет
+    if (intoLevel < 20) {
+        container.style.filter = 'none';
+        container.style.transform = 'none';
+        return;
+    }
+    
+    // Размытие в зависимости от уровня
+    let blurAmount = 0;
+    let rotationAmount = 0;
+    let hueRotate = 0;
+    
+    if (intoLevel >= 80) {
+        blurAmount = 3;
+        rotationAmount = 0.5;
+        hueRotate = 15;
+    } else if (intoLevel >= 50) {
+        blurAmount = 2;
+        rotationAmount = 0.3;
+        hueRotate = 8;
+    } else if (intoLevel >= 20) {
+        blurAmount = 1;
+        rotationAmount = 0.1;
+        hueRotate = 3;
+    }
+    
+    // Добавляем эффект "покачивания" при высоком опьянении
+    let shakeX = 0;
+    let shakeY = 0;
+    if (intoLevel >= 70) {
+        shakeX = (Math.random() - 0.5) * 2;
+        shakeY = (Math.random() - 0.5) * 1;
+    }
+    
+    container.style.filter = `blur(${blurAmount}px) hue-rotate(${hueRotate}deg)`;
+    container.style.transform = `translate(${shakeX}px, ${shakeY}px)`;
+}
+
+// Запуск анимации эффектов опьянения
+function startIntoxicationEffects() {
+    if (intoxicationAnimationId) {
+        cancelAnimationFrame(intoxicationAnimationId);
+    }
+    
+    function animate() {
+        updateIntoxicationEffects();
+        intoxicationAnimationId = requestAnimationFrame(animate);
+    }
+    
+    animate();
+}
+
+function stopIntoxicationEffects() {
+    if (intoxicationAnimationId) {
+        cancelAnimationFrame(intoxicationAnimationId);
+        intoxicationAnimationId = null;
+    }
+    
+    const container = document.getElementById('gameContainer');
+    if (container) {
+        container.style.filter = 'none';
+        container.style.transform = 'none';
+    }
+}
+
 // Остановка всех эффектов (при выходе из игры)
 export function stopWeatherEffects() {
     stopParticleAnimation();
+    stopIntoxicationEffects();
     if (particlesCanvas) {
         const ctx = particlesCanvas.getContext('2d');
         if (ctx) ctx.clearRect(0, 0, particlesCanvas.width, particlesCanvas.height);
