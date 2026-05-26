@@ -80,7 +80,7 @@ export function renderShopBuyTab() {
                 <span class="item-name">${item.name}</span>
                 <span class="item-price">${item.price}₽</span>
                 <div class="item-actions">
-                    <button class="buy-btn slot-use-btn" data-id="${item.id}">Купить</button>
+                    <button class="buy-btn shop-action-btn" data-id="${item.id}">Купить</button>
                 </div>
             </div>
         `;
@@ -160,7 +160,7 @@ export function renderShopSellTab() {
                     <span class="item-price">${sellPrice}₽/шт</span>
                 </div>
                 <div class="item-actions">
-                    <button class="sell-btn slot-use-btn" data-id="${item.id}">Продать</button>
+                    <button class="sell-btn shop-action-btn" data-id="${item.id}">Продать</button>
                 </div>
             </div>
         `;
@@ -228,11 +228,6 @@ async function buyItem(itemId) {
         renderShopBuyTab();
         renderShopSellTab();
         updateShopMoneyDisplay();
-        
-        // НЕ ОБНОВЛЯЕМ ИНВЕНТАРЬ — он обновится сам при открытии
-        // const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
-        // renderItemsTab();
-        // renderEquipmentTab();
     } else {
         showMessage(`❌ Не хватает денег! Нужно ${item.price}₽`, '#e74c3c');
     }
@@ -264,10 +259,4 @@ async function sellItem(itemId) {
     renderShopBuyTab();
     renderShopSellTab();
     updateShopMoneyDisplay();
-    
-   
-    // Убираем эти строки:
-    // const { renderItemsTab, renderEquipmentTab } = await import('./inventory.js');
-    // renderItemsTab();
-    // renderEquipmentTab();
 }
