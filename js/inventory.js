@@ -240,12 +240,25 @@ export function renderItemsTab() {
 
 // Функции useItem, equipItem, unequipItem
 async function useItem(itemId) {
+    if (window._usingItem) {
+        console.log('⚠️ useItem уже выполняется, пропускаем');
+        return;
+    }
+    window._usingItem = true;
+    
     console.trace('useItem вызван!');
     playClick();
     const itemIndex = inventory.findIndex(i => i.id === itemId);
-    if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Нет предмета!", "#e74c3c"); return; }
+    if (itemIndex === -1 || inventory[itemIndex].count <= 0) { 
+        showMessage("Нет предмета!", "#e74c3c");
+        window._usingItem = false;
+        return; 
+    }
     const itemData = itemsDB[itemId];
-    if (!itemData) return;
+    if (!itemData) {
+        window._usingItem = false;
+        return;
+    }
     let effText = "";
     
     if (itemData.effect.hunger) {
@@ -269,7 +282,6 @@ async function useItem(itemId) {
             addIntoxication(itemData.effect.intoxication);
             effText += `Опьянение +${itemData.effect.intoxication}. `;
             
-            // ===== АЧИВКИ =====
             updateAchievementStats('totalAlcoholConsumed', 1);
             
             if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
@@ -285,11 +297,16 @@ async function useItem(itemId) {
     else inventory[itemIndex].count--;
     updateUI();
     await saveGameData();
-    renderItemsTab();
-    renderEquipmentTab();
+    
+    // НЕ ВЫЗЫВАЕМ renderItemsTab() и renderEquipmentTab() здесь!
+    // renderItemsTab();
+    // renderEquipmentTab();
+    
     updateEquipmentBonusDisplay();
     showMessage(`🍺 Использовали ${itemData.name}. ${effText}`, "#4caf50");
     logAction(`Использован предмет: ${itemData.name} (${effText.trim()})`, 'item');
+    
+    window._usingItem = false;
 }
 
 async function equipItem(itemId) {
