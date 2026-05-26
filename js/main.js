@@ -10,7 +10,7 @@ import { logAction, showMessage } from './utils.js';
 import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
-import { setAchievementsData, checkAchievements } from './achievements.js';
+import { setAchievementsData } from './achievements.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -698,21 +698,22 @@ function setupAboutModal() {
 // ========== АЧИВКИ ==========
 async function initAchievements() {
     try {
-        const { setAchievementsData: setData, checkAchievements: check } = await import('./achievements.js');
+        const { setAchievementsData: setData } = await import('./achievements.js');
         
-        // Загружаем данные ачивок из Firestore
+        // Загружаем данные ачивок из Firestore (без проверки)
         const user = auth.currentUser;
         if (user) {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
             if (userDoc.exists() && userDoc.data().achievements) {
                 setData(userDoc.data().achievements);
+                console.log('🏆 Данные достижений загружены');
+            } else {
+                console.log('📭 Ачивок в Firestore нет');
             }
         }
         
-        // Проверяем ачивки при старте
-        await check();
-        
-        console.log('🏆 Система достижений инициализирована');
+        // НЕ вызываем check() здесь — ачивки будут проверяться только при действиях
+        console.log('🏆 Система достижений инициализирована (без автоматической проверки)');
     } catch (err) {
         console.error('Ошибка инициализации ачивок:', err);
     }
@@ -743,7 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (user) {
             setupRealTimeUpdates(user.uid);
-            initAchievements(); // Инициализируем ачивки
+            initAchievements(); // Инициализируем ачивки (только загрузка данных)
         }
         
         renderItemsTab();
