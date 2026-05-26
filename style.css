@@ -1028,6 +1028,7 @@ body {
     justify-content: center;
     padding: 16px;
 }
+
 /* ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" (ОБНОВЛЁННОЕ) ===== */
 #aboutModal .modal-content {
     max-width: 600px !important;
