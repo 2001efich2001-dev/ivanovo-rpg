@@ -1128,3 +1128,106 @@ body {
         font-size: 0.9rem;
     }
 }
+
+/* ===== НОВОСТНОЕ МОДАЛЬНОЕ ОКНО ===== */
+#newsModal .modal-content {
+    max-width: 600px !important;
+    width: 90% !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+.news-content {
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border-radius: 48px;
+}
+
+.news-header {
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-glow));
+    padding: 20px;
+    text-align: center;
+}
+
+.news-header h2 {
+    margin: 0;
+    color: #1e2a32;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.3);
+}
+
+.news-body {
+    padding: 24px;
+    text-align: center;
+}
+
+.news-image {
+    width: 100%;
+    max-width: 300px;
+    height: auto;
+    margin: 0 auto 20px;
+    border-radius: 24px;
+    display: block;
+    border: 2px solid var(--accent-gold);
+}
+
+.news-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    text-align: center;
+    margin: 0;
+}
+
+.news-footer {
+    padding: 16px 24px 24px;
+    text-align: center;
+}
+
+.news-close-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    transition: 0.05s linear;
+    min-width: 200px;
+}
+
+.news-close-btn:active {
+    transform: translateY(2px);
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    #newsModal .modal-content {
+        max-width: 95% !important;
+    }
+    
+    .news-header h2 {
+        font-size: 1.2rem;
+    }
+    
+    .news-body {
+        padding: 16px;
+    }
+    
+    .news-image {
+        max-width: 200px;
+    }
+    
+    .news-text {
+        font-size: 0.85rem;
+    }
+    
+    .news-close-btn {
+        padding: 10px 20px;
+        font-size: 0.9rem;
+        min-width: 160px;
+    }
+}
