@@ -119,10 +119,19 @@ export function updateUI() {
 }
 
 export function setStats(h, hu, c, m) {
-    health = isNaN(h) ? 100 : Math.min(maxHealth, Math.max(0, h));
-    hunger = isNaN(hu) ? 100 : Math.min(maxHunger, Math.max(0, hu));
-    cold = isNaN(c) ? 100 : Math.min(maxCold, Math.max(0, c));
-    money = isNaN(m) ? 500 : Math.max(0, m);
+    // Если параметр передан (не undefined и не null) — обновляем
+    if (h !== undefined && h !== null) {
+        health = isNaN(h) ? maxHealth : Math.min(maxHealth, Math.max(0, h));
+    }
+    if (hu !== undefined && hu !== null) {
+        hunger = isNaN(hu) ? maxHunger : Math.min(maxHunger, Math.max(0, hu));
+    }
+    if (c !== undefined && c !== null) {
+        cold = isNaN(c) ? maxCold : Math.min(maxCold, Math.max(0, c));
+    }
+    if (m !== undefined && m !== null) {
+        money = isNaN(m) ? 500 : Math.max(0, m);
+    }
     updateUI();
 }
 
