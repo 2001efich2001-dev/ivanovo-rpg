@@ -1,7 +1,7 @@
 // js/news.js
 import { showMessage } from './utils.js';
 
-// URL к файлу с новостями (можно заменить на API позже)
+// URL к файлу с новостями
 const NEWS_FILE_URL = 'news.json';
 
 // Хранилище текущих новостей
@@ -11,7 +11,6 @@ let hasShownThisSession = false;
 // Загрузка новостей из JSON файла (с обходом кеша)
 export async function loadNews() {
     try {
-        // Добавляем случайный параметр, чтобы браузер не кешировал
         const url = `${NEWS_FILE_URL}?t=${Date.now()}`;
         console.log('📰 Загрузка новостей из:', url);
         
@@ -25,7 +24,6 @@ export async function loadNews() {
         return currentNews;
     } catch (error) {
         console.error('❌ Ошибка загрузки новостей:', error);
-        // Запасные новости на случай ошибки
         currentNews = {
             title: "📢 Добро пожаловать!",
             image: "images/news_default.png",
@@ -51,7 +49,6 @@ export function showNewsModal(news) {
     if (imageEl) {
         imageEl.src = news.image || 'images/news_default.png';
         imageEl.alt = news.title || 'Новости';
-        // Обработка ошибки загрузки картинки
         imageEl.onerror = () => {
             imageEl.src = 'images/news_default.png';
         };
@@ -59,8 +56,6 @@ export function showNewsModal(news) {
     if (textEl) textEl.textContent = news.text || '';
     
     modal.style.display = 'flex';
-    
-    // Сохраняем флаг, что показали
     hasShownThisSession = true;
 }
 
@@ -72,9 +67,8 @@ export function closeNewsModal() {
     }
 }
 
-// Основная функция для показа новостей (вызывать после авторизации)
+// Основная функция для показа новостей
 export async function showNewsIfNeeded(force = false) {
-    // Если уже показывали в этой сессии и не принудительно — не показываем
     if (hasShownThisSession && !force) {
         console.log('📰 Новости уже показаны в этой сессии');
         return false;
@@ -89,11 +83,13 @@ export async function showNewsIfNeeded(force = false) {
 export function initNewsModal() {
     const closeBtn = document.getElementById('newsCloseBtn');
     if (closeBtn) {
-        // Убираем старые обработчики, чтобы не было дублей
-        const newCloseBtn = closeBtn.cloneNode(true);
-        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        // Убираем старые обработчики
+        const oldBtn = closeBtn;
+        const newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
         
-        newCloseBtn.addEventListener('click', () => {
+        newBtn.addEventListener('click', () => {
+            console.log('🔘 Кнопка закрытия нажата');
             closeNewsModal();
         });
     }
@@ -101,12 +97,9 @@ export function initNewsModal() {
     // Закрытие по клику вне окна
     const modal = document.getElementById('newsModal');
     if (modal) {
-        // Убираем старые обработчики
-        const newModal = modal.cloneNode(true);
-        modal.parentNode.replaceChild(newModal, modal);
-        
-        newModal.addEventListener('click', (e) => {
-            if (e.target === newModal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                console.log('🔘 Клик вне окна');
                 closeNewsModal();
             }
         });
