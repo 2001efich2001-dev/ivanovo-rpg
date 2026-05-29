@@ -8,10 +8,14 @@ const NEWS_FILE_URL = 'news.json';
 let currentNews = null;
 let hasShownThisSession = false;
 
-// Загрузка новостей из JSON файла
+// Загрузка новостей из JSON файла (с обходом кеша)
 export async function loadNews() {
     try {
-        const response = await fetch(NEWS_FILE_URL);
+        // Добавляем случайный параметр, чтобы браузер не кешировал
+        const url = `${NEWS_FILE_URL}?t=${Date.now()}`;
+        console.log('📰 Загрузка новостей из:', url);
+        
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -85,7 +89,11 @@ export async function showNewsIfNeeded(force = false) {
 export function initNewsModal() {
     const closeBtn = document.getElementById('newsCloseBtn');
     if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
+        // Убираем старые обработчики, чтобы не было дублей
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        
+        newCloseBtn.addEventListener('click', () => {
             closeNewsModal();
         });
     }
@@ -93,8 +101,12 @@ export function initNewsModal() {
     // Закрытие по клику вне окна
     const modal = document.getElementById('newsModal');
     if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+        // Убираем старые обработчики
+        const newModal = modal.cloneNode(true);
+        modal.parentNode.replaceChild(newModal, modal);
+        
+        newModal.addEventListener('click', (e) => {
+            if (e.target === newModal) {
                 closeNewsModal();
             }
         });
