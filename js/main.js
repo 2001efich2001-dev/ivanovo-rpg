@@ -11,6 +11,7 @@ import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'https:/
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
 import { setAchievementsData } from './achievements.js';
+import { showNewsIfNeeded, initNewsModal } from './news.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -798,6 +799,12 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" =====
         setupAboutModal();
+
+        // ===== НОВОСТНОЕ ОКНО =====
+        initNewsModal();
+        setTimeout(() => {
+            showNewsIfNeeded();
+        }, 500);
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
