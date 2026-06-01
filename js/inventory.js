@@ -152,8 +152,8 @@ export function renderHousingTab() {
         const isCurrent = (currentHome === homeId);
         const typeName = getHousingTypeName(homeId);
         const capacity = getHousingCapacity(homeId);
+        const sellPrice = Math.floor(getPriceByHomeId(homeId) / 2);
         
-        // Форматируем ID для красивого отображения (dorm_1 → DORM 1)
         let displayName = homeId.toUpperCase().replace(/_/g, ' ');
         
         html += `
@@ -175,11 +175,14 @@ export function renderHousingTab() {
                     <div class="housing-item-type" style="font-size: 0.85rem; color: var(--text-secondary);">
                         ${typeName} • 📦 Вместимость: ${capacity}
                     </div>
+                    <div class="housing-item-sell-price" style="font-size: 0.8rem; color: #ffd966;">
+                        💰 Цена продажи: ${sellPrice.toLocaleString()}₽
+                    </div>
                 </div>
                 <div class="housing-item-status" style="font-size: 0.85rem;">
                     ${isCurrent ? '⭐ Текущее основное' : ''}
                 </div>
-                <div>
+                <div style="display: flex; gap: 8px;">
                     ${!isCurrent ? `
                         <button class="housing-set-primary-btn action-btn" data-id="${homeId}" style="
                             background: var(--buy-btn-bg);
@@ -191,6 +194,15 @@ export function renderHousingTab() {
                             font-weight: bold;
                         ">🏠 Сделать основным</button>
                     ` : ''}
+                    <button class="housing-sell-btn" data-id="${homeId}" data-price="${sellPrice}" style="
+                        background: #c0392b;
+                        border: none;
+                        padding: 8px 20px;
+                        border-radius: 40px;
+                        color: white;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">💰 Продать городу</button>
                 </div>
             </div>
         `;
@@ -199,7 +211,7 @@ export function renderHousingTab() {
     html += '</div>';
     container.innerHTML = html;
     
-    // Добавляем обработчики для кнопок
+    // Обработчики для кнопок "Сделать основным"
     document.querySelectorAll('.housing-set-primary-btn').forEach(btn => {
         btn.removeEventListener('click', btn._handler);
         const handler = async () => {
@@ -207,13 +219,140 @@ export function renderHousingTab() {
             playClick();
             const success = await setPrimaryHome(homeId);
             if (success) {
-                renderHousingTab(); // обновляем вкладку
+                renderHousingTab();
                 showMessage(`🏠 Основным жильём выбрано: ${homeId.toUpperCase().replace(/_/g, ' ')}`, '#4caf50');
             }
         };
         btn.addEventListener('click', handler);
         btn._handler = handler;
     });
+    
+    // Обработчики для кнопок "Продать"
+    document.querySelectorAll('.housing-sell-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._sellHandler);
+        const handler = async () => {
+            const homeId = btn.dataset.id;
+            const sellPrice = parseInt(btn.dataset.price);
+            playClick();
+            
+            // Подтверждение продажи
+            const confirm = window.confirm(`💰 Продать ${homeId.toUpperCase().replace(/_/g, ' ')} за ${sellPrice.toLocaleString()}₽?\n\nВернуть будет нельзя!`);
+            if (confirm) {
+                await sellPropertyToCity(homeId, sellPrice);
+                renderHousingTab();
+            }
+        };
+        btn.addEventListener('click', handler);
+        btn._sellHandler = handler;
+    });
+}
+
+// ========== НОВАЯ ФУНКЦИЯ: ПОЛУЧИТЬ ЦЕНУ ПОКУПКИ ПО ID ==========
+function getPriceByHomeId(homeId) {
+    if (homeId.startsWith('dorm')) return 5000;
+    if (homeId.startsWith('apartment')) return 25000;
+    if (homeId.startsWith('house')) return 100000;
+    return 0;
+}
+
+// ========== НОВАЯ ФУНКЦИЯ: ПРОДАЖА НЕДВИЖИМОСТИ ==========
+async function sellPropertyToCity(propertyId, sellPrice) {
+    console.log(`💰 Продажа ${propertyId} за ${sellPrice}₽`);
+    
+    try {
+        const { auth } = await import('./auth.js');
+        const { db } = await import('./firestore.js');
+        const { doc, runTransaction, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const { money, setStats, updateUI, currentHome, setPrimaryHome, ownedHomes } = await import('./gameState.js');
+        const { showMessage: showMsg } = await import('./utils.js');
+        
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            showMsg('Ошибка авторизации', '#e74c3c');
+            return;
+        }
+        
+        await runTransaction(db, async (transaction) => {
+            // 1. Читаем документ недвижимости
+            const propertyRef = doc(db, 'real_estate', propertyId);
+            const propertySnap = await transaction.get(propertyRef);
+            
+            if (!propertySnap.exists()) {
+                throw new Error('Объект не найден');
+            }
+            
+            const propertyData = propertySnap.data();
+            if (propertyData.ownerId !== currentUser.uid) {
+                throw new Error('Это не ваша недвижимость');
+            }
+            
+            // 2. Читаем документ пользователя
+            const userRef = doc(db, 'users', currentUser.uid);
+            const userSnap = await transaction.get(userRef);
+            const userData = userSnap.data();
+            const currentMoney = userData?.money || 0;
+            const newMoney = currentMoney + sellPrice;
+            
+            // 3. Удаляем propertyId из ownedHomes
+            const currentOwned = userData?.housing?.owned || [];
+            const newOwnedHomes = currentOwned.filter(id => id !== propertyId);
+            
+            // 4. Если продаётся текущее основное жильё — выбираем новое
+            let newCurrentHome = userData?.housing?.current;
+            if (newCurrentHome === propertyId) {
+                newCurrentHome = newOwnedHomes.length > 0 ? newOwnedHomes[0] : null;
+            }
+            
+            // 5. Очищаем владельца в объекте недвижимости
+            transaction.update(propertyRef, {
+                ownerId: deleteField(),
+                ownerName: deleteField(),
+                purchasedAt: deleteField(),
+                debt: deleteField(),
+                lastTaxPaid: deleteField()
+            });
+            
+            // 6. Обновляем пользователя
+            transaction.update(userRef, {
+                money: newMoney,
+                'housing.owned': newOwnedHomes,
+                'housing.current': newCurrentHome,
+                'housing.storageCapacity': newCurrentHome ? getCapacityByHomeId(newCurrentHome) : 0
+            });
+        });
+        
+        // Обновляем локальное состояние
+        const newMoney = money + sellPrice;
+        setStats(null, null, null, newMoney);
+        
+        // Обновляем локальные массивы
+        const index = ownedHomes.indexOf(propertyId);
+        if (index !== -1) ownedHomes.splice(index, 1);
+        
+        if (currentHome === propertyId && ownedHomes.length > 0) {
+            await setPrimaryHome(ownedHomes[0]);
+        } else if (ownedHomes.length === 0) {
+            const { setCurrentLocation } = await import('./gameState.js');
+            setCurrentLocation('dump_home');
+        }
+        
+        updateUI();
+        
+        showMsg(`💰 Продано! ${propertyId.toUpperCase().replace(/_/g, ' ')} за ${sellPrice.toLocaleString()}₽`, '#4caf50');
+        
+    } catch (error) {
+        console.error('Ошибка продажи:', error);
+        const { showMessage: showMsg } = await import('./utils.js');
+        showMsg(`❌ Ошибка при продаже: ${error.message}`, '#e74c3c');
+    }
+}
+
+// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: ВМЕСТИМОСТЬ ПО ID ==========
+function getCapacityByHomeId(homeId) {
+    if (homeId.startsWith('dorm')) return 10;
+    if (homeId.startsWith('apartment')) return 20;
+    if (homeId.startsWith('house')) return 40;
+    return 0;
 }
 
 // Функция для рендера сетки инвентаря
