@@ -124,7 +124,7 @@ export const locationsDB = {
             { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, стоит 40₽", effect: { health: 10, hunger: -5 }, cost: 40, risk: 0 },
             { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
         ]
-    }
+    },
 
         // ========== ЛОКАЦИИ ДЛЯ ЖИЛЬЯ ==========
     dump_home: {
