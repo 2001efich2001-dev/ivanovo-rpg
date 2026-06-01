@@ -499,3 +499,77 @@ export function removeFromHomeStorage(itemId, count = 1) {
     updateUI();
     return true;
 }
+
+// ========== ФУНКЦИИ ДЛЯ СВЯЗИ ЖИЛЬЯ С ЛОКАЦИЯМИ ==========
+
+// Получить ID локации для телепорта на основе ID жилья
+export function getHomeLocationId(homeId) {
+    if (!homeId) return 'dump_home';
+    
+    // Определяем тип жилья по префиксу
+    if (homeId.startsWith('dorm')) {
+        return 'dorm_home';
+    } else if (homeId.startsWith('apartment')) {
+        return 'apartment_home';
+    } else if (homeId.startsWith('house')) {
+        return 'house_home';
+    }
+    
+    return 'dump_home';
+}
+
+// Установить основное жильё (телепорт и смерть будут вести сюда)
+export async function setPrimaryHome(homeId) {
+    if (!ownedHomes.includes(homeId)) {
+        showMessage(`❌ У вас нет такого жилья!`, '#e74c3c');
+        return false;
+    }
+    
+    currentHome = homeId;
+    
+    // Обновляем вместимость хранилища
+    if (homeId.startsWith('dorm')) {
+        updateStorageCapacity('dorm');
+    } else if (homeId.startsWith('apartment')) {
+        updateStorageCapacity('apartment');
+    } else if (homeId.startsWith('house')) {
+        updateStorageCapacity('house');
+    } else {
+        updateStorageCapacity('dump');
+    }
+    
+    // Сохраняем в Firestore
+    const { saveGameData } = await import('./firestore.js');
+    await saveGameData();
+    
+    showMessage(`🏠 Теперь ваше основное жильё: ${homeId}`, '#4caf50');
+    addLogEntry(`🏠 Основное жильё изменено на ${homeId}`, 'system');
+    
+    return true;
+}
+
+// Телепорт домой (в текущее основное жильё)
+export async function teleportHome() {
+    const { setCurrentLocation } = await import('./gameState.js');
+    
+    let homeLocationId;
+    
+    if (currentHome) {
+        homeLocationId = getHomeLocationId(currentHome);
+        setCurrentLocation(homeLocationId);
+        showMessage(`🏠 Вы телепортировались домой!`, '#4caf50');
+        addLogEntry(`🏠 Телепорт домой (${currentHome})`, 'system');
+    } else if (ownedHomes.length > 0) {
+        // Если есть жильё, но не выбрано основное — выбираем первое
+        const firstHome = ownedHomes[0];
+        await setPrimaryHome(firstHome);
+        homeLocationId = getHomeLocationId(firstHome);
+        setCurrentLocation(homeLocationId);
+        showMessage(`🏠 Вы телепортировались в ${firstHome} (основное жильё установлено автоматически)`, '#4caf50');
+    } else {
+        // Нет жилья — на помойку
+        setCurrentLocation('dump_home');
+        showMessage(`🗑️ У вас нет жилья. Вы отправились на помойку.`, '#ffd966');
+        addLogEntry(`🗑️ Телепорт на помойку (нет жилья)`, 'system');
+    }
+}
