@@ -1,4 +1,4 @@
-import { setCurrentLocation } from './gameState.js';
+import { setCurrentLocation, teleportHome } from './gameState.js';
 import { showMessage } from './utils.js';
 
 export function renderInteractiveMap() {
@@ -303,7 +303,7 @@ async function buyProperty(propertyId, price, type) {
         const { auth } = await import('./auth.js');
         const { db } = await import('./firestore.js');
         const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
-        const { money, setStats, updateUI, updateStorageCapacity, getHousingData } = await import('./gameState.js');
+        const { money, setStats, updateUI, updateStorageCapacity } = await import('./gameState.js');
         const { showMessage: showMsg } = await import('./utils.js');
         
         const currentUser = auth.currentUser;
@@ -318,7 +318,7 @@ async function buyProperty(propertyId, price, type) {
             return;
         }
         
-        // Транзакция покупки (ВАЖНО: сначала читаем, потом пишем)
+        // Транзакция покупки
         await runTransaction(db, async (transaction) => {
             // 1. СНАЧАЛА читаем документ недвижимости
             const propertyRef = doc(db, 'real_estate', propertyId);
@@ -369,12 +369,6 @@ async function buyProperty(propertyId, price, type) {
         setStats(null, null, null, newMoney);
         updateStorageCapacity(type);
         
-        // Обновляем текущее жильё в локальном gameState
-        const { setCurrentHome } = await import('./gameState.js');
-        if (typeof setCurrentHome === 'function') {
-            setCurrentHome(propertyId);
-        }
-        
         updateUI();
         
         showMsg(`✅ Поздравляем! Вы купили ${propertyId}!`, '#4caf50');
@@ -393,23 +387,4 @@ async function buyProperty(propertyId, price, type) {
         const { showMessage: showMsg } = await import('./utils.js');
         showMsg(`❌ Ошибка при покупке: ${error.message}`, '#e74c3c');
     }
-}
-// ========== ТЕЛЕПОРТ ДОМОЙ ==========
-export async function teleportHome() {
-    const { setCurrentLocation, currentHome, showMessage } = await import('./gameState.js');
-    const { showMessage: showMsg } = await import('./utils.js');
-    
-    // Если есть текущее жильё — телепортируем туда
-    if (currentHome) {
-        setCurrentLocation(currentHome);
-        showMsg(`🏠 Вы телепортировались домой (${currentHome})`, '#4caf50');
-    } else {
-        // Нет жилья — отправляем на помойку
-        setCurrentLocation('dump');
-        showMsg(`🗑️ У вас нет жилья. Вы отправились на помойку.`, '#ffd966');
-    }
-    
-    // Закрываем карту
-    const mapModal = document.getElementById('mapModal');
-    if (mapModal) mapModal.style.display = 'none';
 }
