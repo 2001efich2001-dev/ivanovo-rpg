@@ -1307,3 +1307,13 @@ body {
     background: var(--reset-bg);
     color: var(--reset-text);
 }
+/* Кнопки в карте */
+#homeBtn {
+    background: var(--accent-gold);
+    color: #1e2a32;
+}
+
+#closeMapModal {
+    background: var(--reset-bg);
+    color: var(--reset-text);
+}
