@@ -176,58 +176,60 @@
         </div>
     </div>
 
-    <!-- Остальные модальные окна без изменений -->
-<div id="inventoryModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <div style="display:flex; gap:16px;">
-                <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
-                <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
-                <button class="tab-btn" data-tab="achievements">🏆 Достижения</button>
+    <!-- Модальное окно инвентаря (ОБНОВЛЕНО: добавлена вкладка "🏠 Моё жильё") -->
+    <div id="inventoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <div style="display:flex; gap:16px; flex-wrap: wrap;">
+                    <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
+                    <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
+                    <button class="tab-btn" data-tab="achievements">🏆 Достижения</button>
+                    <button class="tab-btn" data-tab="housing">🏠 Моё жильё</button>
+                </div>
+                <div style="display:flex; gap:16px; align-items: center;">
+                    <div id="equipmentTotalBonus" class="equipment-total-bonus-inline" style="font-size:0.8rem; color: var(--accent-gold);">🔥 +0</div>
+                    <div id="inventoryPageInfo" class="page-info" style="font-size:0.85rem;">Страница 1 / 1</div>
+                </div>
             </div>
-            <div style="display:flex; gap:16px; align-items: center;">
-                <div id="equipmentTotalBonus" class="equipment-total-bonus-inline" style="font-size:0.8rem; color: var(--accent-gold);">🔥 +0</div>
-                <div id="inventoryPageInfo" class="page-info" style="font-size:0.85rem;">Страница 1 / 1</div>
-            </div>
+            <div id="itemsTab" class="inventory-grid"></div>
+            <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
+            <div id="achievementsTab" class="achievements-grid" style="display: none;"></div>
+            <div id="housingTab" class="housing-list" style="display: none;"></div>
+            <button class="close-modal">Закрыть</button>
         </div>
-        <div id="itemsTab" class="inventory-grid"></div>
-        <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
-        <div id="achievementsTab" class="achievements-grid" style="display: none;"></div>
-        <button class="close-modal">Закрыть</button>
     </div>
-</div>
 
-   <div id="mapModal" class="modal">
-    <div class="modal-content" style="max-width: 800px;">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <h3 style="margin:0;">🗺️ Карта города Иваново</h3>
-            <div style="display:flex; gap:12px;">
-                <button id="homeBtn" class="action-btn" style="padding:8px 16px;">🏠 Домой</button>
-                <button id="closeMapModal" class="reset-btn" style="padding:8px 16px;">❌ Закрыть</button>
+    <div id="mapModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <h3 style="margin:0;">🗺️ Карта города Иваново</h3>
+                <div style="display:flex; gap:12px;">
+                    <button id="homeBtn" class="action-btn" style="padding:8px 16px;">🏠 Домой</button>
+                    <button id="closeMapModal" class="reset-btn" style="padding:8px 16px;">❌ Закрыть</button>
+                </div>
             </div>
+            <div id="mapContainer" class="map-container"></div>
         </div>
-        <div id="mapContainer" class="map-container"></div>
     </div>
-</div>
 
     <div id="locationModal" class="modal">
         <div class="modal-content" id="locationModalContent"></div>
     </div>
 
-  <div id="shopModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <div style="display:flex; gap:16px;">
-                <button class="tab-btn active" data-shop-tab="buy">🛍️ Купить</button>
-                <button class="tab-btn" data-shop-tab="sell">💰 Продать</button>
+    <div id="shopModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <div style="display:flex; gap:16px;">
+                    <button class="tab-btn active" data-shop-tab="buy">🛍️ Купить</button>
+                    <button class="tab-btn" data-shop-tab="sell">💰 Продать</button>
+                </div>
+                <div id="shopMoneyInfo" class="shop-money-info" style="font-size:0.85rem; color: var(--accent-gold);">💰 Деньги: <span id="shopMoneyValue">0</span>₽</div>
             </div>
-            <div id="shopMoneyInfo" class="shop-money-info" style="font-size:0.85rem; color: var(--accent-gold);">💰 Деньги: <span id="shopMoneyValue">0</span>₽</div>
+            <div id="shopBuyTab" class="inventory-grid"></div>
+            <div id="shopSellTab" class="inventory-grid" style="display: none;"></div>
+            <button class="close-modal">Закрыть</button>
         </div>
-        <div id="shopBuyTab" class="inventory-grid"></div>
-        <div id="shopSellTab" class="inventory-grid" style="display: none;"></div>
-        <button class="close-modal">Закрыть</button>
     </div>
-</div>
 
     <!-- Модальное окно для случайных событий -->
     <div id="eventModal" class="modal">
@@ -253,14 +255,14 @@
         </div>
     </div>
     
-   <div class="global-footer">
-    <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
-    <p>RPG-Иваново · Альфа 0.0.20 · Ачивки и шкала опьяненияс</p>
-</div>
+    <div class="global-footer">
+        <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
+        <p>RPG-Иваново · Альфа 0.0.20 · Ачивки и шкала опьянения</p>
+    </div>
 
     <script type="module" src="js/main.js"></script>
 
-        <!-- Модальное окно для новостей -->
+    <!-- Модальное окно для новостей -->
     <div id="newsModal" class="modal">
         <div class="modal-content news-content">
             <div class="news-header">
@@ -279,17 +281,17 @@
     </div>
     
     <!-- Модальное окно для списка недвижимости -->
-<div id="housingModal" class="modal">
-    <div class="modal-content housing-modal-content">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <h3 id="housingModalTitle" style="margin:0;">🏠 Недвижимость</h3>
-            <button class="close-modal-btn" style="background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer;">&times;</button>
+    <div id="housingModal" class="modal">
+        <div class="modal-content housing-modal-content">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <h3 id="housingModalTitle" style="margin:0;">🏠 Недвижимость</h3>
+                <button class="close-modal-btn" style="background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="housingList" class="housing-list" style="max-height: 500px; overflow-y: auto;">
+                <!-- Список объектов будет заполняться динамически -->
+            </div>
+            <button class="close-modal housing-close-btn" style="margin-top:16px;">Закрыть</button>
         </div>
-        <div id="housingList" class="housing-list" style="max-height: 500px; overflow-y: auto;">
-            <!-- Список объектов будет заполняться динамически -->
-        </div>
-        <button class="close-modal housing-close-btn" style="margin-top:16px;">Закрыть</button>
     </div>
-</div>
 </body>
 </html>
