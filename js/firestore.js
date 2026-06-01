@@ -42,6 +42,16 @@ export async function saveGameData() {
         console.warn('Модуль ачивок не загружен');
     }
     
+    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ СИСТЕМЫ ЖИЛЬЯ =====
+    const housingData = {
+        current: gameState.currentHome ?? null,
+        owned: gameState.ownedHomes ?? [],
+        storage: gameState.homeStorage ?? [],
+        storageCapacity: gameState.homeStorageCapacity ?? 0,
+        debt: gameState.housingDebt ?? 0,
+        lastTaxPaid: gameState.lastTaxPaid ?? null
+    };
+    
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
         health: healthVal,
@@ -65,9 +75,10 @@ export async function saveGameData() {
         // ===== НОВЫЕ ПОЛЯ =====
         dailyBonusLastClaim: dailyBonusLastClaimVal,
         dailyBonusStreak: dailyBonusStreakVal,
-        achievements: achievementsData
+        achievements: achievementsData,
+        housing: housingData
     }, { merge: true });
-    console.log("Данные сохранены", { achievements: achievementsData });
+    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData });
 }
 
 export async function loadGameData(userId) {
@@ -108,6 +119,13 @@ export async function loadGameData(userId) {
             }
         }
         
+        // ===== ЗАГРУЖАЕМ ДАННЫЕ СИСТЕМЫ ЖИЛЬЯ =====
+        if (data.housing) {
+            const { setHousingData } = await import('./gameState.js');
+            setHousingData(data.housing);
+            console.log('🏠 Загружены данные жилья:', data.housing);
+        }
+        
         updateUI();
         console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication });
     } else {
@@ -138,6 +156,10 @@ export async function loadGameData(userId) {
         // ===== ИНИЦИАЛИЗИРУЕМ ДАННЫЕ БОНУСА ДЛЯ НОВОГО АККАУНТА =====
         const { setDailyBonusData } = await import('./dailyBonus.js');
         setDailyBonusData(null, 0);
+        
+        // ===== ИНИЦИАЛИЗИРУЕМ ДАННЫЕ ЖИЛЬЯ ДЛЯ НОВОГО АККАУНТА =====
+        const { initHousingData } = await import('./gameState.js');
+        initHousingData();
         
         gameState.updateUI();
         
