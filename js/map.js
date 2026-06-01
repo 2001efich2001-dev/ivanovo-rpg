@@ -90,6 +90,31 @@ export function renderInteractiveMap() {
             openHousingModal(type);
         });
     });
+    
+    // ===== ОБРАБОТЧИК КНОПКИ "ДОМОЙ" =====
+    const homeBtn = document.getElementById('homeBtn');
+    if (homeBtn) {
+        // Убираем старые обработчики
+        const newHomeBtn = homeBtn.cloneNode(true);
+        homeBtn.parentNode.replaceChild(newHomeBtn, homeBtn);
+        
+        newHomeBtn.addEventListener('click', async () => {
+            if (typeof window.playClickSound === 'function') window.playClickSound();
+            await teleportHome();
+        });
+    }
+    
+    // ===== ОБРАБОТЧИК КНОПКИ "ЗАКРЫТЬ" =====
+    const closeMapBtn = document.getElementById('closeMapModal');
+    if (closeMapBtn) {
+        const newCloseBtn = closeMapBtn.cloneNode(true);
+        closeMapBtn.parentNode.replaceChild(newCloseBtn, closeMapBtn);
+        
+        newCloseBtn.addEventListener('click', () => {
+            const mapModal = document.getElementById('mapModal');
+            if (mapModal) mapModal.style.display = 'none';
+        });
+    }
 }
 
 // ========== ФУНКЦИИ ДЛЯ РАБОТЫ С НЕДВИЖИМОСТЬЮ ==========
