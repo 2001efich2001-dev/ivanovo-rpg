@@ -197,13 +197,18 @@
     </div>
 </div>
 
-    <div id="mapModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <h3>🗺️ Карта города Иваново</h3>
-            <div id="mapContainer" class="map-container"></div>
-            <button class="close-modal">Закрыть</button>
+   <div id="mapModal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+            <h3 style="margin:0;">🗺️ Карта города Иваново</h3>
+            <div style="display:flex; gap:12px;">
+                <button id="homeBtn" class="action-btn" style="padding:8px 16px;">🏠 Домой</button>
+                <button id="closeMapModal" class="reset-btn" style="padding:8px 16px;">❌ Закрыть</button>
+            </div>
         </div>
+        <div id="mapContainer" class="map-container"></div>
     </div>
+</div>
 
     <div id="locationModal" class="modal">
         <div class="modal-content" id="locationModalContent"></div>
