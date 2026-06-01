@@ -94,7 +94,6 @@ export function renderInteractiveMap() {
     // ===== ОБРАБОТЧИК КНОПКИ "ДОМОЙ" =====
     const homeBtn = document.getElementById('homeBtn');
     if (homeBtn) {
-        // Убираем старые обработчики
         const newHomeBtn = homeBtn.cloneNode(true);
         homeBtn.parentNode.replaceChild(newHomeBtn, homeBtn);
         
@@ -174,10 +173,8 @@ export async function openHousingModal(type) {
     
     modal.style.display = 'flex';
     
-    // Загружаем список
     await loadHousingList(type);
     
-    // Обработчики закрытия
     const closeBtns = modal.querySelectorAll('.close-modal, .close-modal-btn, .housing-close-btn');
     closeBtns.forEach(btn => {
         btn.onclick = () => {
@@ -185,7 +182,6 @@ export async function openHousingModal(type) {
         };
     });
     
-    // Закрытие по клику вне окна
     modal.onclick = (e) => {
         if (e.target === modal) {
             modal.style.display = 'none';
@@ -209,7 +205,6 @@ async function loadHousingList(type) {
         const price = getPriceForType(type);
         const currentUser = auth.currentUser;
         
-        // Получаем данные из Firestore
         let housingData = {};
         try {
             const housingRef = collection(db, 'real_estate');
@@ -229,7 +224,6 @@ async function loadHousingList(type) {
             console.warn('Не удалось загрузить данные из Firestore, используем локальные данные', err);
         }
         
-        // Формируем HTML
         let html = '<div class="housing-list">';
         
         for (const id of housingIds) {
@@ -278,7 +272,6 @@ async function loadHousingList(type) {
         html += '</div>';
         container.innerHTML = html;
         
-        // Добавляем обработчики для кнопок покупки
         document.querySelectorAll('.housing-buy-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -295,7 +288,7 @@ async function loadHousingList(type) {
     }
 }
 
-// Покупка недвижимости (исправленная версия)
+// ========== ИСПРАВЛЕННАЯ ПОКУПКА НЕДВИЖИМОСТИ ==========
 async function buyProperty(propertyId, price, type) {
     console.log(`🏠 Покупка ${propertyId} за ${price}₽`);
     
@@ -303,7 +296,7 @@ async function buyProperty(propertyId, price, type) {
         const { auth } = await import('./auth.js');
         const { db } = await import('./firestore.js');
         const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
-        const { money, setStats, updateUI, updateStorageCapacity } = await import('./gameState.js');
+        const { money, setStats, updateUI, updateStorageCapacity, ownedHomes, setPrimaryHome } = await import('./gameState.js');
         const { showMessage: showMsg } = await import('./utils.js');
         
         const currentUser = auth.currentUser;
@@ -312,15 +305,12 @@ async function buyProperty(propertyId, price, type) {
             return;
         }
         
-        // Проверяем деньги (локально, до транзакции)
         if (money < price) {
             showMsg(`❌ Не хватает денег! Нужно ${price.toLocaleString()}₽`, '#e74c3c');
             return;
         }
         
-        // Транзакция покупки
         await runTransaction(db, async (transaction) => {
-            // 1. СНАЧАЛА читаем документ недвижимости
             const propertyRef = doc(db, 'real_estate', propertyId);
             const propertySnap = await transaction.get(propertyRef);
             
@@ -331,7 +321,6 @@ async function buyProperty(propertyId, price, type) {
                 }
             }
             
-            // 2. Читаем документ пользователя
             const userRef = doc(db, 'users', currentUser.uid);
             const userSnap = await transaction.get(userRef);
             const userData = userSnap.data();
@@ -342,10 +331,21 @@ async function buyProperty(propertyId, price, type) {
             }
             
             const newMoney = currentMoney - price;
-            const ownedHomes = userData?.housing?.owned || [];
-            ownedHomes.push(propertyId);
             
-            // 3. ПОТОМ пишем (обновляем)
+            // ✅ ПОЛУЧАЕМ ТЕКУЩИЙ СПИСОК ИЗ БД
+            const currentOwned = userData?.housing?.owned || [];
+            
+            // ✅ ПРОВЕРКА: не куплен ли уже этот объект
+            if (currentOwned.includes(propertyId)) {
+                throw new Error('Вы уже владеете этой недвижимостью');
+            }
+            
+            // ✅ СОЗДАЁМ НОВЫЙ МАССИВ (старый + новый объект)
+            const newOwnedHomes = [...currentOwned, propertyId];
+            
+            console.log(`🏠 Было в собственности: ${currentOwned.length} объектов`);
+            console.log(`🏠 Становится: ${newOwnedHomes.length} объектов`);
+            
             transaction.update(propertyRef, {
                 ownerId: currentUser.uid,
                 ownerName: currentUser.displayName || 'Игрок',
@@ -356,7 +356,7 @@ async function buyProperty(propertyId, price, type) {
             
             transaction.update(userRef, {
                 money: newMoney,
-                'housing.owned': ownedHomes,
+                'housing.owned': newOwnedHomes,
                 'housing.current': propertyId,
                 'housing.storageCapacity': getCapacityForType(type),
                 'housing.debt': 0,
@@ -364,20 +364,24 @@ async function buyProperty(propertyId, price, type) {
             });
         });
         
-        // Обновляем локальное состояние
+        // ✅ ОБНОВЛЯЕМ ЛОКАЛЬНОЕ СОСТОЯНИЕ
         const newMoney = money - price;
         setStats(null, null, null, newMoney);
         updateStorageCapacity(type);
         
+        // ✅ ДОБАВЛЯЕМ В ЛОКАЛЬНЫЙ МАССИВ И УСТАНАВЛИВАЕМ КАК ОСНОВНОЕ
+        if (!ownedHomes.includes(propertyId)) {
+            ownedHomes.push(propertyId);
+        }
+        await setPrimaryHome(propertyId);
+        
         updateUI();
         
-        showMsg(`✅ Поздравляем! Вы купили ${propertyId}!`, '#4caf50');
+        showMsg(`✅ Поздравляем! Вы купили ${propertyId}! Теперь у вас ${ownedHomes.length} объектов недвижимости`, '#4caf50');
         
-        // Закрываем модальное окно
         const modal = document.getElementById('housingModal');
         if (modal) modal.style.display = 'none';
         
-        // Переоткрываем окно, чтобы обновить список
         setTimeout(() => {
             openHousingModal(type);
         }, 500);
