@@ -27,7 +27,7 @@ export function renderInteractiveMap() {
             <img src="map.png" alt="Карта Иваново" class="map-image" style="width:100%; height:auto;">
             <svg class="map-overlay" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" style="position: absolute; top:0; left:0; width:100%; height:100%;">
                 ${zones.map(z => `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" data-location="${z.id}" data-name="${z.name}" class="location-circle" fill="rgba(0,200,0,0.25)" stroke="rgba(0,200,0,0.6)" stroke-width="2" />`).join('')}
-                ${housingZones.map(z => `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" data-location="${z.id}" data-name="${z.name}" data-type="${z.type}" class="housing-circle" fill="rgba(255,140,0,0.3)" stroke="rgba(255,179,71,0.8)" stroke-width="3" />`).join('')}
+               ${housingZones.map(z => `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" data-location="${z.id}" data-name="${z.name}" data-type="${z.type}" class="housing-circle" fill="rgba(255,140,0,0.3)" stroke="rgba(255,140,0,0.9)" stroke-width="3" />`).join('')}
             </svg>
         </div>
     `;
