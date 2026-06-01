@@ -369,3 +369,22 @@ async function buyProperty(propertyId, price, type) {
         showMsg(`❌ Ошибка при покупке: ${error.message}`, '#e74c3c');
     }
 }
+// ========== ТЕЛЕПОРТ ДОМОЙ ==========
+export async function teleportHome() {
+    const { setCurrentLocation, currentHome, showMessage } = await import('./gameState.js');
+    const { showMessage: showMsg } = await import('./utils.js');
+    
+    // Если есть текущее жильё — телепортируем туда
+    if (currentHome) {
+        setCurrentLocation(currentHome);
+        showMsg(`🏠 Вы телепортировались домой (${currentHome})`, '#4caf50');
+    } else {
+        // Нет жилья — отправляем на помойку
+        setCurrentLocation('dump');
+        showMsg(`🗑️ У вас нет жилья. Вы отправились на помойку.`, '#ffd966');
+    }
+    
+    // Закрываем карту
+    const mapModal = document.getElementById('mapModal');
+    if (mapModal) mapModal.style.display = 'none';
+}
