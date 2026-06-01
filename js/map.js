@@ -270,15 +270,15 @@ async function loadHousingList(type) {
     }
 }
 
-// Покупка недвижимости
+// Покупка недвижимости (исправленная версия)
 async function buyProperty(propertyId, price, type) {
     console.log(`🏠 Покупка ${propertyId} за ${price}₽`);
     
     try {
         const { auth } = await import('./auth.js');
         const { db } = await import('./firestore.js');
-        const { doc, getDoc, runTransaction } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
-        const { money, setStats, updateUI, updateStorageCapacity } = await import('./gameState.js');
+        const { doc, runTransaction } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const { money, setStats, updateUI, updateStorageCapacity, getHousingData } = await import('./gameState.js');
         const { showMessage: showMsg } = await import('./utils.js');
         
         const currentUser = auth.currentUser;
@@ -287,14 +287,15 @@ async function buyProperty(propertyId, price, type) {
             return;
         }
         
-        // Проверяем деньги
+        // Проверяем деньги (локально, до транзакции)
         if (money < price) {
             showMsg(`❌ Не хватает денег! Нужно ${price.toLocaleString()}₽`, '#e74c3c');
             return;
         }
         
-        // Транзакция покупки
+        // Транзакция покупки (ВАЖНО: сначала читаем, потом пишем)
         await runTransaction(db, async (transaction) => {
+            // 1. СНАЧАЛА читаем документ недвижимости
             const propertyRef = doc(db, 'real_estate', propertyId);
             const propertySnap = await transaction.get(propertyRef);
             
@@ -305,27 +306,36 @@ async function buyProperty(propertyId, price, type) {
                 }
             }
             
-            transaction.set(propertyRef, {
-                id: propertyId,
-                type: type,
-                price: price,
-                ownerId: currentUser.uid,
-                ownerName: currentUser.displayName || 'Игрок',
-                purchasedAt: new Date().toISOString()
-            }, { merge: true });
-            
+            // 2. Читаем документ пользователя
             const userRef = doc(db, 'users', currentUser.uid);
             const userSnap = await transaction.get(userRef);
             const userData = userSnap.data();
-            const newMoney = money - price;
+            const currentMoney = userData?.money || 0;
+            
+            if (currentMoney < price) {
+                throw new Error('Недостаточно денег');
+            }
+            
+            const newMoney = currentMoney - price;
             const ownedHomes = userData?.housing?.owned || [];
             ownedHomes.push(propertyId);
+            
+            // 3. ПОТОМ пишем (обновляем)
+            transaction.update(propertyRef, {
+                ownerId: currentUser.uid,
+                ownerName: currentUser.displayName || 'Игрок',
+                purchasedAt: new Date().toISOString(),
+                debt: 0,
+                lastTaxPaid: new Date().toISOString()
+            });
             
             transaction.update(userRef, {
                 money: newMoney,
                 'housing.owned': ownedHomes,
                 'housing.current': propertyId,
-                'housing.storageCapacity': getCapacityForType(type)
+                'housing.storageCapacity': getCapacityForType(type),
+                'housing.debt': 0,
+                'housing.lastTaxPaid': new Date().toISOString()
             });
         });
         
@@ -334,13 +344,21 @@ async function buyProperty(propertyId, price, type) {
         setStats(null, null, null, newMoney);
         updateStorageCapacity(type);
         
+        // Обновляем текущее жильё в локальном gameState
+        const { setCurrentHome } = await import('./gameState.js');
+        if (typeof setCurrentHome === 'function') {
+            setCurrentHome(propertyId);
+        }
+        
         updateUI();
         
         showMsg(`✅ Поздравляем! Вы купили ${propertyId}!`, '#4caf50');
         
+        // Закрываем модальное окно
         const modal = document.getElementById('housingModal');
         if (modal) modal.style.display = 'none';
         
+        // Переоткрываем окно, чтобы обновить список
         setTimeout(() => {
             openHousingModal(type);
         }, 500);
