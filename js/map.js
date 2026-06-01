@@ -15,7 +15,7 @@ export function renderInteractiveMap() {
         { id: "bar", name: "Бар", cx: 331, cy: 215, r: 20 }
     ];
     
-    // ===== НОВЫЕ ТОЧКИ ДЛЯ НЕДВИЖИМОСТИ =====
+    // Точки для недвижимости
     const housingZones = [
         { id: "housing_dorm", name: "Общага", cx: 250, cy: 350, r: 25, type: "dorm" },
         { id: "housing_apartment", name: "ЖК Огни Москвы", cx: 450, cy: 400, r: 25, type: "apartment" },
@@ -27,7 +27,7 @@ export function renderInteractiveMap() {
             <img src="map.png" alt="Карта Иваново" class="map-image" style="width:100%; height:auto;">
             <svg class="map-overlay" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" style="position: absolute; top:0; left:0; width:100%; height:100%;">
                 ${zones.map(z => `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" data-location="${z.id}" data-name="${z.name}" class="location-circle" fill="rgba(0,200,0,0.25)" stroke="rgba(0,200,0,0.6)" stroke-width="2" />`).join('')}
-               ${housingZones.map(z => `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" data-location="${z.id}" data-name="${z.name}" data-type="${z.type}" class="housing-circle" fill="rgba(255,140,0,0.3)" stroke="rgba(255,140,0,0.9)" stroke-width="3" />`).join('')}
+                ${housingZones.map(z => `<circle cx="${z.cx}" cy="${z.cy}" r="${z.r}" data-location="${z.id}" data-name="${z.name}" data-type="${z.type}" class="housing-circle" fill="rgba(255,140,0,0.3)" stroke="rgba(255,140,0,0.9)" stroke-width="3" />`).join('')}
             </svg>
         </div>
     `;
@@ -87,18 +87,285 @@ export function renderInteractiveMap() {
         
         circle.addEventListener('click', async () => {
             if (typeof window.playClickSound === 'function') window.playClickSound();
-            
-            // Показываем временное сообщение (позже заменим на полноценное модальное окно)
-            showMessage(`🏠 "${name}" — система недвижимости в разработке! Скоро здесь можно будет купить жильё.`, '#ffd966');
-            
-            // TODO: Здесь будет открытие модального окна со списком квартир/домов
-            // openHousingModal(type);
+            openHousingModal(type);
         });
     });
 }
 
-// Функция для открытия модального окна недвижимости (будет реализована позже)
-export function openHousingModal(type) {
-    console.log('Открытие модального окна для типа:', type);
-    // Здесь будет логика показа списка недвижимости
+// ========== ФУНКЦИИ ДЛЯ РАБОТЫ С НЕДВИЖИМОСТЬЮ ==========
+
+// Цены для каждого типа
+function getPriceForType(type) {
+    switch (type) {
+        case 'dorm': return 5000;
+        case 'apartment': return 25000;
+        case 'house': return 100000;
+        default: return 0;
+    }
+}
+
+// Названия типов
+function getTypeName(type) {
+    switch (type) {
+        case 'dorm': return 'Общага';
+        case 'apartment': return 'ЖК Огни Москвы';
+        case 'house': return 'Минеево';
+        default: return 'Недвижимость';
+    }
+}
+
+// Формирование ID объектов
+function getHousingIds(type) {
+    if (type === 'dorm') {
+        return Array.from({ length: 100 }, (_, i) => `dorm_${i + 1}`);
+    } else if (type === 'apartment') {
+        return Array.from({ length: 50 }, (_, i) => `apartment_${i + 1}`);
+    } else {
+        return Array.from({ length: 10 }, (_, i) => `house_${i + 1}`);
+    }
+}
+
+// Открытие модального окна со списком недвижимости
+export async function openHousingModal(type) {
+    const modal = document.getElementById('housingModal');
+    if (!modal) {
+        console.error('Модальное окно housingModal не найдено');
+        showMessage('Система недвижимости временно недоступна', '#e74c3c');
+        return;
+    }
+    
+    const titleEl = document.getElementById('housingModalTitle');
+    if (titleEl) titleEl.textContent = `🏠 ${getTypeName(type)}`;
+    
+    modal.style.display = 'flex';
+    
+    // Загружаем список
+    await loadHousingList(type);
+    
+    // Обработчики закрытия
+    const closeBtns = modal.querySelectorAll('.close-modal, .close-modal-btn, .housing-close-btn');
+    closeBtns.forEach(btn => {
+        btn.onclick = () => {
+            modal.style.display = 'none';
+        };
+    });
+    
+    // Закрытие по клику вне окна
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
+}
+
+// Загрузка списка объектов недвижимости
+async function loadHousingList(type) {
+    const container = document.getElementById('housingList');
+    if (!container) return;
+    
+    container.innerHTML = '<div style="text-align:center; padding:20px;">Загрузка...</div>';
+    
+    try {
+        const { db } = await import('./firestore.js');
+        const { collection, query, where, getDocs, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        const housingIds = getHousingIds(type);
+        const price = getPriceForType(type);
+        
+        // Получаем текущего пользователя
+        const { auth } = await import('./auth.js');
+        const currentUser = auth.currentUser;
+        
+        // Пытаемся получить данные из Firestore
+        let housingData = {};
+        try {
+            const housingRef = collection(db, 'real_estate');
+            // Разбиваем на чанки по 30 (ограничение Firestore)
+            const chunks = [];
+            for (let i = 0; i < housingIds.length; i += 30) {
+                chunks.push(housingIds.slice(i, i + 30));
+            }
+            
+            for (const chunk of chunks) {
+                const q = query(housingRef, where('id', 'in', chunk));
+                const snapshot = await getDocs(q);
+                snapshot.forEach(docSnap => {
+                    housingData[docSnap.id] = docSnap.data();
+                });
+            }
+        } catch (err) {
+            console.warn('Не удалось загрузить данные из Firestore, используем локальные данные', err);
+        }
+        
+        // Формируем HTML
+        let html = '<div class="housing-list">';
+        
+        for (const id of housingIds) {
+            const data = housingData[id];
+            const isOwned = data?.ownerId && data.ownerId !== null;
+            const ownerId = data?.ownerId;
+            
+            // Проверяем, является ли текущий игрок владельцем
+            const isCurrentOwner = isOwned && ownerId === currentUser?.uid;
+            
+            if (isOwned && !isCurrentOwner) {
+                // Проданный объект (другому игроку)
+                const ownerName = data?.ownerName || 'Неизвестный';
+                html += `
+                    <div class="housing-item sold">
+                        <div class="housing-item-info">
+                            <div class="housing-item-name">${id.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="housing-item-price">💰 ${price.toLocaleString()}₽</div>
+                            <div class="housing-item-owner">👤 Владелец: ${ownerName}</div>
+                        </div>
+                        <div class="housing-item-status">🔒 Продано</div>
+                    </div>
+                `;
+            } else if (isOwned && isCurrentOwner) {
+                // Объект принадлежит текущему игроку
+                html += `
+                    <div class="housing-item owned">
+                        <div class="housing-item-info">
+                            <div class="housing-item-name">${id.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="housing-item-price">💰 ${price.toLocaleString()}₽</div>
+                            <div class="housing-item-owner">🏠 Ваше жильё</div>
+                        </div>
+                        <div class="housing-item-status">✅ Ваше</div>
+                    </div>
+                `;
+            } else {
+                // Свободный объект
+                html += `
+                    <div class="housing-item">
+                        <div class="housing-item-info">
+                            <div class="housing-item-name">${id.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="housing-item-price">💰 ${price.toLocaleString()}₽</div>
+                            <div class="housing-item-status">✅ Свободно</div>
+                        </div>
+                        <button class="housing-buy-btn" data-id="${id}" data-price="${price}" data-type="${type}">Купить</button>
+                    </div>
+                `;
+            }
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Добавляем обработчики для кнопок покупки
+        document.querySelectorAll('.housing-buy-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const propertyId = btn.dataset.id;
+                const price = parseInt(btn.dataset.price);
+                const propertyType = btn.dataset.type;
+                await buyProperty(propertyId, price, propertyType);
+            });
+        });
+        
+    } catch (error) {
+        console.error('Ошибка загрузки списка недвижимости:', error);
+        container.innerHTML = '<div style="text-align:center; padding:20px;">❌ Ошибка загрузки. Попробуйте позже.</div>';
+    }
+}
+
+// Покупка недвижимости
+async function buyProperty(propertyId, price, type) {
+    console.log(`🏠 Покупка ${propertyId} за ${price}₽`);
+    
+    try {
+        const { auth } = await import('./auth.js');
+        const { db } = await import('./firestore.js');
+        const { doc, getDoc, runTransaction } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const { money, setStats, updateUI } = await import('./gameState.js');
+        const { showMessage } = await import('./utils.js');
+        
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+            showMessage('Ошибка авторизации', '#e74c3c');
+            return;
+        }
+        
+        // Проверяем деньги
+        if (money < price) {
+            showMessage(`❌ Не хватает денег! Нужно ${price.toLocaleString()}₽`, '#e74c3c');
+            return;
+        }
+        
+        // Транзакция покупки
+        await runTransaction(db, async (transaction) => {
+            const propertyRef = doc(db, 'real_estate', propertyId);
+            const propertySnap = await transaction.get(propertyRef);
+            
+            // Если объект уже существует и у него есть владелец
+            if (propertySnap.exists()) {
+                const propertyData = propertySnap.data();
+                if (propertyData.ownerId && propertyData.ownerId !== null) {
+                    throw new Error('Недвижимость уже продана');
+                }
+            }
+            
+            // Обновляем объект недвижимости
+            transaction.set(propertyRef, {
+                id: propertyId,
+                type: type,
+                price: price,
+                ownerId: currentUser.uid,
+                ownerName: currentUser.displayName || 'Игрок',
+                purchasedAt: new Date().toISOString()
+            }, { merge: true });
+            
+            // Обновляем данные пользователя
+            const userRef = doc(db, 'users', currentUser.uid);
+            const userSnap = await transaction.get(userRef);
+            const userData = userSnap.data();
+            const newMoney = money - price;
+            const ownedHomes = userData?.housing?.owned || [];
+            ownedHomes.push(propertyId);
+            
+            transaction.update(userRef, {
+                money: newMoney,
+                'housing.owned': ownedHomes,
+                'housing.current': propertyId,
+                'housing.storageCapacity': getCapacityForType(type)
+            });
+        });
+        
+        // Обновляем локальное состояние
+        const { setStats, updateStorageCapacity, setCurrentHome } = await import('./gameState.js');
+        const newMoney = money - price;
+        setStats(null, null, null, newMoney);
+        updateStorageCapacity(type);
+        
+        // Обновляем текущее жильё
+        if (typeof setCurrentHome === 'function') {
+            setCurrentHome(propertyId);
+        }
+        
+        updateUI();
+        
+        showMessage(`✅ Поздравляем! Вы купили ${propertyId}!`, '#4caf50');
+        
+        // Закрываем модальное окно
+        const modal = document.getElementById('housingModal');
+        if (modal) modal.style.display = 'none';
+        
+        // Обновляем список (чтобы показать обновления)
+        setTimeout(() => {
+            openHousingModal(type);
+        }, 500);
+        
+    } catch (error) {
+        console.error('Ошибка покупки:', error);
+        showMessage(`❌ Ошибка при покупке: ${error.message}`, '#e74c3c');
+    }
+}
+
+// Вместимость хранилища в зависимости от типа
+function getCapacityForType(type) {
+    switch (type) {
+        case 'dorm': return 10;
+        case 'apartment': return 20;
+        case 'house': return 40;
+        default: return 0;
+    }
 }
