@@ -42,6 +42,14 @@ export let requiredExp = 100;
 export let dailyBonusLastClaim = null;
 export let dailyBonusStreak = 0;
 
+// ========== СИСТЕМА ЖИЛЬЯ ==========
+export let currentHome = null;           // ID текущего жилья
+export let ownedHomes = [];               // Массив ID купленных объектов
+export let homeStorage = [];              // Предметы в хранилище
+export let homeStorageCapacity = 0;       // Вместимость хранилища
+export let housingDebt = 0;               // Долг по налогам
+export let lastTaxPaid = null;            // Дата последней оплаты налога
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -101,11 +109,9 @@ export function updateUI() {
     if (energyValueSpan) energyValueSpan.innerText = `${Math.floor(safeEnergy)} / ${maxEnergy}`;
     if (energyFill) energyFill.style.width = (safeEnergy / maxEnergy) * 100 + '%';
     
-    // Обновляем шкалу опьянения с изменением цвета
     if (intoxicationValueSpan) intoxicationValueSpan.innerText = `${Math.floor(safeIntoxication)} / ${maxIntoxication}`;
     if (intoxicationFill) {
         intoxicationFill.style.width = (safeIntoxication / maxIntoxication) * 100 + '%';
-        // Меняем цвет в зависимости от уровня
         if (safeIntoxication < 20) {
             intoxicationFill.style.background = '#2ecc71';
         } else if (safeIntoxication < 50) {
@@ -119,7 +125,6 @@ export function updateUI() {
 }
 
 export function setStats(h, hu, c, m) {
-    // Если параметр передан (не undefined и не null) — обновляем
     if (h !== undefined && h !== null) {
         health = isNaN(h) ? maxHealth : Math.min(maxHealth, Math.max(0, h));
     }
@@ -192,11 +197,9 @@ export function setIntoxicationUpdateCallback(callback) {
     onIntoxicationUpdateCallback = callback;
 }
 
-// Обновление опьянения (выветривание)
 export function updateIntoxication() {
     const now = Date.now();
     const secondsPassed = (now - lastIntoxicationUpdate) / 1000;
-    // -1 опьянения каждые 3 минуты (180 секунд)
     const intoxicationToRemove = Math.floor(secondsPassed / 180);
     if (intoxicationToRemove > 0 && intoxication > 0) {
         intoxication = Math.max(0, intoxication - intoxicationToRemove);
@@ -209,14 +212,12 @@ export function updateIntoxication() {
     }
 }
 
-// Добавление опьянения
 export function addIntoxication(amount) {
     const safeAmount = isNaN(amount) ? 0 : amount;
     intoxication = Math.min(maxIntoxication, intoxication + safeAmount);
     lastIntoxicationUpdate = Date.now();
     updateUI();
     
-    // Логируем достижения
     if (intoxication >= 80 && intoxication - safeAmount < 80) {
         addLogEntry(`🍺 Ты в стельку! Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
         showMessage(`🥴 Ты очень пьян! Осторожнее...`, '#e74c3c');
@@ -229,7 +230,6 @@ export function addIntoxication(amount) {
     if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
 }
 
-// Уменьшение опьянения (лечение, сон)
 export function reduceIntoxication(amount) {
     const safeAmount = isNaN(amount) ? 0 : amount;
     intoxication = Math.max(0, intoxication - safeAmount);
@@ -238,23 +238,20 @@ export function reduceIntoxication(amount) {
     if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
 }
 
-// Получить модификатор шанса для действий (чем выше опьянение, тем ниже шанс)
 export function getIntoxicationLuckModifier() {
-    if (intoxication < 20) return 1.0;      // норма
-    if (intoxication < 50) return 0.9;      // -10% к шансу
-    if (intoxication < 80) return 0.7;      // -30% к шансу
-    return 0.5;                              // -50% к шансу
+    if (intoxication < 20) return 1.0;
+    if (intoxication < 50) return 0.9;
+    if (intoxication < 80) return 0.7;
+    return 0.5;
 }
 
-// Получить модификатор урона для здоровья
 export function getIntoxicationDamageModifier() {
-    if (intoxication < 20) return 1.0;      // норма
-    if (intoxication < 50) return 1.2;      // +20% урона
-    if (intoxication < 80) return 1.5;      // +50% урона
-    return 2.0;                              // +100% урона
+    if (intoxication < 20) return 1.0;
+    if (intoxication < 50) return 1.2;
+    if (intoxication < 80) return 1.5;
+    return 2.0;
 }
 
-// Проверка, можно ли выполнить действие (при сильном опьянении)
 export function canPerformAction(actionName = 'действие') {
     updateIntoxication();
     if (intoxication >= 80) {
@@ -268,7 +265,6 @@ export function canPerformAction(actionName = 'действие') {
     return true;
 }
 
-// Принудительная установка опьянения (при загрузке)
 export function setIntoxication(newIntoxication) {
     const safeIntoxication = Number(newIntoxication);
     if (isNaN(safeIntoxication)) {
@@ -425,4 +421,81 @@ export function getDailyBonusData() {
 // ========== ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ВРЕМЕНИ ОПЬЯНЕНИЯ ==========
 export function setLastIntoxicationUpdate(value) {
     lastIntoxicationUpdate = value;
+}
+
+// ========== ФУНКЦИИ ДЛЯ СИСТЕМЫ ЖИЛЬЯ ==========
+export function setHousingData(data) {
+    if (data) {
+        currentHome = data.current ?? null;
+        ownedHomes = data.owned ?? [];
+        homeStorage = data.storage ?? [];
+        homeStorageCapacity = data.storageCapacity ?? 0;
+        housingDebt = data.debt ?? 0;
+        lastTaxPaid = data.lastTaxPaid ?? null;
+    }
+    console.log('🏠 Загружены данные жилья:', { currentHome, ownedHomes, homeStorageCapacity, housingDebt });
+}
+
+export function initHousingData() {
+    currentHome = null;
+    ownedHomes = [];
+    homeStorage = [];
+    homeStorageCapacity = 0;
+    housingDebt = 0;
+    lastTaxPaid = null;
+    console.log('🏠 Инициализированы данные жилья для нового игрока');
+}
+
+export function getHousingData() {
+    return {
+        current: currentHome,
+        owned: ownedHomes,
+        storage: homeStorage,
+        storageCapacity: homeStorageCapacity,
+        debt: housingDebt,
+        lastTaxPaid: lastTaxPaid
+    };
+}
+
+// Обновление вместимости хранилища в зависимости от типа жилья
+export function updateStorageCapacity(homeType) {
+    switch (homeType) {
+        case 'dorm':
+            homeStorageCapacity = 10;
+            break;
+        case 'apartment':
+            homeStorageCapacity = 20;
+            break;
+        case 'house':
+            homeStorageCapacity = 40;
+            break;
+        default:
+            homeStorageCapacity = 0;
+    }
+    console.log(`🏠 Вместимость хранилища обновлена: ${homeStorageCapacity} слотов`);
+}
+
+// Добавление предмета в хранилище дома
+export function addToHomeStorage(itemId, count = 1) {
+    const existingItem = homeStorage.find(i => i.id === itemId);
+    if (existingItem) {
+        existingItem.count += count;
+    } else {
+        homeStorage.push({ id: itemId, count });
+    }
+    updateUI();
+}
+
+// Удаление предмета из хранилища дома
+export function removeFromHomeStorage(itemId, count = 1) {
+    const itemIndex = homeStorage.findIndex(i => i.id === itemId);
+    if (itemIndex === -1 || homeStorage[itemIndex].count < count) return false;
+    
+    if (homeStorage[itemIndex].count === count) {
+        homeStorage.splice(itemIndex, 1);
+    } else {
+        homeStorage[itemIndex].count -= count;
+    }
+    updateUI();
+    return true;
 }
