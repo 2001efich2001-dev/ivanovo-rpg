@@ -125,6 +125,16 @@ function getHousingIds(type) {
     }
 }
 
+// Вместимость хранилища в зависимости от типа
+function getCapacityForType(type) {
+    switch (type) {
+        case 'dorm': return 10;
+        case 'apartment': return 20;
+        case 'house': return 40;
+        default: return 0;
+    }
+}
+
 // Открытие модального окна со списком недвижимости
 export async function openHousingModal(type) {
     const modal = document.getElementById('housingModal');
@@ -167,20 +177,17 @@ async function loadHousingList(type) {
     
     try {
         const { db } = await import('./firestore.js');
-        const { collection, query, where, getDocs, doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const { auth } = await import('./auth.js');
         
         const housingIds = getHousingIds(type);
         const price = getPriceForType(type);
-        
-        // Получаем текущего пользователя
-        const { auth } = await import('./auth.js');
         const currentUser = auth.currentUser;
         
-        // Пытаемся получить данные из Firestore
+        // Получаем данные из Firestore
         let housingData = {};
         try {
             const housingRef = collection(db, 'real_estate');
-            // Разбиваем на чанки по 30 (ограничение Firestore)
             const chunks = [];
             for (let i = 0; i < housingIds.length; i += 30) {
                 chunks.push(housingIds.slice(i, i + 30));
@@ -204,12 +211,9 @@ async function loadHousingList(type) {
             const data = housingData[id];
             const isOwned = data?.ownerId && data.ownerId !== null;
             const ownerId = data?.ownerId;
-            
-            // Проверяем, является ли текущий игрок владельцем
             const isCurrentOwner = isOwned && ownerId === currentUser?.uid;
             
             if (isOwned && !isCurrentOwner) {
-                // Проданный объект (другому игроку)
                 const ownerName = data?.ownerName || 'Неизвестный';
                 html += `
                     <div class="housing-item sold">
@@ -222,7 +226,6 @@ async function loadHousingList(type) {
                     </div>
                 `;
             } else if (isOwned && isCurrentOwner) {
-                // Объект принадлежит текущему игроку
                 html += `
                     <div class="housing-item owned">
                         <div class="housing-item-info">
@@ -234,7 +237,6 @@ async function loadHousingList(type) {
                     </div>
                 `;
             } else {
-                // Свободный объект
                 html += `
                     <div class="housing-item">
                         <div class="housing-item-info">
@@ -256,9 +258,9 @@ async function loadHousingList(type) {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 const propertyId = btn.dataset.id;
-                const price = parseInt(btn.dataset.price);
+                const priceNum = parseInt(btn.dataset.price);
                 const propertyType = btn.dataset.type;
-                await buyProperty(propertyId, price, propertyType);
+                await buyProperty(propertyId, priceNum, propertyType);
             });
         });
         
@@ -276,18 +278,18 @@ async function buyProperty(propertyId, price, type) {
         const { auth } = await import('./auth.js');
         const { db } = await import('./firestore.js');
         const { doc, getDoc, runTransaction } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
-        const { money, setStats, updateUI } = await import('./gameState.js');
-        const { showMessage } = await import('./utils.js');
+        const { money, setStats, updateUI, updateStorageCapacity } = await import('./gameState.js');
+        const { showMessage: showMsg } = await import('./utils.js');
         
         const currentUser = auth.currentUser;
         if (!currentUser) {
-            showMessage('Ошибка авторизации', '#e74c3c');
+            showMsg('Ошибка авторизации', '#e74c3c');
             return;
         }
         
         // Проверяем деньги
         if (money < price) {
-            showMessage(`❌ Не хватает денег! Нужно ${price.toLocaleString()}₽`, '#e74c3c');
+            showMsg(`❌ Не хватает денег! Нужно ${price.toLocaleString()}₽`, '#e74c3c');
             return;
         }
         
@@ -296,7 +298,6 @@ async function buyProperty(propertyId, price, type) {
             const propertyRef = doc(db, 'real_estate', propertyId);
             const propertySnap = await transaction.get(propertyRef);
             
-            // Если объект уже существует и у него есть владелец
             if (propertySnap.exists()) {
                 const propertyData = propertySnap.data();
                 if (propertyData.ownerId && propertyData.ownerId !== null) {
@@ -304,7 +305,6 @@ async function buyProperty(propertyId, price, type) {
                 }
             }
             
-            // Обновляем объект недвижимости
             transaction.set(propertyRef, {
                 id: propertyId,
                 type: type,
@@ -314,7 +314,6 @@ async function buyProperty(propertyId, price, type) {
                 purchasedAt: new Date().toISOString()
             }, { merge: true });
             
-            // Обновляем данные пользователя
             const userRef = doc(db, 'users', currentUser.uid);
             const userSnap = await transaction.get(userRef);
             const userData = userSnap.data();
@@ -331,41 +330,24 @@ async function buyProperty(propertyId, price, type) {
         });
         
         // Обновляем локальное состояние
-        const { setStats, updateStorageCapacity, setCurrentHome } = await import('./gameState.js');
         const newMoney = money - price;
         setStats(null, null, null, newMoney);
         updateStorageCapacity(type);
         
-        // Обновляем текущее жильё
-        if (typeof setCurrentHome === 'function') {
-            setCurrentHome(propertyId);
-        }
-        
         updateUI();
         
-        showMessage(`✅ Поздравляем! Вы купили ${propertyId}!`, '#4caf50');
+        showMsg(`✅ Поздравляем! Вы купили ${propertyId}!`, '#4caf50');
         
-        // Закрываем модальное окно
         const modal = document.getElementById('housingModal');
         if (modal) modal.style.display = 'none';
         
-        // Обновляем список (чтобы показать обновления)
         setTimeout(() => {
             openHousingModal(type);
         }, 500);
         
     } catch (error) {
         console.error('Ошибка покупки:', error);
-        showMessage(`❌ Ошибка при покупке: ${error.message}`, '#e74c3c');
-    }
-}
-
-// Вместимость хранилища в зависимости от типа
-function getCapacityForType(type) {
-    switch (type) {
-        case 'dorm': return 10;
-        case 'apartment': return 20;
-        case 'house': return 40;
-        default: return 0;
+        const { showMessage: showMsg } = await import('./utils.js');
+        showMsg(`❌ Ошибка при покупке: ${error.message}`, '#e74c3c');
     }
 }
