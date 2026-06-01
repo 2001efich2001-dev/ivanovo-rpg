@@ -272,5 +272,19 @@
             </div>
         </div>
     </div>
+    
+    <!-- Модальное окно для списка недвижимости -->
+<div id="housingModal" class="modal">
+    <div class="modal-content housing-modal-content">
+        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+            <h3 id="housingModalTitle" style="margin:0;">🏠 Недвижимость</h3>
+            <button class="close-modal-btn" style="background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div id="housingList" class="housing-list" style="max-height: 500px; overflow-y: auto;">
+            <!-- Список объектов будет заполняться динамически -->
+        </div>
+        <button class="close-modal housing-close-btn" style="margin-top:16px;">Закрыть</button>
+    </div>
+</div>
 </body>
 </html>
