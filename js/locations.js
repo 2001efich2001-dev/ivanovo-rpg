@@ -125,6 +125,66 @@ export const locationsDB = {
             { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
         ]
     }
+
+        // ========== ЛОКАЦИИ ДЛЯ ЖИЛЬЯ ==========
+    dump_home: {
+        id: "dump_home",
+        name: "🗑️ Моя помойка",
+        description: "Твоё любимое место на свалке. Картонка, крыса рядом...",
+        bgImage: "images/dump_home.jpg",
+        zones: [
+            { id: "rest_zone", name: "Картонка", description: "Отдохнуть: +10 здоровья, +5 энергии", cx: 200, cy: 200, r: 60, actionId: "rest_dump" },
+            { id: "scavenge_zone", name: "Помойка", description: "Покопаться в мусоре", cx: 400, cy: 200, r: 55, actionId: "scavenge_home" }
+        ],
+        actions: [
+            { id: "rest_dump", name: "Отдохнуть", desc: "Восстановить здоровье и энергию", effect: { health: 10, energy: 5 }, cost: 0, risk: 0 },
+            { id: "scavenge_home", name: "Покопаться в мусоре", desc: "Найти что-то полезное", effect: { items: ["empty_bottle", "old_hat"] }, risk: 30, riskEffect: { health: -5 } }
+        ]
+    },
+    dorm_home: {
+        id: "dorm_home",
+        name: "🛏️ Моя комната в общаге",
+        description: "Уютная комнатка. Есть кровать и тумбочка.",
+        bgImage: "images/dorm_home.jpg",
+        zones: [
+            { id: "sleep_zone", name: "Кровать", description: "Поспать: +20 здоровья, +20 энергии", cx: 200, cy: 200, r: 60, actionId: "sleep_dorm" },
+            { id: "storage_zone", name: "Тумбочка", description: "Достать вещи из хранилища", cx: 400, cy: 200, r: 55, actionId: "storage_open" }
+        ],
+        actions: [
+            { id: "sleep_dorm", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 20, energy: 20 }, cost: 0, risk: 0 },
+            { id: "storage_open", name: "Открыть хранилище", desc: "Здесь будет хранилище вещей", effect: {}, cost: 0, risk: 0 }
+        ]
+    },
+    apartment_home: {
+        id: "apartment_home",
+        name: "🏢 Моя квартира",
+        description: "Просторная квартира. Полный уют и комфорт.",
+        bgImage: "images/apartment_home.jpg",
+        zones: [
+            { id: "sleep_zone", name: "Кровать", description: "Поспать: +30 здоровья, +30 энергии", cx: 200, cy: 200, r: 60, actionId: "sleep_apartment" },
+            { id: "kitchen_zone", name: "Кухня", description: "Приготовить еду", cx: 400, cy: 200, r: 55, actionId: "cook" }
+        ],
+        actions: [
+            { id: "sleep_apartment", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 30, energy: 30 }, cost: 0, risk: 0 },
+            { id: "cook", name: "Приготовить еду", desc: "Сделать бутерброд", effect: { items: ["bread"] }, cost: 0, risk: 0 }
+        ]
+    },
+    house_home: {
+        id: "house_home",
+        name: "🏠 Мой дом",
+        description: "Роскошный дом. Сауна, гараж, всё включено!",
+        bgImage: "images/house_home.jpg",
+        zones: [
+            { id: "sleep_zone", name: "Кровать", description: "Поспать: +50 здоровья, +50 энергии", cx: 150, cy: 200, r: 50, actionId: "sleep_house" },
+            { id: "sauna_zone", name: "Сауна", description: "Попариться: +20 здоровья, -10 голода", cx: 350, cy: 200, r: 50, actionId: "sauna" },
+            { id: "garage_zone", name: "Гараж", description: "Хранилище", cx: 550, cy: 200, r: 50, actionId: "garage_storage" }
+        ],
+        actions: [
+            { id: "sleep_house", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 50, energy: 50 }, cost: 0, risk: 0 },
+            { id: "sauna", name: "Сауна", desc: "Попариться", effect: { health: 20, hunger: -10 }, cost: 0, risk: 0 },
+            { id: "garage_storage", name: "Открыть гараж", desc: "Хранилище вещей", effect: {}, cost: 0, risk: 0 }
+        ]
+    }
 };
 
 // Переменная для отслеживания посещённых локаций
