@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -118,6 +118,102 @@ function updateEquipmentBonusDisplay() {
         bonusElement.textContent = `🔥 +${totalColdBonus}`;
         bonusElement.title = `Суммарный бонус тепла от одежды: +${totalColdBonus}`;
     }
+}
+
+// ========== НОВАЯ ФУНКЦИЯ: РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" ==========
+function getHousingTypeName(homeId) {
+    if (!homeId) return 'Неизвестно';
+    if (homeId.startsWith('dorm')) return '🏢 Общага';
+    if (homeId.startsWith('apartment')) return '🏢 Квартира';
+    if (homeId.startsWith('house')) return '🏠 Дом';
+    return '🏠 Жильё';
+}
+
+function getHousingCapacity(homeId) {
+    if (!homeId) return 0;
+    if (homeId.startsWith('dorm')) return 10;
+    if (homeId.startsWith('apartment')) return 20;
+    if (homeId.startsWith('house')) return 40;
+    return 0;
+}
+
+export function renderHousingTab() {
+    const container = document.getElementById('housingTab');
+    if (!container) return;
+    
+    if (!ownedHomes || ownedHomes.length === 0) {
+        container.innerHTML = '<div class="empty-inventory">🏠 У вас пока нет недвижимости. Купите её на карте!</div>';
+        return;
+    }
+    
+    let html = '<div class="housing-list" style="display: flex; flex-direction: column; gap: 12px;">';
+    
+    for (const homeId of ownedHomes) {
+        const isCurrent = (currentHome === homeId);
+        const typeName = getHousingTypeName(homeId);
+        const capacity = getHousingCapacity(homeId);
+        
+        // Форматируем ID для красивого отображения (dorm_1 → DORM 1)
+        let displayName = homeId.toUpperCase().replace(/_/g, ' ');
+        
+        html += `
+            <div class="housing-item ${isCurrent ? 'current-home' : ''}" style="
+                background: var(--stat-bg);
+                border-radius: 24px;
+                padding: 16px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 12px;
+                ${isCurrent ? 'border-left: 4px solid #ffd966;' : 'border-left: 4px solid var(--accent-gold);'}
+            ">
+                <div class="housing-item-info" style="flex: 2;">
+                    <div class="housing-item-name" style="font-weight: bold; font-size: 1rem; color: var(--accent-gold);">
+                        ${displayName}
+                    </div>
+                    <div class="housing-item-type" style="font-size: 0.85rem; color: var(--text-secondary);">
+                        ${typeName} • 📦 Вместимость: ${capacity}
+                    </div>
+                </div>
+                <div class="housing-item-status" style="font-size: 0.85rem;">
+                    ${isCurrent ? '⭐ Текущее основное' : ''}
+                </div>
+                <div>
+                    ${!isCurrent ? `
+                        <button class="housing-set-primary-btn action-btn" data-id="${homeId}" style="
+                            background: var(--buy-btn-bg);
+                            border: none;
+                            padding: 8px 20px;
+                            border-radius: 40px;
+                            color: white;
+                            cursor: pointer;
+                            font-weight: bold;
+                        ">🏠 Сделать основным</button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // Добавляем обработчики для кнопок
+    document.querySelectorAll('.housing-set-primary-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._handler);
+        const handler = async () => {
+            const homeId = btn.dataset.id;
+            playClick();
+            const success = await setPrimaryHome(homeId);
+            if (success) {
+                renderHousingTab(); // обновляем вкладку
+                showMessage(`🏠 Основным жильём выбрано: ${homeId.toUpperCase().replace(/_/g, ' ')}`, '#4caf50');
+            }
+        };
+        btn.addEventListener('click', handler);
+        btn._handler = handler;
+    });
 }
 
 // Функция для рендера сетки инвентаря
@@ -453,7 +549,7 @@ export function renderAchievementsTabWrapper() {
     renderAchievementsTab();
 }
 
-// Обновляем initInventoryTabs для поддержки новой вкладки
+// ОБНОВЛЁННАЯ initInventoryTabs с поддержкой вкладки housing
 export function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
     if (!modal) return;
@@ -461,7 +557,9 @@ export function initInventoryTabs() {
     const itemsTab = document.getElementById('itemsTab');
     const equipmentTab = document.getElementById('equipmentTab');
     const achievementsTab = document.getElementById('achievementsTab');
-    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab) return;
+    const housingTab = document.getElementById('housingTab');
+    
+    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab || !housingTab) return;
     
     tabs.forEach(tab => { tab.removeEventListener('click', tab._listener); });
     
@@ -470,21 +568,25 @@ export function initInventoryTabs() {
         tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         
+        // Скрываем все вкладки
+        itemsTab.style.display = 'none';
+        equipmentTab.style.display = 'none';
+        achievementsTab.style.display = 'none';
+        housingTab.style.display = 'none';
+        
+        // Показываем нужную
         if (tab.dataset.tab === 'items') {
             itemsTab.style.display = 'flex';
-            equipmentTab.style.display = 'none';
-            achievementsTab.style.display = 'none';
             renderItemsTab();
         } else if (tab.dataset.tab === 'equipment') {
-            itemsTab.style.display = 'none';
             equipmentTab.style.display = 'flex';
-            achievementsTab.style.display = 'none';
             renderEquipmentTab();
         } else if (tab.dataset.tab === 'achievements') {
-            itemsTab.style.display = 'none';
-            equipmentTab.style.display = 'none';
             achievementsTab.style.display = 'flex';
             renderAchievementsTab();
+        } else if (tab.dataset.tab === 'housing') {
+            housingTab.style.display = 'flex';
+            renderHousingTab();
         }
     };
     
