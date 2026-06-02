@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -279,8 +279,11 @@ function showDepositModal(homeId) {
     updateMoneyDisplay();
 }
 
-// ========== РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" ==========
-export function renderHousingTab() {
+// ========== РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" (ОБНОВЛЕНО: синхронизация с real_estate) ==========
+export async function renderHousingTab() {
+    // Принудительно загружаем актуальную недвижимость из real_estate
+    await loadOwnedHomesFromRealEstate();
+    
     const container = document.getElementById('housingTab');
     if (!container) return;
     
