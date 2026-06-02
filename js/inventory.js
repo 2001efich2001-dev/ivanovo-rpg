@@ -1,5 +1,5 @@
 import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount } from './gameState.js';
-import { saveGameData, db, doc, getDoc } from './firestore.js';
+import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
 
@@ -960,9 +960,13 @@ async function renderTradeInventorySelector(side) {
     const container = document.getElementById(`trade${side === 'from' ? 'FromItems' : 'ToItems'}`);
     if (!container) return;
     
+    // Динамически импортируем Firebase
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+    const { db } = await import('./firestore.js');
+    
     if (side === 'from') {
         // Отображаем инвентарь игрока (что отдаёт)
-        const userDoc = await import('./firestore.js').then(f => f.getDoc(doc(db, 'users', user.uid)));
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
         const userInv = userDoc.data()?.inventory || [];
         
         if (userInv.length === 0) {
