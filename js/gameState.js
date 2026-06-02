@@ -45,7 +45,7 @@ export let dailyBonusStreak = 0;
 
 // ========== СИСТЕМА ЖИЛЬЯ ==========
 export let currentHome = null;           // ID текущего жилья
-export let ownedHomes = [];               // Массив ID купленных объектов
+export let ownedHomes = [];               // Массив ID купленных объектов (кеш)
 export let homeStorage = [];              // Предметы в хранилище
 export let homeStorageCapacity = 0;       // Вместимость хранилища
 export let housingDebt = 0;               // Долг по налогам
@@ -1023,4 +1023,53 @@ export async function playerDeath() {
     window._isDying = false;
     
     return { lostMoney, lostExp, lostItemName };
+}
+
+// ========== ЗАГРУЗКА НЕДВИЖИМОСТИ ИЗ REAL_ESTATE ==========
+export async function loadOwnedHomesFromRealEstate() {
+    const user = window.auth?.currentUser;
+    if (!user) {
+        console.log('🏠 Пользователь не авторизован');
+        return [];
+    }
+    
+    try {
+        const { db } = await import('./firestore.js');
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        const q = query(collection(db, 'real_estate'), where('ownerId', '==', user.uid));
+        const snapshot = await getDocs(q);
+        
+        const owned = [];
+        snapshot.forEach(doc => {
+            owned.push(doc.id);
+        });
+        
+        // Обновляем локальный массив
+        ownedHomes.length = 0;
+        ownedHomes.push(...owned);
+        
+        console.log('🏠 Загружена недвижимость из real_estate:', owned);
+        return owned;
+    } catch (error) {
+        console.error('❌ Ошибка загрузки недвижимости из real_estate:', error);
+        return [];
+    }
+}
+
+// ========== ОБНОВЛЕНИЕ currentHome (если он стал невалидным) ==========
+export async function validateCurrentHome() {
+    await loadOwnedHomesFromRealEstate();
+    
+    if (currentHome && !ownedHomes.includes(currentHome)) {
+        console.log(`🏠 Текущее жильё ${currentHome} больше не принадлежит игроку, выбираем новое`);
+        if (ownedHomes.length > 0) {
+            await setPrimaryHome(ownedHomes[0]);
+        } else {
+            currentHome = null;
+            homeStorageCapacity = 0;
+            housingDailyCost = 0;
+            await saveGameData();
+        }
+    }
 }
