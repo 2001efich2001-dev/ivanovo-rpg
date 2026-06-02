@@ -451,7 +451,7 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ТЕКУЩЕГО ИГРОКА (ПОКУПАТЕЛЯ) =====
+            // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ТЕКУЩЕГО ИГРОКА =====
             const currentUser = window.auth?.currentUser;
             
             if (currentUser && currentUser.uid === userId) {
@@ -485,21 +485,35 @@ export async function acceptTradeOffer(offerId, userId) {
                 console.log('🏠 UI покупателя обновлён принудительно');
             }
             
-            // ===== ОТЛОЖЕННОЕ ОБНОВЛЕНИЕ ДЛЯ ПРОДАВЦА =====
-            if (offerData && offerData.fromUserId) {
-                setTimeout(async () => {
-                    await loadGameData(offerData.fromUserId);
-                    
-                    const currentUserNow = window.auth?.currentUser;
-                    if (currentUserNow && currentUserNow.uid === offerData.fromUserId) {
-                        const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-                        renderItemsTab();
-                        renderEquipmentTab();
-                        initInventoryTabs();
-                        renderHousingTab();
-                        console.log('🏠 UI продавца обновлён через loadGameData');
-                    }
-                }, 1000);
+            if (currentUser && offerData && currentUser.uid === offerData.fromUserId) {
+                const gameState = await import('./gameState.js');
+                
+                gameState.setStats(null, null, null, finalFromMoney);
+                gameState.inventory.length = 0;
+                gameState.inventory.push(...finalFromInventory);
+                
+                const housingDataForUpdate = {
+                    current: finalFromCurrent,
+                    owned: finalFromHousing || [],
+                    storage: gameState.homeStorage || [],
+                    storageCapacity: finalFromCapacity,
+                    debt: gameState.housingDebt || 0,
+                    lastTaxPaid: gameState.lastTaxPaid || null,
+                    account: gameState.housingAccount || 20000,
+                    dailyCost: gameState.housingDailyCost || 0,
+                    lastHousingCheck: gameState.lastHousingCheck || null,
+                    lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
+                };
+                gameState.setHousingData(housingDataForUpdate);
+                gameState.updateUI();
+                
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                renderItemsTab();
+                renderEquipmentTab();
+                initInventoryTabs();
+                renderHousingTab();
+                
+                console.log('🏠 UI продавца обновлён принудительно');
             }
             
             setTimeout(() => { 
