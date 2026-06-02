@@ -949,7 +949,7 @@ export async function playerDeath() {
     
     // Плавное затемнение и размытие (3 секунды)
     setTimeout(() => { 
-        deathOverlay.style.opacity = '0.9';
+        deathOverlay.style.opacity = '0.95';
         deathOverlay.style.backdropFilter = 'blur(8px)';
     }, 10);
     
@@ -957,7 +957,7 @@ export async function playerDeath() {
     setStats(50, 50, 50, newMoney);
     setExpData(newExperience, level);
     
-    addLogEntry(`💀 Вы умерли! Потеряно ${lostMoney}₽, ${lostExp} опыта${lostItemName ? `, потерян предмет: ${lostItemName}` : ''}.`, 'combat');
+    addLogEntry(`💀 Вы потеряли сознание! Потеряно ${lostMoney}₽, ${lostExp} опыта${lostItemName ? `, потерян предмет: ${lostItemName}` : ''}.`, 'combat');
     
     // 4. Всплывающее сообщение с деталями (поверх затемнения)
     const deathMessageDiv = document.createElement('div');
@@ -966,18 +966,19 @@ export async function playerDeath() {
     deathMessageDiv.style.left = '50%';
     deathMessageDiv.style.transform = 'translate(-50%, -50%)';
     deathMessageDiv.style.backgroundColor = 'rgba(0,0,0,0.85)';
-    deathMessageDiv.style.color = '#e74c3c';
-    deathMessageDiv.style.padding = '20px 30px';
+    deathMessageDiv.style.color = '#ffd966';
+    deathMessageDiv.style.padding = '25px 35px';
     deathMessageDiv.style.borderRadius = '60px';
-    deathMessageDiv.style.fontSize = '1.3rem';
+    deathMessageDiv.style.fontSize = '1.2rem';
     deathMessageDiv.style.fontWeight = 'bold';
     deathMessageDiv.style.textAlign = 'center';
     deathMessageDiv.style.zIndex = '10051';
-    deathMessageDiv.style.border = '2px solid #e74c3c';
-    deathMessageDiv.style.boxShadow = '0 0 20px rgba(231, 76, 60, 0.5)';
+    deathMessageDiv.style.border = '2px solid #ffd966';
+    deathMessageDiv.style.boxShadow = '0 0 20px rgba(255, 217, 102, 0.5)';
     deathMessageDiv.style.animation = 'deathMessagePulse 1s ease infinite';
     deathMessageDiv.innerHTML = `
-        💀 ВЫ УМЕРЛИ! 💀<br><br>
+        🚑 Кажется, вы потеряли сознание...<br>
+        Скорая дотащила вас до дома, но вы что-то потеряли по пути<br><br>
         💰 Потеряно: ${lostMoney}₽<br>
         ⭐ Потеряно: ${lostExp} опыта${lostItemName ? `<br>🎒 Потерян: ${lostItemName}` : ''}
     `;
@@ -987,9 +988,9 @@ export async function playerDeath() {
     const style = document.createElement('style');
     style.textContent = `
         @keyframes deathMessagePulse {
-            0% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); text-shadow: 0 0 10px #e74c3c; }
-            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+            0% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); text-shadow: 0 0 8px #ffd966; }
+            100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
         }
     `;
     document.head.appendChild(style);
@@ -1003,20 +1004,24 @@ export async function playerDeath() {
     // 7. Обновляем UI
     updateUI();
     
-    // 8. Убираем сообщение и затемнение через 5 секунд (медленнее)
+    // 8. Убираем сообщение через 6 секунд, а затемнение через 7 секунд
     setTimeout(() => {
         if (deathMessageDiv && deathMessageDiv.remove) deathMessageDiv.remove();
+    }, 6000);
+    
+    setTimeout(() => {
         deathOverlay.style.opacity = '0';
         deathOverlay.style.backdropFilter = 'blur(0px)';
         setTimeout(() => {
             if (deathOverlay && deathOverlay.remove) deathOverlay.remove();
             if (style && style.remove) style.remove();
         }, 1000);
-    }, 5000);
+    }, 7000);
     
     console.log(`💀 Смерть обработана: потеряно денег ${lostMoney}, опыта ${lostExp}, предмет ${lostItemName || 'нет'}`);
     
     window._isDying = false;
     
     return { lostMoney, lostExp, lostItemName };
+}stExp, lostItemName };
 }
