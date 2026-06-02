@@ -439,13 +439,32 @@ export async function acceptTradeOffer(offerId, userId) {
             
             const currentUser = window.auth?.currentUser;
             if (currentUser) {
-                await loadGameData(currentUser.uid);
-                const { renderEquipmentTab, renderItemsTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-                renderItemsTab();
-                renderEquipmentTab();
-                initInventoryTabs();
-                renderHousingTab();
-            }
+    await loadGameData(currentUser.uid);
+    
+    // Принудительно обновляем ownedHomes в gameState
+    const gameState = await import('./gameState.js');
+    const { db } = await import('./firestore.js');
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+    
+    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+    const housingData = userDoc.data()?.housing;
+    
+    if (housingData && housingData.owned) {
+        gameState.ownedHomes.length = 0;
+        gameState.ownedHomes.push(...(housingData.owned || []));
+        gameState.currentHome = housingData.current || null;
+        gameState.housingAccount = housingData.account ?? 20000;
+        gameState.housingDailyCost = housingData.dailyCost ?? 0;
+        gameState.homeStorageCapacity = housingData.storageCapacity ?? 0;
+        console.log('🏠 Принудительно обновлены ownedHomes:', gameState.ownedHomes);
+    }
+    
+    const { renderEquipmentTab, renderItemsTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+    renderItemsTab();
+    renderEquipmentTab();
+    initInventoryTabs();
+    renderHousingTab();
+}
             
             setTimeout(() => { 
                 window._preventAutoSave = false; 
