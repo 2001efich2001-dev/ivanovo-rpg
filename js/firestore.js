@@ -8,7 +8,13 @@ export function initFirestore(auth) {
     db = getFirestore(auth.app);
 }
 
-export async function saveGameData() {    
+export async function saveGameData() {  
+     // БЛОКИРУЕМ СОХРАНЕНИЕ ВО ВРЕМЯ ОБМЕНА
+    if (window._preventAutoSave) {
+        console.log('💾 saveGameData: пропускаем сохранение (идет обмен)');
+        return;
+    }
+    
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
