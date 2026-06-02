@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -151,7 +151,7 @@ function getCostName(homeId) {
     return 'Коммуналка';
 }
 
-// ========== ПОПОЛНЕНИЕ СЧЁТА (модальное окно) ==========
+// ========== ПОПОЛНЕНИЕ / СНЯТИЕ СО СЧЁТА (модальное окно) ==========
 function showDepositModal(homeId) {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -159,19 +159,35 @@ function showDepositModal(homeId) {
     modal.style.zIndex = '10050';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 400px; text-align: center;">
-            <h3>💰 Пополнение счёта</h3>
+            <h3>💰 Управление счётом</h3>
             <p style="margin-bottom: 10px;">${homeId.toUpperCase().replace(/_/g, ' ')}</p>
             <p>💰 Ваши деньги: <span id="depositMoneyAmount">${Math.floor(money)}</span>₽</p>
             <p>🏦 Баланс счёта: <span id="depositAccountAmount">${housingAccount}</span>₽</p>
-            <input type="number" id="depositAmount" placeholder="Сумма пополнения" min="1" max="${Math.floor(money)}" style="width: 100%; padding: 10px; margin: 10px 0; border-radius: 40px; background: var(--stat-bg); color: var(--text-primary); border: 1px solid var(--card-border);">
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button id="deposit500" class="action-btn" style="flex: none; padding: 8px 16px;">500₽</button>
-                <button id="deposit1000" class="action-btn" style="flex: none; padding: 8px 16px;">1000₽</button>
-                <button id="deposit5000" class="action-btn" style="flex: none; padding: 8px 16px;">5000₽</button>
-                <button id="depositMax" class="action-btn" style="flex: none; padding: 8px 16px;">Макс</button>
+            
+            <div style="margin: 15px 0; padding: 10px; background: var(--stat-bg); border-radius: 32px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="number" id="depositAmount" placeholder="Сумма" min="1" style="width: 100%; padding: 10px; border-radius: 40px; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--card-border);">
+                </div>
+                
+                <div style="font-weight: bold; margin: 10px 0;">📥 Пополнение счёта</div>
+                <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                    <button id="deposit500" class="action-btn" style="flex: none; padding: 6px 12px;">500₽</button>
+                    <button id="deposit1000" class="action-btn" style="flex: none; padding: 6px 12px;">1000₽</button>
+                    <button id="deposit5000" class="action-btn" style="flex: none; padding: 6px 12px;">5000₽</button>
+                    <button id="depositMax" class="action-btn" style="flex: none; padding: 6px 12px;">Макс</button>
+                </div>
+                
+                <div style="font-weight: bold; margin: 15px 0 10px 0;">📤 Снятие со счёта</div>
+                <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                    <button id="withdraw500" class="reset-btn" style="flex: none; padding: 6px 12px;">500₽</button>
+                    <button id="withdraw1000" class="reset-btn" style="flex: none; padding: 6px 12px;">1000₽</button>
+                    <button id="withdraw5000" class="reset-btn" style="flex: none; padding: 6px 12px;">5000₽</button>
+                    <button id="withdrawAll" class="reset-btn" style="flex: none; padding: 6px 12px;">Всё</button>
+                </div>
             </div>
+            
             <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button id="depositConfirmBtn" class="action-btn" style="flex: 1;">✅ Пополнить</button>
+                <button id="depositConfirmBtn" class="action-btn" style="flex: 1;">✅ Применить</button>
                 <button id="depositCancelBtn" class="reset-btn" style="flex: 1;">Отмена</button>
             </div>
         </div>
@@ -185,52 +201,81 @@ function showDepositModal(homeId) {
     
     const updateMoneyDisplay = () => {
         depositMoneySpan.textContent = Math.floor(money);
-        amountInput.max = Math.floor(money);
+        depositAccountSpan.textContent = housingAccount;
     };
     
-    // Кнопки быстрого пополнения
+    // Кнопки пополнения (устанавливаем положительные значения)
     modal.querySelector('#deposit500').onclick = () => { amountInput.value = 500; };
     modal.querySelector('#deposit1000').onclick = () => { amountInput.value = 1000; };
     modal.querySelector('#deposit5000').onclick = () => { amountInput.value = 5000; };
-    modal.querySelector('#depositMax').onclick = () => { amountInput.value = Math.min(Math.floor(money), 20000 - housingAccount); };
+    modal.querySelector('#depositMax').onclick = () => { 
+        const maxDeposit = Math.min(Math.floor(money), 20000 - housingAccount);
+        amountInput.value = maxDeposit > 0 ? maxDeposit : 0;
+    };
+    
+    // Кнопки снятия (устанавливаем отрицательные значения)
+    modal.querySelector('#withdraw500').onclick = () => { amountInput.value = -500; };
+    modal.querySelector('#withdraw1000').onclick = () => { amountInput.value = -1000; };
+    modal.querySelector('#withdraw5000').onclick = () => { amountInput.value = -5000; };
+    modal.querySelector('#withdrawAll').onclick = () => { amountInput.value = -housingAccount; };
     
     // Подтверждение
     modal.querySelector('#depositConfirmBtn').onclick = async () => {
         let amount = parseInt(amountInput.value);
-        if (isNaN(amount) || amount <= 0) {
-            showMessage('❌ Введите корректную сумму', '#e74c3c');
+        if (isNaN(amount) || amount === 0) {
+            showMessage('❌ Введите сумму', '#e74c3c');
             return;
         }
         
-        if (amount > money) {
-            showMessage(`❌ Не хватает денег! Нужно ${amount}₽`, '#e74c3c');
-            updateMoneyDisplay();
-            return;
-        }
-        
-        const maxDeposit = 20000 - housingAccount;
-        if (amount > maxDeposit) {
-            showMessage(`❌ Счёт не может превысить 20000₽. Максимум можно положить ${maxDeposit}₽`, '#ffd966');
-            amountInput.value = maxDeposit;
-            return;
-        }
-        
-        const success = await depositToHousingAccount(amount);
-        if (success) {
-            depositAccountSpan.textContent = housingAccount;
-            updateMoneyDisplay();
-            renderHousingTab(); // Обновляем вкладку
-            amountInput.value = '';
-            modal.remove();
-        } else {
-            updateMoneyDisplay();
+        if (amount > 0) {
+            // Пополнение
+            if (amount > money) {
+                showMessage(`❌ Не хватает денег! Нужно ${amount}₽`, '#e74c3c');
+                updateMoneyDisplay();
+                return;
+            }
+            
+            const maxDeposit = 20000 - housingAccount;
+            if (amount > maxDeposit) {
+                showMessage(`❌ Счёт не может превысить 20000₽. Максимум можно положить ${maxDeposit}₽`, '#ffd966');
+                amountInput.value = maxDeposit;
+                return;
+            }
+            
+            const success = await depositToHousingAccount(amount);
+            if (success) {
+                updateMoneyDisplay();
+                renderHousingTab();
+                amountInput.value = '';
+                modal.remove();
+            } else {
+                updateMoneyDisplay();
+            }
+        } else if (amount < 0) {
+            // Снятие
+            const withdrawAmount = Math.abs(amount);
+            if (withdrawAmount > housingAccount) {
+                showMessage(`❌ Недостаточно средств на счету! Доступно: ${housingAccount}₽`, '#e74c3c');
+                updateMoneyDisplay();
+                return;
+            }
+            
+            const success = await withdrawFromHousingAccount(withdrawAmount);
+            if (success) {
+                updateMoneyDisplay();
+                renderHousingTab();
+                amountInput.value = '';
+                modal.remove();
+            } else {
+                updateMoneyDisplay();
+            }
         }
     };
     
     modal.querySelector('#depositCancelBtn').onclick = () => modal.remove();
-    
-    // Закрытие по клику вне окна
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    
+    updateMoneyDisplay();
 }
 
 // ========== РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" ==========
@@ -317,7 +362,7 @@ export function renderHousingTab() {
                             color: white;
                             cursor: pointer;
                             font-weight: bold;
-                        ">💰 Пополнить счёт</button>
+                        ">💰 Управление счётом</button>
                     ` : ''}
                     ${!isCurrent ? `
                         <button class="housing-set-primary-btn action-btn" data-id="${homeId}" style="
@@ -347,7 +392,7 @@ export function renderHousingTab() {
     html += '</div>';
     container.innerHTML = html;
     
-    // Обработчики для кнопок "Пополнить счёт"
+    // Обработчики для кнопок "Управление счётом"
     document.querySelectorAll('.housing-deposit-btn').forEach(btn => {
         btn.removeEventListener('click', btn._depositHandler);
         const handler = () => {
