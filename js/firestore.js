@@ -518,7 +518,7 @@ export async function acceptTradeOffer(offerId, userId) {
             
             setTimeout(() => { 
                 window._preventAutoSave = false; 
-            }, 5000);
+            }, 10000);
             
             return true;
             
