@@ -839,7 +839,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // ===== КОММУНАЛКА/АРЕНДА =====
+        // ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ (при входе любого игрока) =====
+        try {
+            const gameState = await import('./gameState.js');
+            if (typeof gameState.checkAllHousingPayments === 'function') {
+                await gameState.checkAllHousingPayments();
+                console.log('🏠 Глобальная проверка недвижимости выполнена');
+            }
+        } catch (err) {
+            console.error('Ошибка при глобальной проверке недвижимости:', err);
+        }
+        
+        // ===== ПРОВЕРКА ТЕКУЩЕГО ЖИЛЬЯ (для себя) =====
         await checkHousingPayment();
         startHousingCheckTimer();
         
