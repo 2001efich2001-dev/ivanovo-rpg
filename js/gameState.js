@@ -1,5 +1,6 @@
 // js/gameState.js
 import { showMessage } from './utils.js';
+import { saveGameData } from './firestore.js';
 
 export let health = 100;
 export let maxHealth = 100;
@@ -129,6 +130,15 @@ export function updateUI() {
         } else {
             intoxicationFill.style.background = '#e74c3c';
         }
+    }
+    
+    // Проверка смерти (если здоровье ≤ 0)
+    if (safeHealth <= 0 && !window._isDying) {
+        setTimeout(() => {
+            if (health <= 0 && !window._isDying) {
+                playerDeath();
+            }
+        }, 100);
     }
 }
 
@@ -440,7 +450,6 @@ export function setHousingData(data) {
         homeStorageCapacity = data.storageCapacity ?? 0;
         housingDebt = data.debt ?? 0;
         lastTaxPaid = data.lastTaxPaid ?? null;
-        // ===== НОВЫЕ ПОЛЯ =====
         housingAccount = data.account ?? 20000;
         housingDailyCost = data.dailyCost ?? 0;
         lastHousingCheck = data.lastHousingCheck ?? null;
@@ -456,7 +465,6 @@ export function initHousingData() {
     homeStorageCapacity = 0;
     housingDebt = 0;
     lastTaxPaid = null;
-    // ===== НОВЫЕ ПОЛЯ =====
     housingAccount = 20000;
     housingDailyCost = 0;
     lastHousingCheck = null;
@@ -472,7 +480,6 @@ export function getHousingData() {
         storageCapacity: homeStorageCapacity,
         debt: housingDebt,
         lastTaxPaid: lastTaxPaid,
-        // ===== НОВЫЕ ПОЛЯ =====
         account: housingAccount,
         dailyCost: housingDailyCost,
         lastHousingCheck: lastHousingCheck,
@@ -480,7 +487,7 @@ export function getHousingData() {
     };
 }
 
-// ===== НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ЕЖЕДНЕВНОЙ СТОИМОСТИ =====
+// ===== ОБНОВЛЕНИЕ ЕЖЕДНЕВНОЙ СТОИМОСТИ =====
 export function updateHousingDailyCost(homeId = currentHome) {
     if (!homeId) {
         housingDailyCost = 0;
@@ -488,11 +495,11 @@ export function updateHousingDailyCost(homeId = currentHome) {
     }
     
     if (homeId.startsWith('dorm')) {
-        housingDailyCost = 250;      // Аренда общаги
+        housingDailyCost = 250;
     } else if (homeId.startsWith('apartment')) {
-        housingDailyCost = 500;       // Коммуналка квартиры
+        housingDailyCost = 500;
     } else if (homeId.startsWith('house')) {
-        housingDailyCost = 1000;      // Коммуналка дома
+        housingDailyCost = 1000;
     } else {
         housingDailyCost = 0;
     }
@@ -501,7 +508,7 @@ export function updateHousingDailyCost(homeId = currentHome) {
     return housingDailyCost;
 }
 
-// ===== НОВАЯ ФУНКЦИЯ: ПОПОЛНЕНИЕ СЧЁТА =====
+// ===== ПОПОЛНЕНИЕ СЧЁТА =====
 export async function depositToHousingAccount(amount) {
     if (isNaN(amount) || amount <= 0) {
         showMessage(`❌ Введите корректную сумму`, '#e74c3c');
@@ -521,13 +528,9 @@ export async function depositToHousingAccount(amount) {
         return false;
     }
     
-    // Списываем деньги
     setStats(health, hunger, cold, money - actualDeposit);
-    
-    // Пополняем счёт
     housingAccount = newAccount;
     
-    // Сбрасываем долг, если был
     if (housingDebt > 0) {
         housingDebt = 0;
         addLogEntry(`💰 Долг по жилью погашен!`, 'economy');
@@ -542,7 +545,7 @@ export async function depositToHousingAccount(amount) {
     return true;
 }
 
-// ===== НОВАЯ ФУНКЦИЯ: СНЯТИЕ СО СЧЁТА =====
+// ===== СНЯТИЕ СО СЧЁТА =====
 export async function withdrawFromHousingAccount(amount) {
     if (isNaN(amount) || amount <= 0) {
         showMessage(`❌ Введите корректную сумму`, '#e74c3c');
@@ -554,11 +557,8 @@ export async function withdrawFromHousingAccount(amount) {
         return false;
     }
     
-    // Пополняем деньги игрока
     const newMoney = money + amount;
     setStats(health, hunger, cold, newMoney);
-    
-    // Снимаем со счёта жилья
     housingAccount -= amount;
     
     updateUI();
@@ -570,7 +570,7 @@ export async function withdrawFromHousingAccount(amount) {
     return true;
 }
 
-// ===== НОВАЯ ФУНКЦИЯ: ЕЖЕДНЕВНАЯ ПРОВЕРКА СПИСАНИЯ =====
+// ===== ЕЖЕДНЕВНАЯ ПРОВЕРКА СПИСАНИЯ =====
 export async function checkHousingPayment() {
     if (!currentHome) return;
     
@@ -581,8 +581,6 @@ export async function checkHousingPayment() {
     }
     
     console.log(`🏠 Проверка коммуналки для ${currentHome}...`);
-    
-    // Обновляем dailyCost на всякий случай
     updateHousingDailyCost(currentHome);
     
     if (housingDailyCost <= 0) return;
@@ -591,18 +589,15 @@ export async function checkHousingPayment() {
     let isEvicted = false;
     
     if (housingAccount >= housingDailyCost) {
-        // Достаточно средств — списываем
         housingAccount -= housingDailyCost;
         message = `🏠 Снято ${housingDailyCost}₽ за ${currentHome.startsWith('dorm') ? 'аренду' : 'коммуналку'}. Остаток на счету: ${housingAccount}₽`;
         showMessage(message, '#ffd966');
         addLogEntry(message, 'economy');
         
-        // Если был долг — сбрасываем (хотя по логике его уже быть не должно)
         if (housingDebt > 0) {
             housingDebt = 0;
         }
     } else {
-        // Недостаточно средств — начисляем долг
         const shortage = housingDailyCost - housingAccount;
         housingDebt += shortage;
         housingAccount = 0;
@@ -611,7 +606,6 @@ export async function checkHousingPayment() {
         showMessage(message, '#e74c3c');
         addLogEntry(message, 'economy');
         
-        // Если долг превышает 3 дня (3 * dailyCost) — выселяем
         if (housingDebt > housingDailyCost * 3) {
             message = `💔 Вас выселили из ${currentHome} за неуплату ${housingDebt}₽!`;
             showMessage(message, '#e74c3c');
@@ -627,7 +621,7 @@ export async function checkHousingPayment() {
     return { success: !isEvicted, debt: housingDebt, account: housingAccount };
 }
 
-// ===== НОВАЯ ФУНКЦИЯ: ГЛОБАЛЬНАЯ ПРОВЕРКА ВСЕХ ВЛАДЕЛЬЦЕВ =====
+// ===== ГЛОБАЛЬНАЯ ПРОВЕРКА ВСЕХ ВЛАДЕЛЬЦЕВ =====
 export async function checkAllHousingPayments() {
     const { db } = await import('./firestore.js');
     const { collection, getDocs, doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
@@ -635,7 +629,6 @@ export async function checkAllHousingPayments() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Проверяем, нужно ли запускать глобальную проверку (раз в 24 часа)
     if (lastGlobalHousingCheck) {
         const lastCheck = new Date(lastGlobalHousingCheck);
         lastCheck.setHours(0, 0, 0, 0);
@@ -647,7 +640,6 @@ export async function checkAllHousingPayments() {
     
     console.log('🏠 ========== ЗАПУСК ГЛОБАЛЬНОЙ ПРОВЕРКИ НЕДВИЖИМОСТИ ==========');
     
-    // Получаем всех пользователей
     const usersSnapshot = await getDocs(collection(db, 'users'));
     let processed = 0;
     let evicted = 0;
@@ -668,7 +660,6 @@ export async function checkAllHousingPayments() {
         
         if (!currentHomeId || dailyCost === 0) continue;
         
-        // Рассчитываем пропущенные дни
         let daysMissed = 1;
         if (lastCheckRaw) {
             const lastCheckDate = new Date(lastCheckRaw);
@@ -699,7 +690,6 @@ export async function checkAllHousingPayments() {
                 isEvictedUser = true;
                 evicted++;
                 
-                // Очищаем владельца в real_estate
                 const propertyRef = doc(db, 'real_estate', currentHomeId);
                 await updateDoc(propertyRef, {
                     ownerId: deleteField(),
@@ -709,7 +699,6 @@ export async function checkAllHousingPayments() {
                     lastTaxPaid: deleteField()
                 }).catch(e => console.warn(`         Ошибка очистки ${currentHomeId}:`, e));
                 
-                // Удаляем из ownedHomes
                 const newOwned = ownedHomesList.filter(id => id !== currentHomeId);
                 const newCurrent = newOwned.length > 0 ? newOwned[0] : null;
                 let newCapacity = 0;
@@ -725,13 +714,12 @@ export async function checkAllHousingPayments() {
                     'housing.storageCapacity': newCapacity,
                     'housing.account': 20000,
                     'housing.debt': 0,
-                    'housing.lastHousingCheck': admin.firestore.Timestamp.fromDate(today)
+                    'housing.lastHousingCheck': new Date().toISOString()
                 });
                 continue;
             }
         }
         
-        // Обновляем данные пользователя
         await userDoc.ref.update({
             'housing.account': newAccount,
             'housing.debt': newDebt,
@@ -742,14 +730,12 @@ export async function checkAllHousingPayments() {
         totalDebt += newDebt;
     }
     
-    // Обновляем глобальную дату проверки
     lastGlobalHousingCheck = today.toISOString();
     await saveGameData();
     
     console.log(`🏠 Глобальная проверка завершена: обработано ${processed}, выселено ${evicted}, общий долг ${totalDebt}₽`);
 }
 
-// Вспомогательная функция для получения стоимости по ID
 function getDailyCostById(homeId) {
     if (!homeId) return 0;
     if (homeId.startsWith('dorm')) return 250;
@@ -758,20 +744,18 @@ function getDailyCostById(homeId) {
     return 0;
 }
 
-// ===== НОВАЯ ФУНКЦИЯ: ВЫСЕЛЕНИЕ =====
+// ===== ВЫСЕЛЕНИЕ =====
 export async function evictFromHome() {
     if (!currentHome) return false;
     
     const evictedHomeId = currentHome;
     
-    // Обновляем в Firestore (через saveGameData, но нужно отдельно обновить real_estate)
     const { db } = await import('./firestore.js');
     const { doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
     const { auth } = await import('./auth.js');
     
     const user = auth.currentUser;
     if (user) {
-        // Очищаем владельца в real_estate
         const propertyRef = doc(db, 'real_estate', evictedHomeId);
         await updateDoc(propertyRef, {
             ownerId: deleteField(),
@@ -782,16 +766,13 @@ export async function evictFromHome() {
         }).catch(e => console.warn('Не удалось очистить real_estate:', e));
     }
     
-    // Удаляем из ownedHomes
     const index = ownedHomes.indexOf(evictedHomeId);
     if (index !== -1) ownedHomes.splice(index, 1);
     
-    // Сбрасываем счёт и долг
     housingAccount = 20000;
     housingDebt = 0;
     housingDailyCost = 0;
     
-    // Выбираем новое жильё
     if (ownedHomes.length > 0) {
         await setPrimaryHome(ownedHomes[0]);
         showMessage(`🏠 Ваше новое основное жильё: ${currentHome}`, '#ffd966');
@@ -809,7 +790,7 @@ export async function evictFromHome() {
     return true;
 }
 
-// Обновление вместимости хранилища в зависимости от типа жилья
+// Обновление вместимости хранилища
 export function updateStorageCapacity(homeType) {
     switch (homeType) {
         case 'dorm':
@@ -854,23 +835,14 @@ export function removeFromHomeStorage(itemId, count = 1) {
 
 // ========== ФУНКЦИИ ДЛЯ СВЯЗИ ЖИЛЬЯ С ЛОКАЦИЯМИ ==========
 
-// Получить ID локации для телепорта на основе ID жилья
 export function getHomeLocationId(homeId) {
     if (!homeId) return 'dump_home';
-    
-    // Определяем тип жилья по префиксу
-    if (homeId.startsWith('dorm')) {
-        return 'dorm_home';
-    } else if (homeId.startsWith('apartment')) {
-        return 'apartment_home';
-    } else if (homeId.startsWith('house')) {
-        return 'house_home';
-    }
-    
+    if (homeId.startsWith('dorm')) return 'dorm_home';
+    if (homeId.startsWith('apartment')) return 'apartment_home';
+    if (homeId.startsWith('house')) return 'house_home';
     return 'dump_home';
 }
 
-// Установить основное жильё (телепорт и смерть будут вести сюда)
 export async function setPrimaryHome(homeId) {
     if (!ownedHomes.includes(homeId)) {
         showMessage(`❌ У вас нет такого жилья!`, '#e74c3c');
@@ -879,7 +851,6 @@ export async function setPrimaryHome(homeId) {
     
     currentHome = homeId;
     
-    // Обновляем вместимость хранилища
     if (homeId.startsWith('dorm')) {
         updateStorageCapacity('dorm');
     } else if (homeId.startsWith('apartment')) {
@@ -890,11 +861,8 @@ export async function setPrimaryHome(homeId) {
         updateStorageCapacity('dump');
     }
     
-    // ===== ОБНОВЛЯЕМ ЕЖЕДНЕВНУЮ СТОИМОСТЬ =====
     updateHousingDailyCost(homeId);
     
-    // Сохраняем в Firestore
-    const { saveGameData } = await import('./firestore.js');
     await saveGameData();
     
     showMessage(`🏠 Теперь ваше основное жильё: ${homeId}`, '#4caf50');
@@ -903,7 +871,6 @@ export async function setPrimaryHome(homeId) {
     return true;
 }
 
-// Телепорт домой (в текущее основное жильё)
 export async function teleportHome() {
     const { setCurrentLocation } = await import('./gameState.js');
     
@@ -915,16 +882,92 @@ export async function teleportHome() {
         showMessage(`🏠 Вы телепортировались домой!`, '#4caf50');
         addLogEntry(`🏠 Телепорт домой (${currentHome})`, 'system');
     } else if (ownedHomes.length > 0) {
-        // Если есть жильё, но не выбрано основное — выбираем первое
         const firstHome = ownedHomes[0];
         await setPrimaryHome(firstHome);
         homeLocationId = getHomeLocationId(firstHome);
         setCurrentLocation(homeLocationId);
         showMessage(`🏠 Вы телепортировались в ${firstHome} (основное жильё установлено автоматически)`, '#4caf50');
     } else {
-        // Нет жилья — на помойку
         setCurrentLocation('dump_home');
         showMessage(`🗑️ У вас нет жилья. Вы отправились на помойку.`, '#ffd966');
         addLogEntry(`🗑️ Телепорт на помойку (нет жилья)`, 'system');
     }
+}
+
+// ========== СМЕРТЬ ИГРОКА ==========
+export async function playerDeath() {
+    console.log('💀 ИГРОК УМЕР! Запуск механики смерти...');
+    
+    if (window._isDying) {
+        console.log('💀 Смерть уже обрабатывается, пропускаем');
+        return;
+    }
+    window._isDying = true;
+    
+    const deathOverlay = document.createElement('div');
+    deathOverlay.id = 'deathOverlay';
+    deathOverlay.style.position = 'fixed';
+    deathOverlay.style.top = '0';
+    deathOverlay.style.left = '0';
+    deathOverlay.style.width = '100%';
+    deathOverlay.style.height = '100%';
+    deathOverlay.style.backgroundColor = 'black';
+    deathOverlay.style.zIndex = '10050';
+    deathOverlay.style.opacity = '0';
+    deathOverlay.style.transition = 'opacity 0.5s ease';
+    deathOverlay.style.pointerEvents = 'none';
+    document.body.appendChild(deathOverlay);
+    
+    setTimeout(() => { deathOverlay.style.opacity = '1'; }, 10);
+    
+    const lostMoney = Math.floor(money * 0.1);
+    const lostExp = Math.floor(experience * 0.05);
+    
+    let lostItemName = '';
+    
+    if (inventory.length > 0) {
+        const availableItems = inventory.filter(item => item.count > 0);
+        if (availableItems.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            const lostItem = availableItems[randomIndex];
+            const actualItemIndex = inventory.findIndex(i => i.id === lostItem.id);
+            
+            const { itemsDB } = await import('./inventory.js');
+            lostItemName = itemsDB[lostItem.id]?.name || lostItem.id;
+            
+            if (inventory[actualItemIndex].count === 1) {
+                inventory.splice(actualItemIndex, 1);
+            } else {
+                inventory[actualItemIndex].count--;
+            }
+        }
+    }
+    
+    const newMoney = Math.max(0, money - lostMoney);
+    const newExperience = Math.max(0, experience - lostExp);
+    
+    setStats(50, 50, 50, newMoney);
+    setExpData(newExperience, level);
+    
+    addLogEntry(`💀 Вы умерли! Потеряно ${lostMoney}₽, ${lostExp} опыта${lostItemName ? `, потерян предмет: ${lostItemName}` : ''}.`, 'combat');
+    
+    const deathMessage = `💀 ВЫ УМЕРЛИ!\n💰 Потеряно: ${lostMoney}₽\n⭐ Потеряно: ${lostExp} опыта${lostItemName ? `\n🎒 Потерян: ${lostItemName}` : ''}`;
+    showMessage(deathMessage, '#e74c3c');
+    
+    await teleportHome();
+    await saveGameData();
+    updateUI();
+    
+    setTimeout(() => {
+        deathOverlay.style.opacity = '0';
+        setTimeout(() => {
+            if (deathOverlay && deathOverlay.remove) deathOverlay.remove();
+        }, 500);
+    }, 2000);
+    
+    console.log(`💀 Смерть обработана: потеряно денег ${lostMoney}, опыта ${lostExp}, предмет ${lostItemName || 'нет'}`);
+    
+    window._isDying = false;
+    
+    return { lostMoney, lostExp, lostItemName };
 }
