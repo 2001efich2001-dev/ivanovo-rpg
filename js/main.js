@@ -559,9 +559,9 @@ async function openMyOffersModal() {
     modal.style.display = 'flex';
 }
 
-// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ (ОБНОВЛЕНО: проверка lastUpdated) ==========
+// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ (ИСПРАВЛЕНО: блокировка ДО обновления) ==========
 let realTimeUnsubscribe = null;
-let localLastUpdated = null; // Храним время последнего обновления
+let localLastUpdated = null;
 
 function setupRealTimeUpdates(userId) {
     if (realTimeUnsubscribe) {
@@ -570,23 +570,25 @@ function setupRealTimeUpdates(userId) {
     }
     
     subscribeToUserChanges(userId, async (newData) => {
-        // Пропускаем обновление во время обмена
+        // Пропускаем если идёт обмен
         if (window._preventAutoSave) {
             console.log('🔄 Real-time: пропускаем обновление (идет обмен)');
             return;
         }
+        
+        // ===== БЛОКИРУЕМ АВТОСОХРАНЕНИЕ СРАЗУ =====
+        window._preventAutoSave = true;
         
         // Проверяем, что данные не старые
         const newLastUpdated = newData.lastUpdated ? new Date(newData.lastUpdated).getTime() : 0;
         
         if (localLastUpdated && newLastUpdated <= localLastUpdated) {
             console.log(`🔄 Real-time: пропускаем старые данные (локальное: ${new Date(localLastUpdated).toLocaleTimeString()}, новое: ${new Date(newLastUpdated).toLocaleTimeString()})`);
+            window._preventAutoSave = false;
             return;
         }
         
         console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
-        
-        window._preventAutoSave = true;
         
         try {
             const { setStats, inventory, equipped, setExpData, setEnergy, setTimeWeather, setActionLog, setCurrentLocation, updateUI } = await import('./gameState.js');
@@ -612,7 +614,7 @@ function setupRealTimeUpdates(userId) {
             initInventoryTabs();
             renderLocation(newData.currentLocation || 'church');
             
-            showMessage('🔄 Данные синхронизированы после обмена', '#4caf50');
+            showMessage('🔄 Данные синхронизированы', '#4caf50');
         } catch (err) {
             console.error('Ошибка при обновлении данных:', err);
         }
