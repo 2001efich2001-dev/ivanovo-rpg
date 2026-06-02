@@ -197,7 +197,7 @@ export function unsubscribeFromUserChanges() {
     }
 }
 
-// ========== ТОРГОВЛЯ (ОБНОВЛЕНО: поддержка недвижимости) ==========
+// ========== ТОРГОВЛЯ ==========
 export async function createTradeOffer(fromUserId, fromUserNick, toUserId, toUserNick, fromItems, fromMoney, toItems, toMoney, fromHousing, toHousing) {
     if (!db) return null;
     const offer = {
@@ -246,7 +246,7 @@ export async function cancelTradeOffer(offerId, userId) {
     return true;
 }
 
-// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ (ОБНОВЛЕНО: поддержка недвижимости) ==========
+// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ (поддержка недвижимости) ==========
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
@@ -378,7 +378,7 @@ export async function acceptTradeOffer(offerId, userId) {
                         purchasedAt: null
                     });
                 }
-                // Недвижимость (получает) — СОЗДАЁМ НОВЫЙ МАССИВ!
+                // Недвижимость (получает)
                 let newToHousing = [...toHousing];
                 for (const homeId of fromHousingOffer) {
                     if (!newToHousing.includes(homeId)) {
@@ -438,30 +438,7 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            const currentUser = window.auth?.currentUser;
-            if (currentUser) {
-                await loadGameData(currentUser.uid);
-                
-                const gameState = await import('./gameState.js');
-                
-                // Обновляем локальное состояние через правильный метод
-                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
-                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-                const housingData = userDoc.data()?.housing;
-                
-                if (housingData && housingData.owned) {
-                    // Используем setHousingData для корректного обновления
-                    gameState.setHousingData(housingData);
-                    console.log('🏠 Принудительно обновлены ownedHomes через setHousingData:', gameState.ownedHomes);
-                }
-                
-                const { renderEquipmentTab, renderItemsTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-                renderItemsTab();
-                renderEquipmentTab();
-                initInventoryTabs();
-                renderHousingTab();
-            }
-            
+            // ===== УПРОЩЁННО: просто снимаем блокировку, real-time сам обновит =====
             setTimeout(() => { 
                 window._preventAutoSave = false; 
             }, 5000);
