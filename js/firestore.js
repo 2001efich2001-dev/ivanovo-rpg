@@ -259,12 +259,6 @@ export async function acceptTradeOffer(offerId, userId) {
     
     let retries = 3;
     
-    let finalFromInventory, finalToInventory, finalFromMoney, finalToMoney;
-    let finalFromHousing, finalToHousing;
-    let finalFromCurrent, finalToCurrent;
-    let finalFromCapacity, finalToCapacity;
-    let offerData = null;
-    
     while (retries > 0) {
         try {
             await runTransaction(db, async (transaction) => {
@@ -273,7 +267,6 @@ export async function acceptTradeOffer(offerId, userId) {
                 if (!offerSnap.exists()) throw new Error('Предложение не найдено');
                 
                 const offer = offerSnap.data();
-                offerData = offer;
                 
                 offer.fromHousing = offer.fromHousing || [];
                 offer.toHousing = offer.toHousing || [];
@@ -417,17 +410,6 @@ export async function acceptTradeOffer(offerId, userId) {
                 let toNewCurrent = toUserData?.housing?.current;
                 let toNewCapacity = toUserData?.housing?.storageCapacity || 0;
                 
-                finalFromInventory = fromInventory;
-                finalToInventory = toInventory;
-                finalFromMoney = fromNewMoney;
-                finalToMoney = toNewMoney;
-                finalFromHousing = fromHousing;
-                finalToHousing = newToHousing;
-                finalFromCurrent = fromNewCurrent;
-                finalToCurrent = toNewCurrent;
-                finalFromCapacity = fromNewCapacity;
-                finalToCapacity = toNewCapacity;
-                
                 transaction.update(fromUserRef, {
                     inventory: fromInventory,
                     money: fromNewMoney,
@@ -449,71 +431,7 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // ===== ЛОКАЛЬНОЕ ОБНОВЛЕНИЕ ТОЛЬКО ДЛЯ ТЕКУЩЕГО ИГРОКА =====
-            const currentUser = window.auth?.currentUser;
-            
-            if (currentUser && currentUser.uid === userId) {
-                const gameState = await import('./gameState.js');
-                
-                gameState.setStats(null, null, null, finalToMoney);
-                gameState.inventory.length = 0;
-                gameState.inventory.push(...finalToInventory);
-                
-                const housingDataForUpdate = {
-                    current: finalToCurrent,
-                    owned: finalToHousing || [],
-                    storage: gameState.homeStorage || [],
-                    storageCapacity: finalToCapacity,
-                    debt: gameState.housingDebt || 0,
-                    lastTaxPaid: gameState.lastTaxPaid || null,
-                    account: gameState.housingAccount || 20000,
-                    dailyCost: gameState.housingDailyCost || 0,
-                    lastHousingCheck: gameState.lastHousingCheck || null,
-                    lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
-                };
-                gameState.setHousingData(housingDataForUpdate);
-                gameState.updateUI();
-                
-                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-                renderItemsTab();
-                renderEquipmentTab();
-                initInventoryTabs();
-                renderHousingTab();
-                
-                console.log('🏠 Локальные данные покупателя обновлены');
-            }
-            
-            if (currentUser && offerData && currentUser.uid === offerData.fromUserId) {
-                const gameStateSeller = await import('./gameState.js');
-                
-                gameStateSeller.setStats(null, null, null, finalFromMoney);
-                gameStateSeller.inventory.length = 0;
-                gameStateSeller.inventory.push(...finalFromInventory);
-                
-                const housingDataForUpdateSeller = {
-                    current: finalFromCurrent,
-                    owned: finalFromHousing || [],
-                    storage: gameStateSeller.homeStorage || [],
-                    storageCapacity: finalFromCapacity,
-                    debt: gameStateSeller.housingDebt || 0,
-                    lastTaxPaid: gameStateSeller.lastTaxPaid || null,
-                    account: gameStateSeller.housingAccount || 20000,
-                    dailyCost: gameStateSeller.housingDailyCost || 0,
-                    lastHousingCheck: gameStateSeller.lastHousingCheck || null,
-                    lastGlobalHousingCheck: gameStateSeller.lastGlobalHousingCheck || null
-                };
-                gameStateSeller.setHousingData(housingDataForUpdateSeller);
-                gameStateSeller.updateUI();
-                
-                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-                renderItemsTab();
-                renderEquipmentTab();
-                initInventoryTabs();
-                renderHousingTab();
-                
-                console.log('🏠 Локальные данные продавца обновлены');
-            }
-            
+            // ===== ТОЛЬКО СНИМАЕМ БЛОКИРОВКУ, real-time сам обновит данные =====
             setTimeout(() => { 
                 window._preventAutoSave = false; 
             }, 5000);
