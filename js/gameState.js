@@ -1023,5 +1023,4 @@ export async function playerDeath() {
     window._isDying = false;
     
     return { lostMoney, lostExp, lostItemName };
-}stExp, lostItemName };
 }
