@@ -130,11 +130,20 @@
         </div>
     </div>
 
-    <!-- Модальное окно для предложения обмена -->
+    <!-- Модальное окно для предложения обмена (ОБНОВЛЕНО: добавлена вкладка "🏠 Недвижимость") -->
     <div id="tradeOfferModal" class="modal">
         <div class="modal-content" style="max-width: 900px; width: 90%;">
             <h3>💼 Предложить обмен</h3>
-            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            
+            <!-- Вкладки обмена -->
+            <div style="display: flex; gap: 16px; margin-bottom: 15px; justify-content: center;">
+                <button class="trade-tab-btn active" data-trade-tab="items">📦 Вещи</button>
+                <button class="trade-tab-btn" data-trade-tab="receive">🎁 Получить</button>
+                <button class="trade-tab-btn" data-trade-tab="housing">🏠 Недвижимость</button>
+            </div>
+            
+            <!-- Вкладка "Вещи (Я отдаю)" -->
+            <div id="tradeItemsTab" style="display: flex; flex-wrap: wrap; gap: 20px;">
                 <div style="flex: 1;">
                     <strong>📦 Я отдаю:</strong>
                     <div id="tradeFromItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
@@ -158,6 +167,19 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Вкладка "Недвижимость (Я продаю)" -->
+            <div id="tradeHousingTab" style="display: none;">
+                <div style="margin-bottom: 15px;">
+                    <strong>🏠 Я продаю недвижимость:</strong>
+                </div>
+                <div id="tradeHousingItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
+                <div class="selected-items" style="margin-top: 10px;">
+                    <strong>Выбрано:</strong>
+                    <div id="tradeSelectedHousing" class="selected-items-list"></div>
+                </div>
+            </div>
+            
             <div style="text-align: center; margin-top: 20px;">
                 <button id="sendTradeBtn" class="action-btn">📤 Отправить предложение</button>
                 <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
@@ -176,7 +198,7 @@
         </div>
     </div>
 
-    <!-- Модальное окно инвентаря (ОБНОВЛЕНО: добавлена вкладка "🏠 Моё жильё") -->
+    <!-- Модальное окно инвентаря -->
     <div id="inventoryModal" class="modal">
         <div class="modal-content">
             <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
