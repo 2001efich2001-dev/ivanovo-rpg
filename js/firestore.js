@@ -443,19 +443,16 @@ export async function acceptTradeOffer(offerId, userId) {
                 await loadGameData(currentUser.uid);
                 
                 const gameState = await import('./gameState.js');
-                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
                 
+                // Обновляем локальное состояние через правильный метод
+                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 const housingData = userDoc.data()?.housing;
                 
                 if (housingData && housingData.owned) {
-                    gameState.ownedHomes.length = 0;
-                    gameState.ownedHomes.push(...(housingData.owned || []));
-                    gameState.currentHome = housingData.current || null;
-                    gameState.housingAccount = housingData.account ?? 20000;
-                    gameState.housingDailyCost = housingData.dailyCost ?? 0;
-                    gameState.homeStorageCapacity = housingData.storageCapacity ?? 0;
-                    console.log('🏠 Принудительно обновлены ownedHomes:', gameState.ownedHomes);
+                    // Используем setHousingData для корректного обновления
+                    gameState.setHousingData(housingData);
+                    console.log('🏠 Принудительно обновлены ownedHomes через setHousingData:', gameState.ownedHomes);
                 }
                 
                 const { renderEquipmentTab, renderItemsTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
