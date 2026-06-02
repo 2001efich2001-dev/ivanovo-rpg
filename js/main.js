@@ -569,6 +569,12 @@ function setupRealTimeUpdates(userId) {
     }
     
     subscribeToUserChanges(userId, async (newData) => {
+        // ===== ПРОПУСКАЕМ ОБНОВЛЕНИЕ ВО ВРЕМЯ ОБМЕНА =====
+        if (window._preventAutoSave) {
+            console.log('🔄 Real-time: пропускаем обновление (идет обмен)');
+            return;
+        }
+        
         console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
         
         window._preventAutoSave = true;
