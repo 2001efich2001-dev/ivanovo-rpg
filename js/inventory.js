@@ -1,7 +1,8 @@
 import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount } from './gameState.js';
-import { saveGameData } from './firestore.js';
+import { saveGameData, db, doc, getDoc } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
+
 
 // Переменные для пагинации
 let currentPage = 0;
@@ -949,6 +950,196 @@ export async function renderTradeHousingSelector() {
         btn.addEventListener('click', handler);
         btn._housingHandler = handler;
     });
+}
+
+// ========== РЕНДЕР ИНВЕНТАРЯ В ТОРГОВЛЕ (для предметов) ==========
+async function renderTradeInventorySelector(side) {
+    const user = window.auth?.currentUser;
+    if (!user) return;
+    
+    const container = document.getElementById(`trade${side === 'from' ? 'FromItems' : 'ToItems'}`);
+    if (!container) return;
+    
+    if (side === 'from') {
+        // Отображаем инвентарь игрока (что отдаёт)
+        const userDoc = await import('./firestore.js').then(f => f.getDoc(doc(db, 'users', user.uid)));
+        const userInv = userDoc.data()?.inventory || [];
+        
+        if (userInv.length === 0) {
+            container.innerHTML = '<div class="empty-inventory">📦 Инвентарь пуст</div>';
+            return;
+        }
+        
+        let html = '<div class="inventory-grid">';
+        
+        for (const item of userInv) {
+            const itemData = itemsDB[item.id];
+            if (!itemData) continue;
+            
+            html += `
+                <div class="inventory-slot trade-slot" data-id="${item.id}" data-count="${item.count}" data-side="from">
+                    <img src="${itemData.image}" alt="${itemData.name}" class="item-image" loading="lazy"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${itemData.icon}%3C/text%3E%3C/svg%3E'">
+                    <span class="item-name">${itemData.name}</span>
+                    <span class="item-count">×${item.count}</span>
+                    <button class="trade-add-btn" data-id="${item.id}" data-max="${item.count}" data-side="from">➕</button>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Добавляем тултипы
+        document.querySelectorAll('#tradeFromItems .trade-slot').forEach(slot => {
+            const itemId = slot.dataset.id;
+            const itemData = itemsDB[itemId];
+            const count = parseInt(slot.dataset.count);
+            
+            slot.addEventListener('mouseenter', (e) => {
+                showTradeTooltip(itemData, e, count);
+            });
+            slot.addEventListener('mouseleave', hideTradeTooltip);
+            slot.addEventListener('mousemove', (e) => {
+                if (activeTradeTooltip) {
+                    activeTradeTooltip.style.left = (e.clientX + 15) + 'px';
+                    activeTradeTooltip.style.top = (e.clientY + 15) + 'px';
+                }
+            });
+        });
+        
+    } else {
+        // Отображаем все доступные предметы (что можно получить)
+        const allItems = Object.values(itemsDB);
+        
+        let html = '<div class="inventory-grid">';
+        
+        for (const item of allItems) {
+            html += `
+                <div class="inventory-slot trade-slot" data-id="${item.id}" data-side="to">
+                    <img src="${item.image}" alt="${item.name}" class="item-image" loading="lazy"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${item.icon}%3C/text%3E%3C/svg%3E'">
+                    <span class="item-name">${item.name}</span>
+                    <button class="trade-add-btn" data-id="${item.id}" data-side="to">➕</button>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+        
+        document.querySelectorAll('#tradeToItems .trade-slot').forEach(slot => {
+            const itemId = slot.dataset.id;
+            const itemData = itemsDB[itemId];
+            
+            slot.addEventListener('mouseenter', (e) => {
+                showTradeTooltip(itemData, e);
+            });
+            slot.addEventListener('mouseleave', hideTradeTooltip);
+            slot.addEventListener('mousemove', (e) => {
+                if (activeTradeTooltip) {
+                    activeTradeTooltip.style.left = (e.clientX + 15) + 'px';
+                    activeTradeTooltip.style.top = (e.clientY + 15) + 'px';
+                }
+            });
+        });
+    }
+    
+    // Обработчики для кнопок добавления предметов
+    document.querySelectorAll('.trade-add-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._handler);
+        const handler = async (e) => {
+            e.stopPropagation();
+            const sideType = btn.dataset.side === 'from' ? 'from' : 'to';
+            const itemId = btn.dataset.id;
+            const itemData = itemsDB[itemId];
+            let maxCount = Infinity;
+            if (sideType === 'from') {
+                maxCount = parseInt(btn.dataset.max);
+            }
+            const count = prompt(`Сколько ${itemData?.name} вы хотите ${sideType === 'from' ? 'отдать' : 'получить'}? ${sideType === 'from' ? `(макс. ${maxCount})` : ''}`, '1');
+            const numCount = parseInt(count);
+            if (isNaN(numCount) || numCount < 1 || (sideType === 'from' && numCount > maxCount)) {
+                showMessage('Некорректное количество', '#e74c3c');
+                return;
+            }
+            const selectedContainer = document.getElementById(`tradeSelected${sideType === 'from' ? 'From' : 'To'}`);
+            if (!selectedContainer) return;
+            
+            let existingItem = null;
+            for (const el of selectedContainer.querySelectorAll('.selected-item')) {
+                if (el.dataset.id === itemId) {
+                    existingItem = el;
+                    break;
+                }
+            }
+            if (existingItem) {
+                const countSpan = existingItem.querySelector('.selected-count');
+                const currentCount = parseInt(countSpan.textContent);
+                const newCount = currentCount + numCount;
+                if (sideType === 'from' && newCount > maxCount) {
+                    showMessage(`Нельзя добавить больше, чем есть в инвентаре (${maxCount})`, '#e74c3c');
+                    return;
+                }
+                countSpan.textContent = newCount;
+            } else {
+                const newItemHtml = `
+                    <div class="selected-item" data-id="${itemId}" data-count="${numCount}">
+                        <span>${itemData.icon} ${itemData.name} ×<span class="selected-count">${numCount}</span></span>
+                        <button class="remove-item-btn">✖️</button>
+                    </div>
+                `;
+                selectedContainer.insertAdjacentHTML('beforeend', newItemHtml);
+                selectedContainer.querySelector('.remove-item-btn:last-child').addEventListener('click', (e) => {
+                    e.target.closest('.selected-item').remove();
+                });
+            }
+        };
+        btn.addEventListener('click', handler);
+        btn._handler = handler;
+    });
+}
+
+// Функция для показа тултипа в торговле
+let activeTradeTooltip = null;
+
+function hideTradeTooltip() {
+    if (activeTradeTooltip && activeTradeTooltip.remove) {
+        activeTradeTooltip.remove();
+        activeTradeTooltip = null;
+    }
+}
+
+function showTradeTooltip(item, event, count = 1) {
+    hideTradeTooltip();
+    
+    const sellPrice = Math.max(1, Math.floor((item.price || 0) / 2));
+    
+    const tooltip = document.createElement('div');
+    tooltip.className = 'item-tooltip';
+    tooltip.innerHTML = `
+        <div class="tooltip-header">
+            <strong>${item.name}</strong>
+        </div>
+        <div class="tooltip-content">
+            ${item.description || ''}
+            ${item.effect?.hunger ? `<div>🍗 Голод: ${item.effect.hunger > 0 ? '+' : ''}${item.effect.hunger}</div>` : ''}
+            ${item.effect?.health ? `<div>❤️ Здоровье: ${item.effect.health > 0 ? '+' : ''}${item.effect.health}</div>` : ''}
+            ${item.effect?.cold ? `<div>🔥 Тепло: ${item.effect.cold > 0 ? '+' : ''}${item.effect.cold}</div>` : ''}
+            <div class="tooltip-divider"></div>
+            <div>💰 Покупка: ${item.price || 0}₽</div>
+            <div>💸 Продажа: ${sellPrice}₽</div>
+            ${count > 1 ? `<div>📦 В наличии: ${count} шт.</div>` : ''}
+        </div>
+    `;
+    
+    tooltip.style.position = 'fixed';
+    tooltip.style.left = (event.clientX + 15) + 'px';
+    tooltip.style.top = (event.clientY + 15) + 'px';
+    tooltip.style.zIndex = '10001';
+    
+    document.body.appendChild(tooltip);
+    activeTradeTooltip = tooltip;
 }
 
 // ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТКРЫТИЯ ТОРГОВЛИ (с вкладками) ==========
