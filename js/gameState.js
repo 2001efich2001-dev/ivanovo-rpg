@@ -55,6 +55,9 @@ export let housingAccount = 20000;        // Счёт для оплаты (ма�
 export let housingDailyCost = 0;          // Ежедневная стоимость (зависит от типа жилья)
 export let lastHousingCheck = null;       // Дата последней проверки списания
 
+// ========== ГЛОБАЛЬНАЯ ПРОВЕРКА ВСЕХ ИГРОКОВ ==========
+export let lastGlobalHousingCheck = null;  // Дата последней глобальной проверки
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -441,8 +444,9 @@ export function setHousingData(data) {
         housingAccount = data.account ?? 20000;
         housingDailyCost = data.dailyCost ?? 0;
         lastHousingCheck = data.lastHousingCheck ?? null;
+        lastGlobalHousingCheck = data.lastGlobalHousingCheck ?? null;
     }
-    console.log('🏠 Загружены данные жилья:', { currentHome, ownedHomes, homeStorageCapacity, housingDebt, housingAccount, housingDailyCost });
+    console.log('🏠 Загружены данные жилья:', { currentHome, ownedHomes, homeStorageCapacity, housingDebt, housingAccount, housingDailyCost, lastGlobalHousingCheck });
 }
 
 export function initHousingData() {
@@ -456,6 +460,7 @@ export function initHousingData() {
     housingAccount = 20000;
     housingDailyCost = 0;
     lastHousingCheck = null;
+    lastGlobalHousingCheck = null;
     console.log('🏠 Инициализированы данные жилья для нового игрока');
 }
 
@@ -470,7 +475,8 @@ export function getHousingData() {
         // ===== НОВЫЕ ПОЛЯ =====
         account: housingAccount,
         dailyCost: housingDailyCost,
-        lastHousingCheck: lastHousingCheck
+        lastHousingCheck: lastHousingCheck,
+        lastGlobalHousingCheck: lastGlobalHousingCheck
     };
 }
 
@@ -536,6 +542,34 @@ export async function depositToHousingAccount(amount) {
     return true;
 }
 
+// ===== НОВАЯ ФУНКЦИЯ: СНЯТИЕ СО СЧЁТА =====
+export async function withdrawFromHousingAccount(amount) {
+    if (isNaN(amount) || amount <= 0) {
+        showMessage(`❌ Введите корректную сумму`, '#e74c3c');
+        return false;
+    }
+    
+    if (housingAccount < amount) {
+        showMessage(`❌ Недостаточно средств на счету жилья! Доступно: ${housingAccount}₽`, '#e74c3c');
+        return false;
+    }
+    
+    // Пополняем деньги игрока
+    const newMoney = money + amount;
+    setStats(health, hunger, cold, newMoney);
+    
+    // Снимаем со счёта жилья
+    housingAccount -= amount;
+    
+    updateUI();
+    await saveGameData();
+    
+    showMessage(`💸 Со счёта жилья снято ${amount}₽. Ваши деньги: ${newMoney}₽`, '#4caf50');
+    addLogEntry(`🏠 Снятие со счёта жилья: ${amount}₽`, 'economy');
+    
+    return true;
+}
+
 // ===== НОВАЯ ФУНКЦИЯ: ЕЖЕДНЕВНАЯ ПРОВЕРКА СПИСАНИЯ =====
 export async function checkHousingPayment() {
     if (!currentHome) return;
@@ -591,6 +625,137 @@ export async function checkHousingPayment() {
     await saveGameData();
     
     return { success: !isEvicted, debt: housingDebt, account: housingAccount };
+}
+
+// ===== НОВАЯ ФУНКЦИЯ: ГЛОБАЛЬНАЯ ПРОВЕРКА ВСЕХ ВЛАДЕЛЬЦЕВ =====
+export async function checkAllHousingPayments() {
+    const { db } = await import('./firestore.js');
+    const { collection, getDocs, doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Проверяем, нужно ли запускать глобальную проверку (раз в 24 часа)
+    if (lastGlobalHousingCheck) {
+        const lastCheck = new Date(lastGlobalHousingCheck);
+        lastCheck.setHours(0, 0, 0, 0);
+        if (lastCheck.getTime() === today.getTime()) {
+            console.log('🏠 Глобальная проверка уже проводилась сегодня');
+            return;
+        }
+    }
+    
+    console.log('🏠 ========== ЗАПУСК ГЛОБАЛЬНОЙ ПРОВЕРКИ НЕДВИЖИМОСТИ ==========');
+    
+    // Получаем всех пользователей
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    let processed = 0;
+    let evicted = 0;
+    let totalDebt = 0;
+    
+    for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const housing = userData.housing || {};
+        const ownedHomesList = housing.owned || [];
+        
+        if (ownedHomesList.length === 0) continue;
+        
+        const currentHomeId = housing.current;
+        const account = housing.account ?? 20000;
+        const debt = housing.debt || 0;
+        const lastCheckRaw = housing.lastHousingCheck;
+        const dailyCost = getDailyCostById(currentHomeId);
+        
+        if (!currentHomeId || dailyCost === 0) continue;
+        
+        // Рассчитываем пропущенные дни
+        let daysMissed = 1;
+        if (lastCheckRaw) {
+            const lastCheckDate = new Date(lastCheckRaw);
+            lastCheckDate.setHours(0, 0, 0, 0);
+            const diffTime = Math.abs(today.getTime() - lastCheckDate.getTime());
+            daysMissed = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            daysMissed = Math.min(daysMissed, 30);
+        }
+        
+        const totalCost = dailyCost * daysMissed;
+        let newAccount = account;
+        let newDebt = debt;
+        let isEvictedUser = false;
+        
+        console.log(`   👤 ${userDoc.id} (${userData.displayName || 'без имени'}) — ${currentHomeId}, пропущено дней: ${daysMissed}, долг: ${debt}₽`);
+        
+        if (newAccount >= totalCost) {
+            newAccount -= totalCost;
+            console.log(`      ✅ Списано ${totalCost}₽, баланс: ${newAccount}₽`);
+        } else {
+            const remaining = totalCost - newAccount;
+            newDebt += remaining;
+            newAccount = 0;
+            console.log(`      ⚠️ Не хватает! Долг: ${newDebt}₽`);
+            
+            if (newDebt > dailyCost * 3) {
+                console.log(`      💔 ВЫСЕЛЕНИЕ! Долг превысил лимит`);
+                isEvictedUser = true;
+                evicted++;
+                
+                // Очищаем владельца в real_estate
+                const propertyRef = doc(db, 'real_estate', currentHomeId);
+                await updateDoc(propertyRef, {
+                    ownerId: deleteField(),
+                    ownerName: deleteField(),
+                    purchasedAt: deleteField(),
+                    debt: deleteField(),
+                    lastTaxPaid: deleteField()
+                }).catch(e => console.warn(`         Ошибка очистки ${currentHomeId}:`, e));
+                
+                // Удаляем из ownedHomes
+                const newOwned = ownedHomesList.filter(id => id !== currentHomeId);
+                const newCurrent = newOwned.length > 0 ? newOwned[0] : null;
+                let newCapacity = 0;
+                if (newCurrent) {
+                    if (newCurrent.startsWith('dorm')) newCapacity = 10;
+                    else if (newCurrent.startsWith('apartment')) newCapacity = 20;
+                    else if (newCurrent.startsWith('house')) newCapacity = 40;
+                }
+                
+                await userDoc.ref.update({
+                    'housing.owned': newOwned,
+                    'housing.current': newCurrent,
+                    'housing.storageCapacity': newCapacity,
+                    'housing.account': 20000,
+                    'housing.debt': 0,
+                    'housing.lastHousingCheck': admin.firestore.Timestamp.fromDate(today)
+                });
+                continue;
+            }
+        }
+        
+        // Обновляем данные пользователя
+        await userDoc.ref.update({
+            'housing.account': newAccount,
+            'housing.debt': newDebt,
+            'housing.lastHousingCheck': new Date().toISOString()
+        });
+        
+        processed++;
+        totalDebt += newDebt;
+    }
+    
+    // Обновляем глобальную дату проверки
+    lastGlobalHousingCheck = today.toISOString();
+    await saveGameData();
+    
+    console.log(`🏠 Глобальная проверка завершена: обработано ${processed}, выселено ${evicted}, общий долг ${totalDebt}₽`);
+}
+
+// Вспомогательная функция для получения стоимости по ID
+function getDailyCostById(homeId) {
+    if (!homeId) return 0;
+    if (homeId.startsWith('dorm')) return 250;
+    if (homeId.startsWith('apartment')) return 500;
+    if (homeId.startsWith('house')) return 1000;
+    return 0;
 }
 
 // ===== НОВАЯ ФУНКЦИЯ: ВЫСЕЛЕНИЕ =====
