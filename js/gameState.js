@@ -176,9 +176,14 @@ export function updateEnergy() {
         lastEnergyUpdate = now;
         updateUI();
         if (onEnergyUpdateCallback) onEnergyUpdateCallback();
-        import('./firestore.js').then(m => {
-            if (typeof m.saveGameData === 'function') m.saveGameData();
-        });
+        // Сохраняем только если не идёт обмен
+        if (!window._preventAutoSave) {
+            import('./firestore.js').then(m => {
+                if (typeof m.saveGameData === 'function') m.saveGameData();
+            });
+        } else {
+            console.log('⏳ updateEnergy: пропускаем сохранение (идет обмен)');
+        }
     }
 }
 
@@ -227,9 +232,14 @@ export function updateIntoxication() {
         lastIntoxicationUpdate = now;
         updateUI();
         if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
-        import('./firestore.js').then(m => {
-            if (typeof m.saveGameData === 'function') m.saveGameData();
-        });
+        // Сохраняем только если не идёт обмен
+        if (!window._preventAutoSave) {
+            import('./firestore.js').then(m => {
+                if (typeof m.saveGameData === 'function') m.saveGameData();
+            });
+        } else {
+            console.log('⏳ updateIntoxication: пропускаем сохранение (идет обмен)');
+        }
     }
 }
 
@@ -318,9 +328,14 @@ export function addExperience(amount) {
     updateUI();
     if (onExpUpdateCallback) onExpUpdateCallback();
     
-    import('./firestore.js').then(m => {
-        if (typeof m.saveGameData === 'function') m.saveGameData();
-    });
+    // Сохраняем только если не идёт обмен
+    if (!window._preventAutoSave) {
+        import('./firestore.js').then(m => {
+            if (typeof m.saveGameData === 'function') m.saveGameData();
+        });
+    } else {
+        console.log('⏳ addExperience: пропускаем сохранение (идет обмен)');
+    }
 }
 
 export function setExpUpdateCallback(callback) {
@@ -457,7 +472,7 @@ export function setHousingData(data) {
         housingDailyCost = data.dailyCost ?? 0;
         lastHousingCheck = data.lastHousingCheck ?? null;
         lastGlobalHousingCheck = data.lastGlobalHousingCheck ?? null;
-        lastUpdated = data.lastUpdated ?? null;  // ← ДОБАВЛЕНО
+        lastUpdated = data.lastUpdated ?? null;
     }
     console.log('🏠 Загружены данные жилья:', { currentHome, ownedHomes, homeStorageCapacity, housingDebt, housingAccount, housingDailyCost, lastGlobalHousingCheck, lastUpdated });
 }
@@ -473,7 +488,7 @@ export function initHousingData() {
     housingDailyCost = 0;
     lastHousingCheck = null;
     lastGlobalHousingCheck = null;
-    lastUpdated = null;  // ← ДОБАВЛЕНО
+    lastUpdated = null;
     console.log('🏠 Инициализированы данные жилья для нового игрока');
 }
 
@@ -489,7 +504,7 @@ export function getHousingData() {
         dailyCost: housingDailyCost,
         lastHousingCheck: lastHousingCheck,
         lastGlobalHousingCheck: lastGlobalHousingCheck,
-        lastUpdated: lastUpdated  // ← ДОБАВЛЕНО
+        lastUpdated: lastUpdated
     };
 }
 
@@ -910,7 +925,6 @@ export async function playerDeath() {
     }
     window._isDying = true;
     
-    // 1. Расчёт потерь (до затемнения, чтобы сохранить значения)
     const lostMoney = Math.floor(money * 0.1);
     const lostExp = Math.floor(experience * 0.05);
     
@@ -937,7 +951,6 @@ export async function playerDeath() {
     const newMoney = Math.max(0, money - lostMoney);
     const newExperience = Math.max(0, experience - lostExp);
     
-    // 2. Затемнение и размытие
     const deathOverlay = document.createElement('div');
     deathOverlay.id = 'deathOverlay';
     deathOverlay.style.position = 'fixed';
@@ -953,19 +966,16 @@ export async function playerDeath() {
     deathOverlay.style.pointerEvents = 'none';
     document.body.appendChild(deathOverlay);
     
-    // Плавное затемнение и размытие (3 секунды)
     setTimeout(() => { 
         deathOverlay.style.opacity = '0.95';
         deathOverlay.style.backdropFilter = 'blur(8px)';
     }, 10);
     
-    // 3. Обновляем параметры
     setStats(50, 50, 50, newMoney);
     setExpData(newExperience, level);
     
     addLogEntry(`💀 Вы потеряли сознание! Потеряно ${lostMoney}₽, ${lostExp} опыта${lostItemName ? `, потерян предмет: ${lostItemName}` : ''}.`, 'combat');
     
-    // 4. Всплывающее сообщение с деталями (поверх затемнения)
     const deathMessageDiv = document.createElement('div');
     deathMessageDiv.style.position = 'fixed';
     deathMessageDiv.style.top = '50%';
@@ -990,7 +1000,6 @@ export async function playerDeath() {
     `;
     document.body.appendChild(deathMessageDiv);
     
-    // Добавляем анимацию пульсации
     const style = document.createElement('style');
     style.textContent = `
         @keyframes deathMessagePulse {
@@ -1001,16 +1010,10 @@ export async function playerDeath() {
     `;
     document.head.appendChild(style);
     
-    // 5. Телепорт домой
     await teleportHome();
-    
-    // 6. Сохраняем данные
     await saveGameData();
-    
-    // 7. Обновляем UI
     updateUI();
     
-    // 8. Убираем сообщение через 6 секунд, а затемнение через 7 секунд
     setTimeout(() => {
         if (deathMessageDiv && deathMessageDiv.remove) deathMessageDiv.remove();
     }, 6000);
@@ -1051,7 +1054,6 @@ export async function loadOwnedHomesFromRealEstate() {
             owned.push(doc.id);
         });
         
-        // Обновляем локальный массив
         ownedHomes.length = 0;
         ownedHomes.push(...owned);
         
