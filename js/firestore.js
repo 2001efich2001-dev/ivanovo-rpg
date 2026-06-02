@@ -204,8 +204,8 @@ export async function createTradeOffer(fromUserId, fromUserNick, toUserId, toUse
         fromUserId, fromUserNick, toUserId, toUserNick,
         fromItems: fromItems || [], fromMoney: fromMoney || 0,
         toItems: toItems || [], toMoney: toMoney || 0,
-        fromHousing: fromHousing || [],   // Недвижимость, которую отдаёт отправитель
-        toHousing: toHousing || [],       // Недвижимость, которую получает отправитель
+        fromHousing: fromHousing || [],
+        toHousing: toHousing || [],
         status: 'pending',
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -286,34 +286,34 @@ export async function acceptTradeOffer(offerId, userId) {
                 const fromHousingOffer = offer.fromHousing || [];
                 const toHousingOffer = offer.toHousing || [];
                 
+                console.log('🏠 ===== ДО ОБНОВЛЕНИЯ =====');
+                console.log('🏠 fromHousing (продавец):', fromHousing);
+                console.log('🏠 toHousing (покупатель):', toHousing);
+                console.log('🏠 fromHousingOffer (продаётся):', fromHousingOffer);
+                
                 // ===== ПРОВЕРКИ =====
-                // Проверка предметов отправителя
                 for (const item of offer.fromItems || []) {
                     const idx = fromInventory.findIndex(i => i.id === item.id);
                     if (idx === -1 || fromInventory[idx].count < (item.count || 1)) {
                         throw new Error(`Нет предмета ${item.id}`);
                     }
                 }
-                // Проверка предметов получателя
                 for (const item of offer.toItems || []) {
                     const idx = toInventory.findIndex(i => i.id === item.id);
                     if (idx === -1 || toInventory[idx].count < (item.count || 1)) {
                         throw new Error(`Нет предмета ${item.id}`);
                     }
                 }
-                // Проверка недвижимости отправителя
                 for (const homeId of fromHousingOffer) {
                     if (!fromHousing.includes(homeId)) {
                         throw new Error(`Нет недвижимости ${homeId}`);
                     }
                 }
-                // Проверка недвижимости получателя
                 for (const homeId of toHousingOffer) {
                     if (!toHousing.includes(homeId)) {
                         throw new Error(`Нет недвижимости ${homeId}`);
                     }
                 }
-                // Проверка денег
                 if (fromMoneyNum > 0 && (fromUserData.money || 0) < fromMoneyNum) {
                     throw new Error('Недостаточно денег у отправителя');
                 }
@@ -322,14 +322,13 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
                 
                 // ===== ОБНОВЛЕНИЕ ОТПРАВИТЕЛЯ =====
-                // Предметы (отдаёт)
+                // Предметы
                 for (const item of offer.fromItems || []) {
                     const cnt = item.count || 1;
                     const idx = fromInventory.findIndex(i => i.id === item.id);
                     if (fromInventory[idx].count === cnt) fromInventory.splice(idx, 1);
                     else fromInventory[idx].count -= cnt;
                 }
-                // Предметы (получает)
                 for (const item of offer.toItems || []) {
                     const cnt = item.count || 1;
                     const idx = fromInventory.findIndex(i => i.id === item.id);
@@ -340,7 +339,6 @@ export async function acceptTradeOffer(offerId, userId) {
                 for (const homeId of fromHousingOffer) {
                     const idx = fromHousing.indexOf(homeId);
                     if (idx !== -1) fromHousing.splice(idx, 1);
-                    // Очищаем владельца в real_estate
                     const propertyRef = doc(db, 'real_estate', homeId);
                     transaction.update(propertyRef, {
                         ownerId: null,
@@ -356,14 +354,13 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
                 
                 // ===== ОБНОВЛЕНИЕ ПОЛУЧАТЕЛЯ =====
-                // Предметы (отдаёт)
+                // Предметы
                 for (const item of offer.toItems || []) {
                     const cnt = item.count || 1;
                     const idx = toInventory.findIndex(i => i.id === item.id);
                     if (toInventory[idx].count === cnt) toInventory.splice(idx, 1);
                     else toInventory[idx].count -= cnt;
                 }
-                // Предметы (получает)
                 for (const item of offer.fromItems || []) {
                     const cnt = item.count || 1;
                     const idx = toInventory.findIndex(i => i.id === item.id);
@@ -381,11 +378,11 @@ export async function acceptTradeOffer(offerId, userId) {
                         purchasedAt: null
                     });
                 }
-                // Недвижимость (получает)
+                // Недвижимость (получает) — СОЗДАЁМ НОВЫЙ МАССИВ!
+                let newToHousing = [...toHousing];
                 for (const homeId of fromHousingOffer) {
-                    if (!toHousing.includes(homeId)) {
-                        toHousing.push(homeId);
-                        // Назначаем нового владельца в real_estate
+                    if (!newToHousing.includes(homeId)) {
+                        newToHousing.push(homeId);
                         const propertyRef = doc(db, 'real_estate', homeId);
                         transaction.update(propertyRef, {
                             ownerId: offer.toUserId,
@@ -394,17 +391,17 @@ export async function acceptTradeOffer(offerId, userId) {
                         });
                     }
                 }
+                console.log('🏠 newToHousing (покупатель после добавления):', newToHousing);
                 
                 // Деньги
                 const fromNewMoney = (fromUserData.money || 0) - fromMoneyNum + toMoneyNum;
                 const toNewMoney = (toUserData.money || 0) - toMoneyNum + fromMoneyNum;
                 
-                // Определяем новое основное жильё для отправителя (если продал основное)
+                // Новое основное жильё для отправителя
                 let fromNewCurrent = fromUserData?.housing?.current;
                 if (fromHousingOffer.includes(fromNewCurrent)) {
                     fromNewCurrent = fromHousing.length > 0 ? fromHousing[0] : null;
                 }
-                
                 let fromNewCapacity = 0;
                 if (fromNewCurrent) {
                     if (fromNewCurrent.startsWith('dorm')) fromNewCapacity = 10;
@@ -412,9 +409,13 @@ export async function acceptTradeOffer(offerId, userId) {
                     else if (fromNewCurrent.startsWith('house')) fromNewCapacity = 40;
                 }
                 
-                // Определяем новое основное жильё для получателя
+                // Новое основное жильё для получателя
                 let toNewCurrent = toUserData?.housing?.current;
                 let toNewCapacity = toUserData?.housing?.storageCapacity || 0;
+                
+                console.log('🏠 ===== СОХРАНЯЕМ =====');
+                console.log('🏠 toUserRef, housing.owned:', newToHousing);
+                console.log('🏠 fromUserRef, housing.owned:', fromHousing);
                 
                 transaction.update(fromUserRef, {
                     inventory: fromInventory,
@@ -427,7 +428,7 @@ export async function acceptTradeOffer(offerId, userId) {
                 transaction.update(toUserRef, {
                     inventory: toInventory,
                     money: toNewMoney,
-                    'housing.owned': toHousing,
+                    'housing.owned': newToHousing,
                     'housing.current': toNewCurrent,
                     'housing.storageCapacity': toNewCapacity
                 });
@@ -439,32 +440,30 @@ export async function acceptTradeOffer(offerId, userId) {
             
             const currentUser = window.auth?.currentUser;
             if (currentUser) {
-    await loadGameData(currentUser.uid);
-    
-    // Принудительно обновляем ownedHomes в gameState
-    const gameState = await import('./gameState.js');
-    const { db } = await import('./firestore.js');
-    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
-    
-    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-    const housingData = userDoc.data()?.housing;
-    
-    if (housingData && housingData.owned) {
-        gameState.ownedHomes.length = 0;
-        gameState.ownedHomes.push(...(housingData.owned || []));
-        gameState.currentHome = housingData.current || null;
-        gameState.housingAccount = housingData.account ?? 20000;
-        gameState.housingDailyCost = housingData.dailyCost ?? 0;
-        gameState.homeStorageCapacity = housingData.storageCapacity ?? 0;
-        console.log('🏠 Принудительно обновлены ownedHomes:', gameState.ownedHomes);
-    }
-    
-    const { renderEquipmentTab, renderItemsTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-    renderItemsTab();
-    renderEquipmentTab();
-    initInventoryTabs();
-    renderHousingTab();
-}
+                await loadGameData(currentUser.uid);
+                
+                const gameState = await import('./gameState.js');
+                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+                
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                const housingData = userDoc.data()?.housing;
+                
+                if (housingData && housingData.owned) {
+                    gameState.ownedHomes.length = 0;
+                    gameState.ownedHomes.push(...(housingData.owned || []));
+                    gameState.currentHome = housingData.current || null;
+                    gameState.housingAccount = housingData.account ?? 20000;
+                    gameState.housingDailyCost = housingData.dailyCost ?? 0;
+                    gameState.homeStorageCapacity = housingData.storageCapacity ?? 0;
+                    console.log('🏠 Принудительно обновлены ownedHomes:', gameState.ownedHomes);
+                }
+                
+                const { renderEquipmentTab, renderItemsTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                renderItemsTab();
+                renderEquipmentTab();
+                initInventoryTabs();
+                renderHousingTab();
+            }
             
             setTimeout(() => { 
                 window._preventAutoSave = false; 
