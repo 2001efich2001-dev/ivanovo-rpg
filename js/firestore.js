@@ -259,6 +259,12 @@ export async function acceptTradeOffer(offerId, userId) {
     
     let retries = 3;
     
+    // Переменные для хранения результатов транзакции
+    let finalFromInventory, finalToInventory, finalFromMoney, finalToMoney;
+    let finalFromHousing, finalToHousing;
+    let finalFromCurrent, finalToCurrent;
+    let finalFromCapacity, finalToCapacity;
+    
     while (retries > 0) {
         try {
             await runTransaction(db, async (transaction) => {
@@ -431,6 +437,18 @@ export async function acceptTradeOffer(offerId, userId) {
                 console.log('🏠 toUserRef, housing.owned:', newToHousing);
                 console.log('🏠 fromUserRef, housing.owned:', fromHousing);
                 
+                // Сохраняем результаты для локального обновления
+                finalFromInventory = fromInventory;
+                finalToInventory = toInventory;
+                finalFromMoney = fromNewMoney;
+                finalToMoney = toNewMoney;
+                finalFromHousing = fromHousing;
+                finalToHousing = newToHousing;
+                finalFromCurrent = fromNewCurrent;
+                finalToCurrent = toNewCurrent;
+                finalFromCapacity = fromNewCapacity;
+                finalToCapacity = toNewCapacity;
+                
                 transaction.update(fromUserRef, {
                     inventory: fromInventory,
                     money: fromNewMoney,
@@ -451,6 +469,41 @@ export async function acceptTradeOffer(offerId, userId) {
             });
             
             showMessage('Обмен успешно завершён!', '#4caf50');
+            
+            // ===== ЛОКАЛЬНОЕ ОБНОВЛЕНИЕ ДЛЯ ПОЛУЧАТЕЛЯ =====
+            const currentUser = window.auth?.currentUser;
+            if (currentUser && currentUser.uid === userId) {
+                const gameState = await import('./gameState.js');
+                
+                // Обновляем деньги
+                gameState.money = finalToMoney;
+                
+                // Обновляем инвентарь
+                gameState.inventory.length = 0;
+                gameState.inventory.push(...finalToInventory);
+                
+                // Обновляем недвижимость
+                gameState.ownedHomes.length = 0;
+                gameState.ownedHomes.push(...(finalToHousing || []));
+                gameState.currentHome = finalToCurrent;
+                gameState.homeStorageCapacity = finalToCapacity;
+                
+                // Обновляем UI
+                gameState.updateUI();
+                
+                // Обновляем отображение вкладок
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                renderItemsTab();
+                renderEquipmentTab();
+                initInventoryTabs();
+                renderHousingTab();
+                
+                console.log('🏠 Локальные данные обновлены:', {
+                    money: gameState.money,
+                    inventory: gameState.inventory,
+                    ownedHomes: gameState.ownedHomes
+                });
+            }
             
             setTimeout(() => { 
                 window._preventAutoSave = false; 
