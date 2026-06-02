@@ -471,39 +471,48 @@ export async function acceptTradeOffer(offerId, userId) {
             showMessage('Обмен успешно завершён!', '#4caf50');
             
             // ===== ЛОКАЛЬНОЕ ОБНОВЛЕНИЕ ДЛЯ ПОЛУЧАТЕЛЯ =====
-            const currentUser = window.auth?.currentUser;
-            if (currentUser && currentUser.uid === userId) {
-                const gameState = await import('./gameState.js');
-                
-                // Обновляем деньги
-                gameState.money = finalToMoney;
-                
-                // Обновляем инвентарь
-                gameState.inventory.length = 0;
-                gameState.inventory.push(...finalToInventory);
-                
-                // Обновляем недвижимость
-                gameState.ownedHomes.length = 0;
-                gameState.ownedHomes.push(...(finalToHousing || []));
-                gameState.currentHome = finalToCurrent;
-                gameState.homeStorageCapacity = finalToCapacity;
-                
-                // Обновляем UI
-                gameState.updateUI();
-                
-                // Обновляем отображение вкладок
-                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-                renderItemsTab();
-                renderEquipmentTab();
-                initInventoryTabs();
-                renderHousingTab();
-                
-                console.log('🏠 Локальные данные обновлены:', {
-                    money: gameState.money,
-                    inventory: gameState.inventory,
-                    ownedHomes: gameState.ownedHomes
-                });
-            }
+const currentUser = window.auth?.currentUser;
+if (currentUser && currentUser.uid === userId) {
+    const gameState = await import('./gameState.js');
+    
+    // Используем setStats для обновления денег
+    gameState.setStats(null, null, null, finalToMoney);
+    
+    // Обновляем инвентарь (через существующие методы)
+    gameState.inventory.length = 0;
+    gameState.inventory.push(...finalToInventory);
+    
+    // Обновляем недвижимость через setHousingData
+    const housingDataForUpdate = {
+        current: finalToCurrent,
+        owned: finalToHousing || [],
+        storage: gameState.homeStorage || [],
+        storageCapacity: finalToCapacity,
+        debt: gameState.housingDebt || 0,
+        lastTaxPaid: gameState.lastTaxPaid || null,
+        account: gameState.housingAccount || 20000,
+        dailyCost: gameState.housingDailyCost || 0,
+        lastHousingCheck: gameState.lastHousingCheck || null,
+        lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
+    };
+    gameState.setHousingData(housingDataForUpdate);
+    
+    // Обновляем UI
+    gameState.updateUI();
+    
+    // Обновляем отображение вкладок
+    const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+    renderItemsTab();
+    renderEquipmentTab();
+    initInventoryTabs();
+    renderHousingTab();
+    
+    console.log('🏠 Локальные данные обновлены:', {
+        money: gameState.money,
+        inventory: gameState.inventory,
+        ownedHomes: gameState.ownedHomes
+    });
+}
             
             setTimeout(() => { 
                 window._preventAutoSave = false; 
