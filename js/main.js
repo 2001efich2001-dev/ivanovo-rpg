@@ -1,7 +1,7 @@
 // js/main.js
 import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback } from './gameState.js';
 import { initAuth, auth } from './auth.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs } from './inventory.js';
+import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
@@ -278,41 +278,6 @@ async function checkNewTradeOffers() {
         } else {
             notification.style.display = 'none';
         }
-    }
-}
-
-async function openTradeOfferModal(targetUserId, targetUserNick) {
-    const modal = document.getElementById('tradeOfferModal');
-    if (!modal) return;
-    modal.dataset.targetUserId = targetUserId;
-    modal.dataset.targetUserNick = targetUserNick;
-    const title = modal.querySelector('.modal-content h3');
-    if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
-    document.getElementById('tradeFromItems').innerHTML = '<div class="inventory-grid-header"><span>📦 Я отдаю</span><span>💰 Ваши деньги: <span id="tradeFromMoneyDisplay">0</span>₽</span></div><div class="inventory-grid" style="min-height: 300px;">Загрузка инвентаря...</div>';
-    document.getElementById('tradeToItems').innerHTML = '<div class="inventory-grid-header"><span>🎁 Я получаю</span><span>💰 Деньги: 0₽</span></div><div class="inventory-grid" style="min-height: 300px;">Загрузка...</div>';
-    document.getElementById('tradeFromMoney').value = 0;
-    document.getElementById('tradeToMoney').value = 0;
-    document.getElementById('tradeSelectedFrom').innerHTML = '';
-    document.getElementById('tradeSelectedTo').innerHTML = '';
-    modal.style.display = 'flex';
-    await renderTradeInventorySelector('from');
-    await renderTradeInventorySelector('to');
-    
-    // Обновляем отображение денег при изменении
-    const fromMoneyInput = document.getElementById('tradeFromMoney');
-    const toMoneyInput = document.getElementById('tradeToMoney');
-    const fromMoneyDisplay = document.getElementById('tradeFromMoneyDisplay');
-    const toMoneyDisplay = document.getElementById('tradeToMoneyDisplay');
-    
-    if (fromMoneyInput) {
-        fromMoneyInput.addEventListener('input', () => {
-            if (fromMoneyDisplay) fromMoneyDisplay.textContent = fromMoneyInput.value;
-        });
-    }
-    if (toMoneyInput) {
-        toMoneyInput.addEventListener('input', () => {
-            if (toMoneyDisplay) toMoneyDisplay.textContent = toMoneyInput.value;
-        });
     }
 }
 
