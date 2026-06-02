@@ -458,6 +458,7 @@ async function renderTradeInventorySelector(side) {
     });
 }
 
+// ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТПРАВКИ ПРЕДЛОЖЕНИЯ (с поддержкой недвижимости) ==========
 async function sendTradeOffer() {
     const modal = document.getElementById('tradeOfferModal');
     const targetUserId = modal.dataset.targetUserId;
@@ -465,6 +466,7 @@ async function sendTradeOffer() {
     const user = auth.currentUser;
     if (!user || !targetUserId) return;
     
+    // Собираем предметы, которые отдаём
     const fromItems = [];
     for (const el of document.querySelectorAll('#tradeSelectedFrom .selected-item')) {
         const itemId = el.dataset.id;
@@ -472,6 +474,7 @@ async function sendTradeOffer() {
         fromItems.push({ id: itemId, count });
     }
     
+    // Собираем предметы, которые получаем
     const toItems = [];
     for (const el of document.querySelectorAll('#tradeSelectedTo .selected-item')) {
         const itemId = el.dataset.id;
@@ -479,20 +482,31 @@ async function sendTradeOffer() {
         toItems.push({ id: itemId, count });
     }
     
+    // Собираем недвижимость, которую продаём
+    const fromHousing = [];
+    for (const el of document.querySelectorAll('#tradeSelectedHousing .selected-item')) {
+        const homeId = el.dataset.id;
+        fromHousing.push(homeId);
+    }
+    
+    // Недвижимость, которую хотим получить (пока не реализовано, можно будет добавить позже)
+    const toHousing = [];
+    
     const fromMoney = parseInt(document.getElementById('tradeFromMoney').value) || 0;
     const toMoney = parseInt(document.getElementById('tradeToMoney').value) || 0;
     
-    if (fromItems.length === 0 && fromMoney === 0 && toItems.length === 0 && toMoney === 0) {
+    if (fromItems.length === 0 && fromMoney === 0 && toItems.length === 0 && toMoney === 0 && fromHousing.length === 0 && toHousing.length === 0) {
         showMessage('Предложите хоть что-то в обмен', '#e74c3c');
         return;
     }
     
     try {
-        await createTradeOffer(user.uid, user.displayName, targetUserId, targetUserNick, fromItems, fromMoney, toItems, toMoney);
+        await createTradeOffer(user.uid, user.displayName, targetUserId, targetUserNick, fromItems, fromMoney, toItems, toMoney, fromHousing, toHousing);
         showMessage('Предложение обмена отправлено!', '#4caf50');
         modal.style.display = 'none';
         document.getElementById('tradeSelectedFrom').innerHTML = '';
         document.getElementById('tradeSelectedTo').innerHTML = '';
+        document.getElementById('tradeSelectedHousing').innerHTML = '';
         document.getElementById('tradeFromMoney').value = 0;
         document.getElementById('tradeToMoney').value = 0;
     } catch (error) {
