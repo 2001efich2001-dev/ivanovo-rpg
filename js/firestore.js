@@ -259,6 +259,13 @@ export async function acceptTradeOffer(offerId, userId) {
     
     let retries = 3;
     
+    // Переменные для хранения результатов транзакции
+    let finalFromInventory, finalToInventory, finalFromMoney, finalToMoney;
+    let finalFromHousing, finalToHousing;
+    let finalFromCurrent, finalToCurrent;
+    let finalFromCapacity, finalToCapacity;
+    let offerData = null;
+    
     while (retries > 0) {
         try {
             await runTransaction(db, async (transaction) => {
@@ -267,6 +274,7 @@ export async function acceptTradeOffer(offerId, userId) {
                 if (!offerSnap.exists()) throw new Error('Предложение не найдено');
                 
                 const offer = offerSnap.data();
+                offerData = offer;
                 
                 offer.fromHousing = offer.fromHousing || [];
                 offer.toHousing = offer.toHousing || [];
@@ -410,6 +418,18 @@ export async function acceptTradeOffer(offerId, userId) {
                 let toNewCurrent = toUserData?.housing?.current;
                 let toNewCapacity = toUserData?.housing?.storageCapacity || 0;
                 
+                // Сохраняем результаты для локального обновления
+                finalFromInventory = fromInventory;
+                finalToInventory = toInventory;
+                finalFromMoney = fromNewMoney;
+                finalToMoney = toNewMoney;
+                finalFromHousing = fromHousing;
+                finalToHousing = newToHousing;
+                finalFromCurrent = fromNewCurrent;
+                finalToCurrent = toNewCurrent;
+                finalFromCapacity = fromNewCapacity;
+                finalToCapacity = toNewCapacity;
+                
                 transaction.update(fromUserRef, {
                     inventory: fromInventory,
                     money: fromNewMoney,
@@ -431,7 +451,77 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // ===== ТОЛЬКО СНИМАЕМ БЛОКИРОВКУ, real-time сам обновит данные =====
+            // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ОБОИХ УЧАСТНИКОВ =====
+            const currentUser = window.auth?.currentUser;
+            
+            // Функция для обновления UI игрока
+            async function updatePlayerUI(playerId, isBuyer) {
+                if (!playerId) return;
+                
+                // Обновляем данные только если это текущий игрок
+                if (currentUser && currentUser.uid === playerId) {
+                    const gameState = await import('./gameState.js');
+                    
+                    if (isBuyer) {
+                        // Покупатель
+                        gameState.setStats(null, null, null, finalToMoney);
+                        gameState.inventory.length = 0;
+                        gameState.inventory.push(...finalToInventory);
+                        
+                        const housingDataForUpdate = {
+                            current: finalToCurrent,
+                            owned: finalToHousing || [],
+                            storage: gameState.homeStorage || [],
+                            storageCapacity: finalToCapacity,
+                            debt: gameState.housingDebt || 0,
+                            lastTaxPaid: gameState.lastTaxPaid || null,
+                            account: gameState.housingAccount || 20000,
+                            dailyCost: gameState.housingDailyCost || 0,
+                            lastHousingCheck: gameState.lastHousingCheck || null,
+                            lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
+                        };
+                        gameState.setHousingData(housingDataForUpdate);
+                        console.log('🏠 UI покупателя обновлён принудительно');
+                    } else {
+                        // Продавец
+                        gameState.setStats(null, null, null, finalFromMoney);
+                        gameState.inventory.length = 0;
+                        gameState.inventory.push(...finalFromInventory);
+                        
+                        const housingDataForUpdateSeller = {
+                            current: finalFromCurrent,
+                            owned: finalFromHousing || [],
+                            storage: gameState.homeStorage || [],
+                            storageCapacity: finalFromCapacity,
+                            debt: gameState.housingDebt || 0,
+                            lastTaxPaid: gameState.lastTaxPaid || null,
+                            account: gameState.housingAccount || 20000,
+                            dailyCost: gameState.housingDailyCost || 0,
+                            lastHousingCheck: gameState.lastHousingCheck || null,
+                            lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
+                        };
+                        gameState.setHousingData(housingDataForUpdateSeller);
+                        console.log('🏠 UI продавца обновлён принудительно');
+                    }
+                    
+                    gameState.updateUI();
+                    
+                    const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                    renderItemsTab();
+                    renderEquipmentTab();
+                    initInventoryTabs();
+                    renderHousingTab();
+                }
+            }
+            
+            // Обновляем покупателя
+            await updatePlayerUI(userId, true);
+            
+            // Обновляем продавца
+            if (offerData && offerData.fromUserId) {
+                await updatePlayerUI(offerData.fromUserId, false);
+            }
+            
             setTimeout(() => { 
                 window._preventAutoSave = false; 
             }, 5000);
