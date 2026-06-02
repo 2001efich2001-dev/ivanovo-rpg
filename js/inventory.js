@@ -876,6 +876,134 @@ export function renderAchievementsTabWrapper() {
     renderAchievementsTab();
 }
 
+// ========== НОВАЯ ФУНКЦИЯ: РЕНДЕР НЕДВИЖИМОСТИ В ТОРГОВЛЕ ==========
+export async function renderTradeHousingSelector() {
+    const container = document.getElementById('tradeHousingItems');
+    if (!container) return;
+    
+    if (!ownedHomes || ownedHomes.length === 0) {
+        container.innerHTML = '<div class="empty-inventory">🏠 У вас нет недвижимости для продажи</div>';
+        return;
+    }
+    
+    let html = '<div class="inventory-grid">';
+    
+    for (const homeId of ownedHomes) {
+        const typeName = getHousingTypeName(homeId);
+        const capacity = getHousingCapacity(homeId);
+        const dailyCost = getDailyCostForHome(homeId);
+        const costName = getCostName(homeId);
+        let displayName = homeId.toUpperCase().replace(/_/g, ' ');
+        
+        html += `
+            <div class="inventory-slot trade-slot" data-id="${homeId}" data-side="housing">
+                <div style="font-size: 2rem;">${typeName.includes('Общага') ? '🏢' : (typeName.includes('Квартира') ? '🏢' : '🏠')}</div>
+                <div class="item-name" style="font-size: 0.8rem; text-align: center;">${displayName}</div>
+                <div style="font-size: 0.65rem; color: var(--text-secondary);">${typeName} • ${capacity} сл.</div>
+                ${dailyCost > 0 ? `<div style="font-size: 0.6rem; color: #ffd966;">${costName}: ${dailyCost}₽/день</div>` : ''}
+                <button class="trade-add-btn" data-id="${homeId}" data-side="housing" style="margin-top: 6px;">➕ Добавить</button>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // Добавляем обработчики для кнопок добавления недвижимости
+    document.querySelectorAll('#tradeHousingItems .trade-add-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._housingHandler);
+        const handler = async (e) => {
+            e.stopPropagation();
+            const homeId = btn.dataset.id;
+            const typeName = getHousingTypeName(homeId);
+            let displayName = homeId.toUpperCase().replace(/_/g, ' ');
+            
+            const selectedContainer = document.getElementById('tradeSelectedHousing');
+            if (!selectedContainer) return;
+            
+            // Проверяем, не добавлена ли уже эта недвижимость
+            let existingItem = null;
+            for (const el of selectedContainer.querySelectorAll('.selected-item')) {
+                if (el.dataset.id === homeId) {
+                    existingItem = el;
+                    break;
+                }
+            }
+            
+            if (existingItem) {
+                showMessage(`❌ Недвижимость ${displayName} уже добавлена`, '#e74c3c');
+                return;
+            }
+            
+            const newItemHtml = `
+                <div class="selected-item" data-id="${homeId}" data-type="housing">
+                    <span>${typeName.includes('Общага') ? '🏢' : (typeName.includes('Квартира') ? '🏢' : '🏠')} ${displayName}</span>
+                    <button class="remove-item-btn">✖️</button>
+                </div>
+            `;
+            selectedContainer.insertAdjacentHTML('beforeend', newItemHtml);
+            selectedContainer.querySelector('.remove-item-btn:last-child').addEventListener('click', (e) => {
+                e.target.closest('.selected-item').remove();
+            });
+        };
+        btn.addEventListener('click', handler);
+        btn._housingHandler = handler;
+    });
+}
+
+// ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТКРЫТИЯ ТОРГОВЛИ (с вкладками) ==========
+export async function openTradeOfferModal(targetUserId, targetUserNick) {
+    const modal = document.getElementById('tradeOfferModal');
+    if (!modal) return;
+    modal.dataset.targetUserId = targetUserId;
+    modal.dataset.targetUserNick = targetUserNick;
+    const title = modal.querySelector('.modal-content h3');
+    if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
+    
+    // Очищаем все контейнеры
+    document.getElementById('tradeFromItems').innerHTML = '<div class="empty-inventory">📦 Инвентарь пуст</div>';
+    document.getElementById('tradeToItems').innerHTML = '<div class="empty-inventory">📦 Загрузка...</div>';
+    document.getElementById('tradeHousingItems').innerHTML = '<div class="empty-inventory">🏠 Загрузка...</div>';
+    document.getElementById('tradeSelectedFrom').innerHTML = '';
+    document.getElementById('tradeSelectedTo').innerHTML = '';
+    document.getElementById('tradeSelectedHousing').innerHTML = '';
+    document.getElementById('tradeFromMoney').value = 0;
+    document.getElementById('tradeToMoney').value = 0;
+    
+    modal.style.display = 'flex';
+    
+    // Загружаем данные
+    await renderTradeInventorySelector('from');
+    await renderTradeInventorySelector('to');
+    await renderTradeHousingSelector();
+    
+    // Настройка переключения вкладок
+    const tabs = modal.querySelectorAll('.trade-tab-btn');
+    const itemsTab = document.getElementById('tradeItemsTab');
+    const housingTab = document.getElementById('tradeHousingTab');
+    
+    tabs.forEach(tab => {
+        tab.removeEventListener('click', tab._tradeHandler);
+        const handler = () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            if (tab.dataset.tradeTab === 'items') {
+                itemsTab.style.display = 'flex';
+                housingTab.style.display = 'none';
+            } else if (tab.dataset.tradeTab === 'receive') {
+                itemsTab.style.display = 'flex';
+                housingTab.style.display = 'none';
+            } else if (tab.dataset.tradeTab === 'housing') {
+                itemsTab.style.display = 'none';
+                housingTab.style.display = 'block';
+            }
+        };
+        tab.addEventListener('click', handler);
+        tab._tradeHandler = handler;
+    });
+}
+
 // ОБНОВЛЁННАЯ initInventoryTabs с поддержкой вкладки housing
 export function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
@@ -926,4 +1054,15 @@ export function initInventoryTabs() {
     const activeTab = modal.querySelector('.tab-btn.active');
     if (activeTab) switchTab(activeTab);
     else if (tabs[0]) switchTab(tabs[0]);
+}
+
+// Функция escapeHtml для безопасности
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
 }
