@@ -451,75 +451,55 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ОБОИХ УЧАСТНИКОВ =====
+            // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ТЕКУЩЕГО ИГРОКА (ПОКУПАТЕЛЯ) =====
             const currentUser = window.auth?.currentUser;
             
-            // Функция для обновления UI игрока
-            async function updatePlayerUI(playerId, isBuyer) {
-                if (!playerId) return;
+            if (currentUser && currentUser.uid === userId) {
+                const gameState = await import('./gameState.js');
                 
-                // Обновляем данные только если это текущий игрок
-                if (currentUser && currentUser.uid === playerId) {
-                    const gameState = await import('./gameState.js');
-                    
-                    if (isBuyer) {
-                        // Покупатель
-                        gameState.setStats(null, null, null, finalToMoney);
-                        gameState.inventory.length = 0;
-                        gameState.inventory.push(...finalToInventory);
-                        
-                        const housingDataForUpdate = {
-                            current: finalToCurrent,
-                            owned: finalToHousing || [],
-                            storage: gameState.homeStorage || [],
-                            storageCapacity: finalToCapacity,
-                            debt: gameState.housingDebt || 0,
-                            lastTaxPaid: gameState.lastTaxPaid || null,
-                            account: gameState.housingAccount || 20000,
-                            dailyCost: gameState.housingDailyCost || 0,
-                            lastHousingCheck: gameState.lastHousingCheck || null,
-                            lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
-                        };
-                        gameState.setHousingData(housingDataForUpdate);
-                        console.log('🏠 UI покупателя обновлён принудительно');
-                    } else {
-                        // Продавец
-                        gameState.setStats(null, null, null, finalFromMoney);
-                        gameState.inventory.length = 0;
-                        gameState.inventory.push(...finalFromInventory);
-                        
-                        const housingDataForUpdateSeller = {
-                            current: finalFromCurrent,
-                            owned: finalFromHousing || [],
-                            storage: gameState.homeStorage || [],
-                            storageCapacity: finalFromCapacity,
-                            debt: gameState.housingDebt || 0,
-                            lastTaxPaid: gameState.lastTaxPaid || null,
-                            account: gameState.housingAccount || 20000,
-                            dailyCost: gameState.housingDailyCost || 0,
-                            lastHousingCheck: gameState.lastHousingCheck || null,
-                            lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
-                        };
-                        gameState.setHousingData(housingDataForUpdateSeller);
-                        console.log('🏠 UI продавца обновлён принудительно');
-                    }
-                    
-                    gameState.updateUI();
-                    
-                    const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-                    renderItemsTab();
-                    renderEquipmentTab();
-                    initInventoryTabs();
-                    renderHousingTab();
-                }
+                gameState.setStats(null, null, null, finalToMoney);
+                gameState.inventory.length = 0;
+                gameState.inventory.push(...finalToInventory);
+                
+                const housingDataForUpdate = {
+                    current: finalToCurrent,
+                    owned: finalToHousing || [],
+                    storage: gameState.homeStorage || [],
+                    storageCapacity: finalToCapacity,
+                    debt: gameState.housingDebt || 0,
+                    lastTaxPaid: gameState.lastTaxPaid || null,
+                    account: gameState.housingAccount || 20000,
+                    dailyCost: gameState.housingDailyCost || 0,
+                    lastHousingCheck: gameState.lastHousingCheck || null,
+                    lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
+                };
+                gameState.setHousingData(housingDataForUpdate);
+                gameState.updateUI();
+                
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                renderItemsTab();
+                renderEquipmentTab();
+                initInventoryTabs();
+                renderHousingTab();
+                
+                console.log('🏠 UI покупателя обновлён принудительно');
             }
             
-            // Обновляем покупателя
-            await updatePlayerUI(userId, true);
-            
-            // Обновляем продавца
+            // ===== ОТЛОЖЕННОЕ ОБНОВЛЕНИЕ ДЛЯ ПРОДАВЦА =====
             if (offerData && offerData.fromUserId) {
-                await updatePlayerUI(offerData.fromUserId, false);
+                setTimeout(async () => {
+                    await loadGameData(offerData.fromUserId);
+                    
+                    const currentUserNow = window.auth?.currentUser;
+                    if (currentUserNow && currentUserNow.uid === offerData.fromUserId) {
+                        const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                        renderItemsTab();
+                        renderEquipmentTab();
+                        initInventoryTabs();
+                        renderHousingTab();
+                        console.log('🏠 UI продавца обновлён через loadGameData');
+                    }
+                }, 1000);
             }
             
             setTimeout(() => { 
