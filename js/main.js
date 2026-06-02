@@ -559,8 +559,9 @@ async function openMyOffersModal() {
     modal.style.display = 'flex';
 }
 
-// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ ==========
+// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ (ОБНОВЛЕНО: проверка lastUpdated) ==========
 let realTimeUnsubscribe = null;
+let localLastUpdated = null; // Храним время последнего обновления
 
 function setupRealTimeUpdates(userId) {
     if (realTimeUnsubscribe) {
@@ -569,9 +570,17 @@ function setupRealTimeUpdates(userId) {
     }
     
     subscribeToUserChanges(userId, async (newData) => {
-        // ===== ПРОПУСКАЕМ ОБНОВЛЕНИЕ ВО ВРЕМЯ ОБМЕНА =====
+        // Пропускаем обновление во время обмена
         if (window._preventAutoSave) {
             console.log('🔄 Real-time: пропускаем обновление (идет обмен)');
+            return;
+        }
+        
+        // Проверяем, что данные не старые
+        const newLastUpdated = newData.lastUpdated ? new Date(newData.lastUpdated).getTime() : 0;
+        
+        if (localLastUpdated && newLastUpdated <= localLastUpdated) {
+            console.log(`🔄 Real-time: пропускаем старые данные (локальное: ${new Date(localLastUpdated).toLocaleTimeString()}, новое: ${new Date(newLastUpdated).toLocaleTimeString()})`);
             return;
         }
         
@@ -593,6 +602,9 @@ function setupRealTimeUpdates(userId) {
             setTimeWeather(newData.accumulatedMinutes, newData.currentWeather, newData.currentTemperature);
             setActionLog(newData.actionLog ?? []);
             setCurrentLocation(newData.currentLocation || 'church');
+            
+            // Обновляем локальную метку времени
+            localLastUpdated = newLastUpdated;
             
             updateUI();
             renderItemsTab();
@@ -771,6 +783,17 @@ document.addEventListener('DOMContentLoaded', () => {
         window._preventAutoSave = false;
         
         if (user) {
+            // Загружаем lastUpdated из Firestore при входе
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists() && userDoc.data().lastUpdated) {
+                    localLastUpdated = new Date(userDoc.data().lastUpdated).getTime();
+                    console.log('📅 Загружена метка времени lastUpdated:', new Date(localLastUpdated).toLocaleTimeString());
+                }
+            } catch (err) {
+                console.warn('Не удалось загрузить lastUpdated:', err);
+            }
+            
             setupRealTimeUpdates(user.uid);
             initAchievements();
         }
