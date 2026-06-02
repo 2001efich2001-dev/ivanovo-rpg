@@ -9,7 +9,6 @@ export function initFirestore(auth) {
 }
 
 export async function saveGameData() {  
-     // БЛОКИРУЕМ СОХРАНЕНИЕ ВО ВРЕМЯ ОБМЕНА
     if (window._preventAutoSave) {
         console.log('💾 saveGameData: пропускаем сохранение (идет обмен)');
         return;
@@ -268,6 +267,15 @@ export async function acceptTradeOffer(offerId, userId) {
                 if (!offerSnap.exists()) throw new Error('Предложение не найдено');
                 
                 const offer = offerSnap.data();
+                
+                // ===== ЗАЩИТА ОТ UNDEFINED =====
+                offer.fromHousing = offer.fromHousing || [];
+                offer.toHousing = offer.toHousing || [];
+                offer.fromItems = offer.fromItems || [];
+                offer.toItems = offer.toItems || [];
+                offer.fromMoney = offer.fromMoney || 0;
+                offer.toMoney = offer.toMoney || 0;
+                
                 if (offer.status !== 'pending') throw new Error('Предложение уже обработано');
                 if (offer.toUserId !== userId) throw new Error('Вы не получатель');
                 if (new Date(offer.expiresAt) < new Date()) throw new Error('Срок истёк');
@@ -444,7 +452,6 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // ===== УПРОЩЁННО: просто снимаем блокировку, real-time сам обновит =====
             setTimeout(() => { 
                 window._preventAutoSave = false; 
             }, 5000);
