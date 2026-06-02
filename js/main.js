@@ -628,6 +628,50 @@ function setupRealTimeUpdates(userId) {
     realTimeUnsubscribe = () => unsubscribeFromUserChanges();
 }
 
+// ========== КОММУНАЛКА/АРЕНДА ==========
+let housingCheckInterval = null;
+
+async function checkHousingPayment() {
+    const user = window.auth?.currentUser;
+    if (!user) return;
+    
+    try {
+        const gameState = await import('./gameState.js');
+        const result = await gameState.checkHousingPayment();
+        
+        if (result && result.success === false) {
+            const { renderHousingTab } = await import('./inventory.js');
+            const housingTab = document.getElementById('housingTab');
+            if (housingTab && housingTab.style.display !== 'none') {
+                renderHousingTab();
+            }
+            
+            const { currentLocation, setCurrentLocation } = gameState;
+            if (currentLocation === 'dorm_home' || currentLocation === 'apartment_home' || currentLocation === 'house_home') {
+                setCurrentLocation('dump_home');
+            }
+        }
+    } catch (err) {
+        console.error('Ошибка при проверке коммуналки:', err);
+    }
+}
+
+function startHousingCheckTimer() {
+    if (housingCheckInterval) clearInterval(housingCheckInterval);
+    
+    housingCheckInterval = setInterval(() => {
+        console.log('🏠 Плановая проверка коммуналки/аренды...');
+        checkHousingPayment();
+    }, 24 * 60 * 60 * 1000);
+}
+
+function stopHousingCheckTimer() {
+    if (housingCheckInterval) {
+        clearInterval(housingCheckInterval);
+        housingCheckInterval = null;
+    }
+}
+
 // ========== ЕЖЕДНЕВНЫЙ БОНУС ==========
 let bonusIndicatorInterval = null;
 
@@ -701,7 +745,6 @@ async function initAchievements() {
     try {
         const { setAchievementsData: setData } = await import('./achievements.js');
         
-        // Загружаем данные ачивок из Firestore (без проверки)
         const user = auth.currentUser;
         if (user) {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -713,7 +756,6 @@ async function initAchievements() {
             }
         }
         
-        // НЕ вызываем check() здесь — ачивки будут проверяться только при действиях
         console.log('🏆 Система достижений инициализирована (без автоматической проверки)');
     } catch (err) {
         console.error('Ошибка инициализации ачивок:', err);
@@ -733,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setLogUpdateCallback(() => { renderLogPanel(); });
     setExpUpdateCallback(() => { updateUI(); });
     
-    function afterLogin() {
+    async function afterLogin() {
         const user = window.auth?.currentUser;
         
         if (user) {
@@ -745,7 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (user) {
             setupRealTimeUpdates(user.uid);
-            initAchievements(); // Инициализируем ачивки (только загрузка данных)
+            initAchievements();
         }
         
         renderItemsTab();
@@ -796,6 +838,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+        
+        // ===== КОММУНАЛКА/АРЕНДА =====
+        await checkHousingPayment();
+        startHousingCheckTimer();
         
         // ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" =====
         setupAboutModal();
@@ -910,6 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
             playClick();
             stopWeatherEffects();
             stopTimeWeatherUpdates();
+            stopHousingCheckTimer();
             
             if (realTimeUnsubscribe) {
                 realTimeUnsubscribe();
