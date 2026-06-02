@@ -50,6 +50,11 @@ export let homeStorageCapacity = 0;       // Вместимость хранил
 export let housingDebt = 0;               // Долг по налогам
 export let lastTaxPaid = null;            // Дата последней оплаты налога
 
+// ========== НОВЫЕ ПОЛЯ ДЛЯ КОММУНАЛКИ/АРЕНДЫ ==========
+export let housingAccount = 20000;        // Счёт для оплаты (максимум 20000₽)
+export let housingDailyCost = 0;          // Ежедневная стоимость (зависит от типа жилья)
+export let lastHousingCheck = null;       // Дата последней проверки списания
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -432,8 +437,12 @@ export function setHousingData(data) {
         homeStorageCapacity = data.storageCapacity ?? 0;
         housingDebt = data.debt ?? 0;
         lastTaxPaid = data.lastTaxPaid ?? null;
+        // ===== НОВЫЕ ПОЛЯ =====
+        housingAccount = data.account ?? 20000;
+        housingDailyCost = data.dailyCost ?? 0;
+        lastHousingCheck = data.lastHousingCheck ?? null;
     }
-    console.log('🏠 Загружены данные жилья:', { currentHome, ownedHomes, homeStorageCapacity, housingDebt });
+    console.log('🏠 Загружены данные жилья:', { currentHome, ownedHomes, homeStorageCapacity, housingDebt, housingAccount, housingDailyCost });
 }
 
 export function initHousingData() {
@@ -443,6 +452,10 @@ export function initHousingData() {
     homeStorageCapacity = 0;
     housingDebt = 0;
     lastTaxPaid = null;
+    // ===== НОВЫЕ ПОЛЯ =====
+    housingAccount = 20000;
+    housingDailyCost = 0;
+    lastHousingCheck = null;
     console.log('🏠 Инициализированы данные жилья для нового игрока');
 }
 
@@ -453,8 +466,182 @@ export function getHousingData() {
         storage: homeStorage,
         storageCapacity: homeStorageCapacity,
         debt: housingDebt,
-        lastTaxPaid: lastTaxPaid
+        lastTaxPaid: lastTaxPaid,
+        // ===== НОВЫЕ ПОЛЯ =====
+        account: housingAccount,
+        dailyCost: housingDailyCost,
+        lastHousingCheck: lastHousingCheck
     };
+}
+
+// ===== НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ЕЖЕДНЕВНОЙ СТОИМОСТИ =====
+export function updateHousingDailyCost(homeId = currentHome) {
+    if (!homeId) {
+        housingDailyCost = 0;
+        return;
+    }
+    
+    if (homeId.startsWith('dorm')) {
+        housingDailyCost = 250;      // Аренда общаги
+    } else if (homeId.startsWith('apartment')) {
+        housingDailyCost = 500;       // Коммуналка квартиры
+    } else if (homeId.startsWith('house')) {
+        housingDailyCost = 1000;      // Коммуналка дома
+    } else {
+        housingDailyCost = 0;
+    }
+    
+    console.log(`🏠 Ежедневная стоимость для ${homeId}: ${housingDailyCost}₽`);
+    return housingDailyCost;
+}
+
+// ===== НОВАЯ ФУНКЦИЯ: ПОПОЛНЕНИЕ СЧЁТА =====
+export async function depositToHousingAccount(amount) {
+    if (isNaN(amount) || amount <= 0) {
+        showMessage(`❌ Введите корректную сумму`, '#e74c3c');
+        return false;
+    }
+    
+    if (money < amount) {
+        showMessage(`❌ Не хватает денег! Нужно ${amount}₽, у вас ${money}₽`, '#e74c3c');
+        return false;
+    }
+    
+    const newAccount = Math.min(20000, housingAccount + amount);
+    const actualDeposit = newAccount - housingAccount;
+    
+    if (actualDeposit <= 0) {
+        showMessage(`❌ Счёт уже достиг максимума (20000₽)`, '#ffd966');
+        return false;
+    }
+    
+    // Списываем деньги
+    setStats(health, hunger, cold, money - actualDeposit);
+    
+    // Пополняем счёт
+    housingAccount = newAccount;
+    
+    // Сбрасываем долг, если был
+    if (housingDebt > 0) {
+        housingDebt = 0;
+        addLogEntry(`💰 Долг по жилью погашен!`, 'economy');
+    }
+    
+    updateUI();
+    await saveGameData();
+    
+    showMessage(`💰 Счёт пополнен на ${actualDeposit}₽. Баланс: ${housingAccount}₽`, '#4caf50');
+    addLogEntry(`🏠 Пополнение счёта жилья на ${actualDeposit}₽`, 'economy');
+    
+    return true;
+}
+
+// ===== НОВАЯ ФУНКЦИЯ: ЕЖЕДНЕВНАЯ ПРОВЕРКА СПИСАНИЯ =====
+export async function checkHousingPayment() {
+    if (!currentHome) return;
+    
+    const today = new Date().toDateString();
+    if (lastHousingCheck === today) {
+        console.log('🏠 Сегодня уже проверяли коммуналку');
+        return;
+    }
+    
+    console.log(`🏠 Проверка коммуналки для ${currentHome}...`);
+    
+    // Обновляем dailyCost на всякий случай
+    updateHousingDailyCost(currentHome);
+    
+    if (housingDailyCost <= 0) return;
+    
+    let message = '';
+    let isEvicted = false;
+    
+    if (housingAccount >= housingDailyCost) {
+        // Достаточно средств — списываем
+        housingAccount -= housingDailyCost;
+        message = `🏠 Снято ${housingDailyCost}₽ за ${currentHome.startsWith('dorm') ? 'аренду' : 'коммуналку'}. Остаток на счету: ${housingAccount}₽`;
+        showMessage(message, '#ffd966');
+        addLogEntry(message, 'economy');
+        
+        // Если был долг — сбрасываем (хотя по логике его уже быть не должно)
+        if (housingDebt > 0) {
+            housingDebt = 0;
+        }
+    } else {
+        // Недостаточно средств — начисляем долг
+        const shortage = housingDailyCost - housingAccount;
+        housingDebt += shortage;
+        housingAccount = 0;
+        
+        message = `⚠️ Недостаточно средств на счету жилья! Долг: ${housingDebt}₽. Пополните счёт, иначе вас выселят!`;
+        showMessage(message, '#e74c3c');
+        addLogEntry(message, 'economy');
+        
+        // Если долг превышает 3 дня (3 * dailyCost) — выселяем
+        if (housingDebt > housingDailyCost * 3) {
+            message = `💔 Вас выселили из ${currentHome} за неуплату ${housingDebt}₽!`;
+            showMessage(message, '#e74c3c');
+            addLogEntry(message, 'economy');
+            await evictFromHome();
+            isEvicted = true;
+        }
+    }
+    
+    lastHousingCheck = today;
+    await saveGameData();
+    
+    return { success: !isEvicted, debt: housingDebt, account: housingAccount };
+}
+
+// ===== НОВАЯ ФУНКЦИЯ: ВЫСЕЛЕНИЕ =====
+export async function evictFromHome() {
+    if (!currentHome) return false;
+    
+    const evictedHomeId = currentHome;
+    
+    // Обновляем в Firestore (через saveGameData, но нужно отдельно обновить real_estate)
+    const { db } = await import('./firestore.js');
+    const { doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+    const { auth } = await import('./auth.js');
+    
+    const user = auth.currentUser;
+    if (user) {
+        // Очищаем владельца в real_estate
+        const propertyRef = doc(db, 'real_estate', evictedHomeId);
+        await updateDoc(propertyRef, {
+            ownerId: deleteField(),
+            ownerName: deleteField(),
+            purchasedAt: deleteField(),
+            debt: deleteField(),
+            lastTaxPaid: deleteField()
+        }).catch(e => console.warn('Не удалось очистить real_estate:', e));
+    }
+    
+    // Удаляем из ownedHomes
+    const index = ownedHomes.indexOf(evictedHomeId);
+    if (index !== -1) ownedHomes.splice(index, 1);
+    
+    // Сбрасываем счёт и долг
+    housingAccount = 20000;
+    housingDebt = 0;
+    housingDailyCost = 0;
+    
+    // Выбираем новое жильё
+    if (ownedHomes.length > 0) {
+        await setPrimaryHome(ownedHomes[0]);
+        showMessage(`🏠 Ваше новое основное жильё: ${currentHome}`, '#ffd966');
+    } else {
+        currentHome = null;
+        homeStorageCapacity = 0;
+        setCurrentLocation('dump_home');
+        showMessage(`🗑️ У вас больше нет жилья! Телепорт отправит на помойку.`, '#e74c3c');
+    }
+    
+    await saveGameData();
+    updateUI();
+    
+    addLogEntry(`🏠 Выселен из ${evictedHomeId} за неуплату`, 'economy');
+    return true;
 }
 
 // Обновление вместимости хранилища в зависимости от типа жилья
@@ -537,6 +724,9 @@ export async function setPrimaryHome(homeId) {
     } else {
         updateStorageCapacity('dump');
     }
+    
+    // ===== ОБНОВЛЯЕМ ЕЖЕДНЕВНУЮ СТОИМОСТЬ =====
+    updateHousingDailyCost(homeId);
     
     // Сохраняем в Firestore
     const { saveGameData } = await import('./firestore.js');
