@@ -42,14 +42,19 @@ export async function saveGameData() {
         console.warn('Модуль ачивок не загружен');
     }
     
-    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ СИСТЕМЫ ЖИЛЬЯ =====
+    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ СИСТЕМЫ ЖИЛЬЯ (ОБНОВЛЕНО) =====
     const housingData = {
         current: gameState.currentHome ?? null,
         owned: gameState.ownedHomes ?? [],
         storage: gameState.homeStorage ?? [],
         storageCapacity: gameState.homeStorageCapacity ?? 0,
         debt: gameState.housingDebt ?? 0,
-        lastTaxPaid: gameState.lastTaxPaid ?? null
+        lastTaxPaid: gameState.lastTaxPaid ?? null,
+        // ===== НОВЫЕ ПОЛЯ ДЛЯ КОММУНАЛКИ/АРЕНДЫ =====
+        account: gameState.housingAccount ?? 20000,
+        dailyCost: gameState.housingDailyCost ?? 0,
+        lastHousingCheck: gameState.lastHousingCheck ?? null,
+        lastGlobalHousingCheck: gameState.lastGlobalHousingCheck ?? null
     };
     
     const docRef = doc(db, 'users', user.uid);
@@ -119,11 +124,15 @@ export async function loadGameData(userId) {
             }
         }
         
-        // ===== ЗАГРУЖАЕМ ДАННЫЕ СИСТЕМЫ ЖИЛЬЯ =====
+        // ===== ЗАГРУЖАЕМ ДАННЫЕ СИСТЕМЫ ЖИЛЬЯ (ОБНОВЛЕНО) =====
         if (data.housing) {
             const { setHousingData } = await import('./gameState.js');
             setHousingData(data.housing);
             console.log('🏠 Загружены данные жилья:', data.housing);
+        } else {
+            // Если нет данных о жилье — инициализируем
+            const { initHousingData } = await import('./gameState.js');
+            initHousingData();
         }
         
         updateUI();
