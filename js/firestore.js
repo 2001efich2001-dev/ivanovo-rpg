@@ -10,7 +10,7 @@ export function initFirestore(auth) {
 
 export async function saveGameData() {  
     // Блокируем автосохранение во время обмена
-    if (window._preventAutoSaveAutosave) {
+    if (window._preventAutoSave) {
         console.log('💾 saveGameData: пропускаем сохранение (идет обмен)');
         return;
     }
@@ -256,8 +256,7 @@ export async function cancelTradeOffer(offerId, userId) {
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
-    // Блокируем автосохранение (real-time не блокируем)
-    window._preventAutoSaveAutosave = true;
+    window._preventAutoSave = true;
     
     let retries = 3;
     
@@ -453,8 +452,6 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // ===== REAL-TIME РАЗБЛОКИРОВАН, АВТОСОХРАНЕНИЕ ЕЩЁ ЗАБЛОКИРОВАНО =====
-            
             // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ТЕКУЩЕГО ИГРОКА =====
             const currentUser = window.auth?.currentUser;
             
@@ -520,18 +517,9 @@ export async function acceptTradeOffer(offerId, userId) {
                 console.log('🏠 UI продавца обновлён принудительно');
             }
             
-            // ===== ЕСЛИ ПРОДАВЕЦ — ДРУГОЙ ИГРОК, ПРИНУДИТЕЛЬНО ЗАГРУЖАЕМ =====
-            if (offerData && offerData.fromUserId && currentUser && currentUser.uid !== offerData.fromUserId) {
-                setTimeout(async () => {
-                    await loadGameData(offerData.fromUserId);
-                    console.log('🏠 Данные продавца принудительно обновлены через loadGameData');
-                }, 500);
-            }
-            
-            // Разблокируем автосохранение через 10 секунд
+            // Снимаем блокировку через 10 секунд
             setTimeout(() => { 
-                window._preventAutoSaveAutosave = false;
-                console.log('🔓 Автосохранение разблокировано');
+                window._preventAutoSave = false; 
             }, 10000);
             
             return true;
@@ -548,12 +536,12 @@ export async function acceptTradeOffer(offerId, userId) {
             }
             
             showMessage(`Ошибка: ${error.message}`, '#e74c3c');
-            window._preventAutoSaveAutosave = false;
+            window._preventAutoSave = false;
             return false;
         }
     }
     
-    window._preventAutoSaveAutosave = false;
+    window._preventAutoSave = false;
     return false;
 }
 
@@ -573,3 +561,7 @@ export async function rejectTradeOffer(offerId, userId) {
 }
 
 export { db };
+
+
+
+
