@@ -488,14 +488,14 @@ function getPriceByHomeId(homeId) {
     return 0;
 }
 
-// ========== НОВАЯ ФУНКЦИЯ: ПРОДАЖА НЕДВИЖИМОСТИ ==========
+// ========== НОВАЯ ФУНКЦИЯ: ПРОДАЖА НЕДВИЖИМОСТИ ГОРОДУ (с автоматическим снятием объявления) ==========
 async function sellPropertyToCity(propertyId, sellPrice) {
     console.log(`💰 Продажа ${propertyId} за ${sellPrice}₽`);
     
     try {
         const { auth } = await import('./auth.js');
         const { db } = await import('./firestore.js');
-        const { doc, runTransaction, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const { doc, runTransaction, deleteField, collection, query, where, getDocs, updateDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
         const { money, setStats, updateUI, currentHome, setPrimaryHome, ownedHomes } = await import('./gameState.js');
         const { showMessage: showMsg } = await import('./utils.js');
         
@@ -503,6 +503,30 @@ async function sellPropertyToCity(propertyId, sellPrice) {
         if (!currentUser) {
             showMsg('Ошибка авторизации', '#e74c3c');
             return;
+        }
+        
+        // ===== НОВОЕ: Проверяем, есть ли активное объявление на эту недвижимость =====
+        let hadActiveListing = false;
+        try {
+            const listingsQuery = query(
+                collection(db, 'real_estate_listings'),
+                where('propertyId', '==', propertyId),
+                where('status', '==', 'active')
+            );
+            const listingsSnapshot = await getDocs(listingsQuery);
+            
+            for (const listingDoc of listingsSnapshot.docs) {
+                hadActiveListing = true;
+                // Снимаем объявление (статус cancelled)
+                await updateDoc(doc(db, 'real_estate_listings', listingDoc.id), {
+                    status: 'cancelled',
+                    cancelledAt: new Date().toISOString(),
+                    cancelledReason: 'sold_to_city'
+                });
+                console.log(`📢 Объявление для ${propertyId} снято с продажи (продано городу)`);
+            }
+        } catch (err) {
+            console.warn('Ошибка при проверке объявлений:', err);
         }
         
         await runTransaction(db, async (transaction) => {
@@ -571,7 +595,12 @@ async function sellPropertyToCity(propertyId, sellPrice) {
         
         updateUI();
         
-        showMsg(`💰 Продано! ${propertyId.toUpperCase().replace(/_/g, ' ')} за ${sellPrice.toLocaleString()}₽`, '#4caf50');
+        // ===== НОВОЕ: Показываем сообщение о снятии объявления =====
+        if (hadActiveListing) {
+            showMsg(`💰 Продано! ${propertyId.toUpperCase().replace(/_/g, ' ')} за ${sellPrice.toLocaleString()}₽\n📢 Объявление автоматически снято с продажи`, '#4caf50');
+        } else {
+            showMsg(`💰 Продано! ${propertyId.toUpperCase().replace(/_/g, ' ')} за ${sellPrice.toLocaleString()}₽`, '#4caf50');
+        }
         
     } catch (error) {
         console.error('Ошибка продажи:', error);
