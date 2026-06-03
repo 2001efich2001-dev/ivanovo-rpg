@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Рыбалка на Уводи</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #1a2a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Roboto', system-ui, sans-serif;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: rgba(0,0,0,0.3);
+            border-radius: 48px;
+            padding: 20px;
+            backdrop-filter: blur(2px);
+            box-shadow: 0 20px 35px rgba(0,0,0,0.5);
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 28px;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.5);
+            cursor: crosshair;
+        }
+
+        .info-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 18px;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tension-meter {
+            flex: 3;
+            background: #2c2c2c;
+            border-radius: 60px;
+            padding: 6px 12px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5), 0 1px 2px rgba(255,255,255,0.1);
+        }
+
+        .tension-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: bold;
+            color: #ffecb3;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .tension-bg {
+            background: #5a3e2b;
+            border-radius: 40px;
+            height: 24px;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .tension-fill {
+            width: 0%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 35%, #f5a623, #c0392b);
+            border-radius: 40px;
+            transition: width 0.05s linear;
+            box-shadow: 0 0 6px #ff7e05;
+        }
+
+        .status-card {
+            flex: 2;
+            background: #1e2a1c;
+            border-radius: 40px;
+            padding: 8px 18px;
+            text-align: center;
+            color: #f9e0a0;
+            font-weight: bold;
+            font-size: 1.1rem;
+            backdrop-filter: blur(2px);
+            box-shadow: inset 0 1px 3px #6b8c5c, 0 4px 8px black;
+        }
+
+        button {
+            background: #d6a15a;
+            border: none;
+            font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 60px;
+            font-size: 1rem;
+            cursor: pointer;
+            color: #2c2b26;
+            transition: 0.1s linear;
+            box-shadow: 0 4px 0 #6b3f1c;
+            font-family: inherit;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #6b3f1c;
+        }
+
+        .info-text {
+            font-size: 0.8rem;
+            background: #000000aa;
+            padding: 6px 12px;
+            border-radius: 28px;
+            text-align: center;
+            color: #cfd8b0;
+            margin-top: 12px;
+            backdrop-filter: blur(4px);
+        }
+
+        @keyframes biteFlash {
+            0% { text-shadow: 0 0 0 white; background-color: #1e2a1c; }
+            100% { text-shadow: 0 0 12px red; background-color: #5a2e2e; }
+        }
+
+        .biting {
+            animation: biteFlash 0.3s ease-in-out 3;
+        }
+        
+        .close-game-btn {
+            background: #c0392b;
+            margin-top: 12px;
+            box-shadow: 0 4px 0 #6b1a0f;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="1000" height="550" style="width:100%; height:auto; max-width:1000px; aspect-ratio:1000/550"></canvas>
+        <div class="info-panel">
+            <div class="tension-meter">
+                <div class="tension-label">
+                    <span>🎣 НАТЯЖЕНИЕ ЛЕСКИ</span>
+                    <span id="tensionPercent">0%</span>
+                </div>
+                <div class="tension-bg">
+                    <div class="tension-fill" id="tensionFill"></div>
+                </div>
+            </div>
+            <div class="status-card" id="statusMsg">
+                🎣 Кликни по воде!
+            </div>
+            <button id="resetBtn">🎯 НОВАЯ РЫБАЛКА</button>
+        </div>
+        <div class="info-text">
+            💡 1. Тыкни на воду → заброс удочки с поплавком.<br>
+            💡 2. Жди поклёвку (терпение, время неизвестно!).<br>
+            💡 3. Нажми <kbd>ПРОБЕЛ</kbd> когда клюнет → подсечка!<br>
+            💡 4. ЗАЖИМАЙ ПРОБЕЛ: натяжение растёт, рыба идёт к берегу.<br>
+            💡 5. ОТПУСКАЙ: леска слабеет, рыба уплывает.<br>
+            💡 6. У каждой рыбы свой характер! Не порви леску.<br>
+            💡 7. Доведи рыбу до самого низа экрана → ПОБЕДА!
+        </div>
+        <button id="closeFishingBtn" class="close-game-btn">🚪 ЗАКОНЧИТЬ РЫБАЛКУ</button>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ========== ПЕРЕМЕННЫЕ ДЛЯ СВЯЗИ С РОДИТЕЛЬСКИМ ОКНОМ ==========
+        let gameResultCallback = null;
+        
+        // Функция для установки колбэка из внешнего мира
+        window.setFishingCallbacks = function(onSuccess, onFail) {
+            gameResultCallback = { onSuccess, onFail };
+        };
+        
+        // ========== ОСТАЛЬНОЙ КОД ИГРЫ (ВАШ ОРИГИНАЛЬНЫЙ) ==========
+        // -------- CANVAS ----------
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // -------- ФОН-КАРТИНКА ----------
+        const BACKGROUND_IMAGE_PATH = "images/fishing_bg.jpg";
+        let backgroundImage = new Image();
+        let bgLoaded = false;
+        backgroundImage.onload = () => {
+            bgLoaded = true;
+            drawCanvas();
+        };
+        backgroundImage.onerror = () => {
+            console.warn("Фон не загрузился");
+            bgLoaded = false;
+            drawCanvas();
+        };
+        backgroundImage.src = BACKGROUND_IMAGE_PATH;
+        
+        // -------- ИГРОВЫЕ СОСТОЯНИЯ ----------
+        const STATE_IDLE = 'idle';
+        const STATE_WAITING_BITE = 'waiting_bite';
+        const STATE_BITE = 'biting';
+        const STATE_FIGHTING = 'fighting';
+        
+        let gameState = STATE_IDLE;
+        let floatX = null, floatY = null;
+        let biteTimer = null;
+        let biteWindowTimer = null;
+        let fishPosition = 0.0;
+        let currentTension = 0.0;
+        let fishStats = {
+            tensionGainSpeed: 0.012,
+            tensionDecaySpeed: 0.024,
+            fishEscapeSpeed: 0.008,
+            fishPullSpeed: 0.008
+        };
+        
+        let spacePressed = false;
+        let animationFrame = null;
+        let hasHooked = false;
+        let caughtMessageActive = false;
+        
+        const tensionPercentSpan = document.getElementById('tensionPercent');
+        const tensionFillDiv = document.getElementById('tensionFill');
+        const statusDiv = document.getElementById('statusMsg');
+        
+        function generateRandomFishStats() {
+            const strength = 0.7 + Math.random() * 1.2;
+            let tensionGain = 0.008 + (strength * 0.008);
+            tensionGain = Math.min(0.028, Math.max(0.007, tensionGain));
+            let tensionDecay = 0.018 + (Math.random() * 0.02);
+            if(strength > 1.2) tensionDecay *= 0.7;
+            let escapeSpeed = 0.006 + (strength * 0.007);
+            escapeSpeed = Math.min(0.025, escapeSpeed);
+            let pullSpeed = 0.006 + ((2.2 - strength) * 0.006);
+            pullSpeed = Math.min(0.022, Math.max(0.005, pullSpeed));
+            
+            return {
+                tensionGainSpeed: tensionGain,
+                tensionDecaySpeed: tensionDecay,
+                fishEscapeSpeed: escapeSpeed,
+                fishPullSpeed: pullSpeed
+            };
+        }
+        
+        function clearGameTimers() {
+            if(biteTimer) { clearTimeout(biteTimer); biteTimer = null; }
+            if(biteWindowTimer) { clearTimeout(biteWindowTimer); biteWindowTimer = null; }
+        }
+        
+        function stopFightingLoop() {
+            if(animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+            spacePressed = false;
+        }
+        
+        function fullResetToIdle(keepFloatVisual = false) {
+            clearGameTimers();
+            stopFightingLoop();
+            gameState = STATE_IDLE;
+            hasHooked = false;
+            currentTension = 0;
+            fishPosition = 0;
+            if(!keepFloatVisual) {
+                floatX = null;
+                floatY = null;
+            }
+            updateTensionUI();
+            drawCanvas();
+            statusDiv.innerHTML = "🎣 Удочка готова. Тыкни по воде!";
+            statusDiv.classList.remove("biting");
+        }
+        
+        function lineBreak() {
+            if(gameState !== STATE_FIGHTING) return;
+            clearGameTimers();
+            stopFightingLoop();
+            gameState = STATE_IDLE;
+            caughtMessageActive = true;
+            statusDiv.innerHTML = "💔 ЛЕСКА ПОРВАНА!";
+            drawCanvas();
+            showCaughtModal("💥 ЛЕСКА НЕ ВЫДЕРЖАЛА! 💥<br> 🐟 Рыба сорвалась!", false);
+            floatX = null;
+            floatY = null;
+            drawCanvas();
+        }
+        
+        function catchSuccess() {
+            if(gameState !== STATE_FIGHTING) return;
+            clearGameTimers();
+            stopFightingLoop();
+            gameState = STATE_IDLE;
+            caughtMessageActive = true;
+            statusDiv.innerHTML = "🏆 УРА! ВЫТАЩИЛ! 🏆";
+            drawCanvas();
+            showCaughtModal("✨ ПОЗДРАВЛЯЕМ! ✨<br> 🎣 Вы поймали рыбу! 🎣", true);
+            floatX = null;
+            floatY = null;
+            drawCanvas();
+        }
+        
+        function showCaughtModal(message, isSuccess) {
+            // Закрываем старую модалку если есть
+            const oldModal = document.getElementById('fishingResultModal');
+            if(oldModal) oldModal.remove();
+            
+            const modalDiv = document.createElement('div');
+            modalDiv.id = 'fishingResultModal';
+            modalDiv.style.position = 'fixed';
+            modalDiv.style.top = '0';
+            modalDiv.style.left = '0';
+            modalDiv.style.width = '100%';
+            modalDiv.style.height = '100%';
+            modalDiv.style.backgroundColor = 'rgba(0,0,0,0.85)';
+            modalDiv.style.display = 'flex';
+            modalDiv.style.alignItems = 'center';
+            modalDiv.style.justifyContent = 'center';
+            modalDiv.style.zIndex = '9999';
+            modalDiv.style.backdropFilter = 'blur(5px)';
+            modalDiv.style.fontFamily = 'inherit';
+            
+            const box = document.createElement('div');
+            box.style.backgroundColor = '#fef0cf';
+            box.style.color = '#2c2b1f';
+            box.style.padding = '28px 36px';
+            box.style.borderRadius = '70px 30px 70px 30px';
+            box.style.textAlign = 'center';
+            box.style.fontWeight = 'bold';
+            box.style.fontSize = '1.6rem';
+            box.style.boxShadow = '0 20px 35px black';
+            box.style.border = '4px solid #c9a03d';
+            box.style.maxWidth = '80%';
+            box.innerHTML = `${message}<br><br><button id="modalCloseBtn" style="background:#d48d3b; font-size:1.2rem; padding:8px 24px;">🎣 ЗАБРОСИТЬ СНОВА 🎣</button>`;
+            
+            modalDiv.appendChild(box);
+            document.body.appendChild(modalDiv);
+            
+            const closeModal = () => {
+                modalDiv.remove();
+                caughtMessageActive = false;
+                
+                // Вызываем колбэк результата игры
+                if (gameResultCallback) {
+                    if (isSuccess && gameResultCallback.onSuccess) {
+                        gameResultCallback.onSuccess();
+                    } else if (!isSuccess && gameResultCallback.onFail) {
+                        gameResultCallback.onFail();
+                    }
+                    gameResultCallback = null;
+                }
+                
+                fullResetToIdle(false);
+                drawCanvas();
+            };
+            
+            const btn = document.getElementById('modalCloseBtn');
+            if(btn) btn.addEventListener('click', closeModal);
+            modalDiv.addEventListener('click', (e) => {
+                if(e.target === modalDiv) closeModal();
+            });
+        }
+        
+        function updateTensionUI() {
+            let percent = Math.floor(currentTension * 100);
+            percent = Math.min(100, Math.max(0, percent));
+            tensionPercentSpan.innerText = `${percent}%`;
+            tensionFillDiv.style.width = `${percent}%`;
+            if(currentTension >= 0.85) {
+                tensionFillDiv.style.background = "radial-gradient(circle at 30% 35%, #ff3a00, #aa2e1e)";
+            } else {
+                tensionFillDiv.style.background = "radial-gradient(circle at 30% 35%, #f5a623, #c0392b)";
+            }
+        }
+        
+        function fightingUpdate() {
+            if(gameState !== STATE_FIGHTING) return;
+            
+            let tensionDelta = 0;
+            if(spacePressed) {
+                tensionDelta = fishStats.tensionGainSpeed;
+                let fishMove = fishStats.fishPullSpeed;
+                fishPosition = Math.min(1.0, fishPosition + fishMove);
+            } else {
+                tensionDelta = -fishStats.tensionDecaySpeed;
+                let fishEscape = fishStats.fishEscapeSpeed;
+                fishPosition = Math.max(0.0, fishPosition - fishEscape);
+            }
+            
+            let newTension = currentTension + tensionDelta;
+            newTension = Math.min(1.0, Math.max(0.0, newTension));
+            currentTension = newTension;
+            
+            if(currentTension >= 1.0) {
+                lineBreak();
+                drawCanvas();
+                return;
+            }
+            
+            if(fishPosition >= 1.0) {
+                catchSuccess();
+                drawCanvas();
+                return;
+            }
+            
+            updateTensionUI();
+            drawCanvas();
+            animationFrame = requestAnimationFrame(fightingUpdate);
+        }
+        
+        function startFighting() {
+            if(gameState !== STATE_BITE) return;
+            clearGameTimers();
+            gameState = STATE_FIGHTING;
+            hasHooked = true;
+            
+            fishStats = generateRandomFishStats();
+            
+            fishPosition = 0.0;
+            currentTension = 0.0;
+            updateTensionUI();
+            
+            let strengthDesc = "";
+            if(fishStats.tensionGainSpeed > 0.022) strengthDesc = "🔴 ОЧЕНЬ СИЛЬНАЯ!";
+            else if(fishStats.tensionGainSpeed > 0.015) strengthDesc = "🟠 Сильная рыбина!";
+            else if(fishStats.tensionGainSpeed > 0.009) strengthDesc = "🟡 Средняя рыбка";
+            else strengthDesc = "🟢 Слабенькая, везёт!";
+            
+            statusDiv.innerHTML = `⚡ ВЫВАЖИВАЙ! ⚡ ${strengthDesc} | ЗАЖИМАЙ/ОТПУСКАЙ ПРОБЕЛ!`;
+            statusDiv.classList.remove("biting");
+            
+            if(animationFrame) cancelAnimationFrame(animationFrame);
+            animationFrame = requestAnimationFrame(fightingUpdate);
+            drawCanvas();
+        }
+        
+        function onBite() {
+            if(gameState !== STATE_WAITING_BITE) return;
+            gameState = STATE_BITE;
+            statusDiv.innerHTML = "🐟 КЛЮЁТ!!! БЫСТРО НАЖМИ ПРОБЕЛ!!! 🐟";
+            statusDiv.classList.add("biting");
+            drawCanvas();
+            
+            biteWindowTimer = setTimeout(() => {
+                if(gameState === STATE_BITE) {
+                    statusDiv.innerHTML = "😞 Поздно! Рыба ушла. Закинь заново";
+                    statusDiv.classList.remove("biting");
+                    fullResetToIdle(true);
+                    floatX = null;
+                    floatY = null;
+                    gameState = STATE_IDLE;
+                    clearGameTimers();
+                    drawCanvas();
+                }
+            }, 3500);
+        }
+        
+        function castRod(clientX, clientY) {
+            if(gameState !== STATE_IDLE) {
+                statusDiv.innerHTML = "⚠️ Сначала закончи с рыбой!";
+                return;
+            }
+            if(caughtMessageActive) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            let canvasX = (clientX - rect.left) * scaleX;
+            let canvasY = (clientY - rect.top) * scaleY;
+            canvasX = Math.min(canvas.width - 20, Math.max(20, canvasX));
+            canvasY = Math.min(canvas.height - 40, Math.max(50, canvasY));
+            
+            floatX = canvasX;
+            floatY = canvasY;
+            
+            clearGameTimers();
+            gameState = STATE_WAITING_BITE;
+            hasHooked = false;
+            currentTension = 0;
+            fishPosition = 0;
+            updateTensionUI();
+            
+            const biteDelay = Math.floor(Math.random() * (30000 - 10000 + 1) + 10000);
+            biteTimer = setTimeout(() => {
+                onBite();
+            }, biteDelay);
+            
+            statusDiv.innerHTML = `🎣 Заброшено! Жди поклёвку... (время неизвестно) 🎣`;
+            statusDiv.classList.remove("biting");
+            drawCanvas();
+        }
+        
+        function onSpacePress(e) {
+            if(e.code === 'Space') {
+                e.preventDefault();
+                if(gameState === STATE_BITE) {
+                    startFighting();
+                }
+                else if(gameState === STATE_FIGHTING) {
+                    if(!spacePressed) {
+                        spacePressed = true;
+                    }
+                }
+            }
+        }
+        
+        function onSpaceRelease(e) {
+            if(e.code === 'Space') {
+                e.preventDefault();
+                if(gameState === STATE_FIGHTING) {
+                    spacePressed = false;
+                }
+            }
+        }
+        
+        function drawCanvas() {
+            if(!ctx) return;
+            
+            if(bgLoaded && backgroundImage.complete && backgroundImage.naturalWidth > 0) {
+                ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(30, 60, 45, 0.35)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                grad.addColorStop(0, '#2f6b47');
+                grad.addColorStop(1, '#1f4d32');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            ctx.fillStyle = '#cdaf7e';
+            ctx.fillRect(0, canvas.height-48, canvas.width, 48);
+            ctx.fillStyle = '#a57c4c';
+            ctx.fillRect(0, canvas.height-52, canvas.width, 6);
+            
+            ctx.beginPath();
+            ctx.strokeStyle = '#e6f0ddaa';
+            ctx.lineWidth = 2;
+            for(let i=0;i<15;i++) {
+                ctx.beginPath();
+                ctx.moveTo(i*70, canvas.height-58);
+                ctx.quadraticCurveTo(i*70+35, canvas.height-64, i*70+70, canvas.height-58);
+                ctx.stroke();
+            }
+            
+            if(floatX !== null && floatY !== null) {
+                ctx.beginPath();
+                ctx.moveTo(floatX, floatY-25);
+                ctx.lineTo(floatX, floatY);
+                ctx.strokeStyle = '#c9b69a';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+                
+                ctx.fillStyle = '#e34234';
+                ctx.beginPath();
+                ctx.ellipse(floatX, floatY, 14, 9, 0, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#ffffffcc';
+                ctx.beginPath();
+                ctx.ellipse(floatX-2, floatY-2, 4, 2.5, 0, 0, Math.PI*2);
+                ctx.fill();
+                
+                if(gameState === STATE_BITE) {
+                    ctx.fillStyle = '#ffaa33';
+                    ctx.beginPath();
+                    ctx.ellipse(floatX+6, floatY-5, 7, 4, 0, 0, Math.PI*2);
+                    ctx.fill();
+                    for(let s=0;s<4;s++) {
+                        ctx.beginPath();
+                        ctx.arc(floatX + (s*4-6), floatY+2, 3, 0, Math.PI*2);
+                        ctx.fillStyle = '#ffdd88aa';
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            if(gameState === STATE_FIGHTING && floatX !== null) {
+                let fishY = floatY + 25 + (fishPosition * 150);
+                fishY = Math.min(canvas.height-55, fishY);
+                ctx.fillStyle = '#3e6b7c';
+                ctx.beginPath();
+                ctx.ellipse(floatX+8, fishY, 22, 14, 0, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#f5cfa0';
+                ctx.beginPath();
+                ctx.moveTo(floatX+26, fishY-4);
+                ctx.lineTo(floatX+40, fishY);
+                ctx.lineTo(floatX+26, fishY+4);
+                ctx.fill();
+                ctx.fillStyle = '#111';
+                ctx.beginPath();
+                ctx.arc(floatX, fishY-2, 4, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(floatX-1, fishY-3, 1.5, 0, Math.PI*2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#aaccdd66';
+                for(let s=0;s<3;s++) {
+                    ctx.beginPath();
+                    ctx.ellipse(floatX+5 + s*5, fishY-1, 2, 3, 0, 0, Math.PI*2);
+                    ctx.fill();
+                }
+            } else if(gameState === STATE_WAITING_BITE && floatX) {
+                ctx.fillStyle = '#ffe5aa';
+                ctx.font = "bold 24px system-ui";
+                ctx.shadowBlur = 0;
+                ctx.fillText("⚡", floatX-12, floatY-12);
+            }
+        }
+        
+        canvas.addEventListener('click', (e) => {
+            castRod(e.clientX, e.clientY);
+        });
+        
+        window.addEventListener('keydown', onSpacePress);
+        window.addEventListener('keyup', onSpaceRelease);
+        
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            if(gameState === STATE_FIGHTING && animationFrame) cancelAnimationFrame(animationFrame);
+            fullResetToIdle(false);
+            drawCanvas();
+        });
+        
+        document.getElementById('closeFishingBtn').addEventListener('click', () => {
+            // Закрываем игру без результата
+            if (gameResultCallback && gameResultCallback.onFail) {
+                gameResultCallback.onFail();
+            }
+            gameResultCallback = null;
+            const closeEvent = new CustomEvent('closeFishingGame');
+            window.dispatchEvent(closeEvent);
+        });
+        
+        fullResetToIdle(false);
+        drawCanvas();
+    })();
+</script>
+</body>
+</html>
