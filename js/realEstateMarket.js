@@ -133,6 +133,7 @@ export async function isPropertyOnMarket(propertyId) {
 }
 
 // ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ ==========
+// ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ (ИСПРАВЛЕНО) ==========
 export async function buyProperty(listingId, buyerId) {
     const user = window.auth?.currentUser;
     if (!user || user.uid !== buyerId) {
@@ -140,8 +141,11 @@ export async function buyProperty(listingId, buyerId) {
         return false;
     }
     
-    // Активируем защиту
-    activateTradeGuard(8000, { action: 'buyProperty', listingId });
+    // ===== 1. АКТИВИРУЕМ ЗАЩИТУ (как в обмене) =====
+    activateTradeGuard(10000, { action: 'buyProperty', listingId });
+    window._preventAutoSave = true;
+    window._lastLocalUpdate = new Date().toISOString();
+    console.log('🛡️ TradeGuard активирован для покупки недвижимости');
     
     const listingRef = doc(db, 'real_estate_listings', listingId);
     const listingSnap = await getDoc(listingRef);
@@ -149,6 +153,7 @@ export async function buyProperty(listingId, buyerId) {
     if (!listingSnap.exists()) {
         showMessage('❌ Объявление не найдено', '#e74c3c');
         deactivateTradeGuard();
+        window._preventAutoSave = false;
         return false;
     }
     
@@ -157,16 +162,19 @@ export async function buyProperty(listingId, buyerId) {
     if (listing.status !== 'active') {
         showMessage('❌ Объявление уже неактивно', '#e74c3c');
         deactivateTradeGuard();
+        window._preventAutoSave = false;
         return false;
     }
     
     if (listing.sellerId === buyerId) {
         showMessage('❌ Нельзя купить у самого себя', '#e74c3c');
         deactivateTradeGuard();
+        window._preventAutoSave = false;
         return false;
     }
     
     try {
+        // ===== 2. ТРАНЗАКЦИЯ С lastUpdated =====
         await runTransaction(db, async (transaction) => {
             const buyerRef = doc(db, 'users', buyerId);
             const buyerSnap = await transaction.get(buyerRef);
@@ -194,56 +202,84 @@ export async function buyProperty(listingId, buyerId) {
                 throw new Error('Продавец уже продал эту недвижимость');
             }
             
-            // Обновляем деньги
-            transaction.update(buyerRef, { money: buyerMoney - listing.price });
-            transaction.update(sellerRef, { money: sellerMoney + listing.price });
+            const now = new Date().toISOString();
+            
+            // Обновляем деньги (с lastUpdated)
+            transaction.update(buyerRef, { 
+                money: buyerMoney - listing.price,
+                lastUpdated: now 
+            });
+            transaction.update(sellerRef, { 
+                money: sellerMoney + listing.price,
+                lastUpdated: now 
+            });
             
             // Передаём недвижимость
             transaction.update(propertyRef, {
                 ownerId: buyerId,
                 ownerName: user.displayName,
-                purchasedAt: new Date().toISOString()
+                purchasedAt: now
             });
             
             // Обновляем объявление
             transaction.update(listingRef, {
                 status: 'sold',
-                soldAt: new Date().toISOString(),
+                soldAt: now,
                 buyerId: buyerId,
                 buyerName: user.displayName
             });
         });
         
-        // Обновляем локальное состояние покупателя
+        console.log('✅ Транзакция покупки недвижимости успешна');
+        
+        // ===== 3. ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ПОКУПАТЕЛЯ =====
         const gameState = await import('./gameState.js');
+        
+        // Загружаем свежие данные покупателя
         const buyerRef = doc(db, 'users', buyerId);
         const buyerSnap = await getDoc(buyerRef);
         const buyerData = buyerSnap.data();
+        const newBuyerMoney = buyerData?.money || 0;
         
-        gameState.setStats(null, null, null, buyerData.money);
+        console.log(`💰 Новый баланс покупателя: ${newBuyerMoney}`);
         
-        // Добавляем недвижимость в ownedHomes, если её там нет
+        gameState.setStats(null, null, null, newBuyerMoney);
+        
+        // Добавляем недвижимость в ownedHomes
         if (!gameState.ownedHomes.includes(listing.propertyId)) {
             gameState.ownedHomes.push(listing.propertyId);
         }
         
-        // Обновляем вместимость хранилища, если это текущее жильё
-        if (gameState.currentHome === listing.propertyId) {
-            if (listing.propertyId.startsWith('dorm')) gameState.updateStorageCapacity('dorm');
-            else if (listing.propertyId.startsWith('apartment')) gameState.updateStorageCapacity('apartment');
-            else if (listing.propertyId.startsWith('house')) gameState.updateStorageCapacity('house');
-        }
+        // Обновляем вместимость хранилища
+        if (listing.propertyId.startsWith('dorm')) gameState.updateStorageCapacity('dorm');
+        else if (listing.propertyId.startsWith('apartment')) gameState.updateStorageCapacity('apartment');
+        else if (listing.propertyId.startsWith('house')) gameState.updateStorageCapacity('house');
         
         await saveGameData();
         gameState.updateUI();
         
+        // Обновляем вкладки UI
+        const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+        renderItemsTab();
+        renderEquipmentTab();
+        initInventoryTabs();
+        renderHousingTab();
+        
         showMessage(`🏠 Поздравляем! Вы купили ${listing.propertyName} за ${listing.price}₽`, '#4caf50');
         
-        setTimeout(() => deactivateTradeGuard(), 3000);
+        // ===== 4. СНИМАЕМ ЗАЩИТУ ЧЕРЕЗ 5 СЕКУНД =====
+        setTimeout(() => {
+            window._preventAutoSave = false;
+            deactivateTradeGuard();
+            console.log('✅ Защита покупки недвижимости снята');
+        }, 5000);
+        
         return true;
         
     } catch (error) {
+        console.error('❌ Ошибка покупки недвижимости:', error);
         showMessage(`❌ Ошибка покупки: ${error.message}`, '#e74c3c');
+        window._preventAutoSave = false;
         deactivateTradeGuard();
         return false;
     }
