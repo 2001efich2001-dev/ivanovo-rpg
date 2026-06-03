@@ -43,7 +43,22 @@ export const itemsDB = {
     
     // Хлам
     empty_bottle: { id: "empty_bottle", name: "Пустая бутылка", type: "junk", icon: "🍾", image: "images/items/empty_bottle.png", effect: {}, price: 5, slot: null, description: "Можно продать за 5₽" },
-    fishing_rod: {  id: "fishing_rod",  name: "Удочка",  type: "tool",   icon: "🎣",   image: "images/items/fishing_rod.png",   effect: {},   price: 200,    slot: null,   description: "Для рыбалки на реке Уводь" }
+    fishing_rod: { id: "fishing_rod", name: "Удочка", type: "tool", icon: "🎣", image: "images/items/fishing_rod.png", effect: {}, price: 200, slot: null, description: "Для рыбалки на реке Уводь" },
+    
+    // Рыба
+    fish_small: { id: "fish_small", name: "Мелкая рыбёшка", type: "food", icon: "🐟", image: "images/items/fish_small.png", effect: { hunger: 10, health: 0, cold: 0, intoxication: 0 }, price: 15, slot: null, description: "Восстанавливает 10 голода" },
+    fish_medium: { id: "fish_medium", name: "Средняя рыба", type: "food", icon: "🐠", image: "images/items/fish_medium.png", effect: { hunger: 20, health: 0, cold: 0, intoxication: 0 }, price: 30, slot: null, description: "Восстанавливает 20 голода" },
+    fish_big: { id: "fish_big", name: "Крупная рыба", type: "food", icon: "🐡", image: "images/items/fish_big.png", effect: { hunger: 35, health: 0, cold: 0, intoxication: 0 }, price: 50, slot: null, description: "Восстанавливает 35 голода" },
+    fish_carp: { id: "fish_carp", name: "Сазан", type: "food", icon: "🎏", image: "images/items/fish_carp.png", effect: { hunger: 50, health: 5, cold: 0, intoxication: 0 }, price: 100, slot: null, description: "Восстанавливает 50 голода, +5 здоровья" },
+    fish_pike: { id: "fish_pike", name: "Щука", type: "food", icon: "🐊", image: "images/items/fish_pike.png", effect: { hunger: 60, health: 10, cold: 0, intoxication: 0 }, price: 150, slot: null, description: "Восстанавливает 60 голода, +10 здоровья" },
+    fish_sword: { id: "fish_sword", name: "Рыба-меч", type: "food", icon: "🗡️🐟", image: "images/items/fish_sword.png", effect: { hunger: 100, health: 30, cold: 0, intoxication: 0 }, price: 500, slot: null, description: "Восстанавливает 100 голода, +30 здоровья! Легендарная рыба!" },
+    
+    // Мусор
+    old_boot: { id: "old_boot", name: "Старый ботинок", type: "junk", icon: "👢", image: "images/items/old_boot.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
+    rusty_can: { id: "rusty_can", name: "Ржавая банка", type: "junk", icon: "🥫", image: "images/items/rusty_can.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
+    torn_net: { id: "torn_net", name: "Рваная сеть", type: "junk", icon: "🕸️", image: "images/items/torn_net.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
+    plastic_bottle: { id: "plastic_bottle", name: "Пластиковая бутылка", type: "junk", icon: "🍾", image: "images/items/plastic_bottle.png", effect: {}, price: 0, slot: null, description: "Можно сдать на переработку? Нет, это просто мусор" },
+    dirty_rag: { id: "dirty_rag", name: "Грязная тряпка", type: "junk", icon: "🧽", image: "images/items/dirty_rag.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" }
 };
 
 // Функция для получения цены продажи
@@ -653,13 +668,24 @@ export function renderItemsTab() {
         const item = pageItems[i];
         
         if (item) {
-            const itemType = item.type === 'clothes' ? 'clothes' : 'usable';
+            // Определяем тип для CSS класса и иконки кнопки
+            let itemTypeClass = 'usable';
+            let buttonIcon = '🔨';
+            
+            if (item.type === 'clothes') {
+                itemTypeClass = 'clothes';
+                buttonIcon = '👕';
+            } else if (item.type === 'junk') {
+                itemTypeClass = 'junk';
+                buttonIcon = '🗑️';
+            }
+            
             html += `
-                <div class="inventory-slot ${itemType}" data-id="${item.id}" data-name="${item.name}">
+                <div class="inventory-slot ${itemTypeClass}" data-id="${item.id}" data-name="${item.name}">
                     <img src="${item.image}" alt="${item.name}" class="item-image" loading="lazy">
                     <span class="item-count">×${item.count}</span>
                     <div class="item-actions">
-                        <button class="slot-use-btn" data-id="${item.id}">${item.type === 'clothes' ? '👕' : '🔨'}</button>
+                        <button class="slot-use-btn" data-id="${item.id}">${buttonIcon}</button>
                     </div>
                 </div>
             `;
@@ -757,6 +783,24 @@ async function useItem(itemId) {
         window._usingItem = false;
         return;
     }
+    
+    // ===== НОВАЯ ОБРАБОТКА ДЛЯ МУСОРА =====
+    if (itemData.type === 'junk') {
+        // Удаляем предмет из инвентаря
+        if (inventory[itemIndex].count === 1) {
+            inventory.splice(itemIndex, 1);
+        } else {
+            inventory[itemIndex].count--;
+        }
+        updateUI();
+        await saveGameData();
+        showMessage(`🗑️ Вы выбросили ${itemData.name}`, "#6c757d");
+        logAction(`Выброшен мусор: ${itemData.name}`, 'item');
+        window._usingItem = false;
+        return;
+    }
+    
+    // ===== ОСТАЛЬНОЙ КОД (еда, лекарства, алкоголь и т.д.) =====
     let effText = "";
     
     if (itemData.effect.hunger) {
