@@ -7,8 +7,9 @@ import { itemsDB } from './inventory.js';
 let fishingModal = null;
 let fishingIframe = null;
 
-// ========== ДОБАВЛЯЕМ РЫБУ В БАЗУ ПРЕДМЕТОВ ==========
+// ========== ДОБАВЛЯЕМ РЫБУ И МУСОР В БАЗУ ПРЕДМЕТОВ ==========
 export function initFishingItems() {
+    // Рыба
     if (!itemsDB.fish_small) {
         itemsDB.fish_small = {
             id: "fish_small",
@@ -87,9 +88,76 @@ export function initFishingItems() {
             description: "Восстанавливает 100 голода, +30 здоровья! Легендарная рыба!"
         };
     }
+    
+    // ========== МУСОР ==========
+    if (!itemsDB.old_boot) {
+        itemsDB.old_boot = {
+            id: "old_boot",
+            name: "Старый ботинок",
+            type: "junk",
+            icon: "👢",
+            image: "images/items/old_boot.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
+    if (!itemsDB.rusty_can) {
+        itemsDB.rusty_can = {
+            id: "rusty_can",
+            name: "Ржавая банка",
+            type: "junk",
+            icon: "🥫",
+            image: "images/items/rusty_can.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
+    if (!itemsDB.torn_net) {
+        itemsDB.torn_net = {
+            id: "torn_net",
+            name: "Рваная сеть",
+            type: "junk",
+            icon: "🕸️",
+            image: "images/items/torn_net.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
+    if (!itemsDB.plastic_bottle) {
+        itemsDB.plastic_bottle = {
+            id: "plastic_bottle",
+            name: "Пластиковая бутылка",
+            type: "junk",
+            icon: "🍾",
+            image: "images/items/plastic_bottle.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Можно сдать на переработку? Нет, это просто мусор"
+        };
+    }
+    if (!itemsDB.dirty_rag) {
+        itemsDB.dirty_rag = {
+            id: "dirty_rag",
+            name: "Грязная тряпка",
+            type: "junk",
+            icon: "🧽",
+            image: "images/items/dirty_rag.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
 }
 
-// ========== НАГРАДЫ ЗА РЫБАЛКУ ==========
+// ========== НАГРАДЫ ЗА РЫБАЛКУ (С МУСОРОМ) ==========
 const fishingRewards = {
     common: [
         { id: "fish_small", name: "Мелкая рыбёшка", icon: "🐟", hunger: 10, price: 15, exp: 10, count: 1 },
@@ -102,38 +170,78 @@ const fishingRewards = {
     ],
     legendary: [
         { id: "fish_sword", name: "Рыба-меч", icon: "🗡️🐟", hunger: 100, price: 500, exp: 100, count: 1 }
+    ],
+    trash: [
+        { id: "old_boot", name: "Старый ботинок", icon: "👢", price: 0, exp: 5, count: 1 },
+        { id: "rusty_can", name: "Ржавая банка", icon: "🥫", price: 0, exp: 5, count: 1 },
+        { id: "torn_net", name: "Рваная сеть", icon: "🕸️", price: 0, exp: 5, count: 1 },
+        { id: "plastic_bottle", name: "Пластиковая бутылка", icon: "🍾", price: 0, exp: 5, count: 1 },
+        { id: "dirty_rag", name: "Грязная тряпка", icon: "🧽", price: 0, exp: 5, count: 1 }
     ]
 };
 
-// ========== ВЫДАТЬ НАГРАДУ ==========
-function giveReward(isSuccess) {
+// ========== ВЫДАТЬ НАГРАДУ (С ПОДДЕРЖКОЙ МУСОРА) ==========
+function giveReward(isSuccess, caughtFish = null) {
     if (!isSuccess) {
         showMessage("💔 Леска порвалась! Рыба уплыла...", "#e74c3c");
         addLogEntry("🎣 Рыбалка: леска порвалась, рыба ушла", 'system');
         return null;
     }
     
-    // Определяем редкость
-    const rand = Math.random();
-    let rewardPool;
-    let rarityName;
+    let reward = null;
+    let rarityName = "";
     let expGain = 10;
     
-    if (rand < 0.05) { // 5% легендарная
-        rewardPool = fishingRewards.legendary;
-        rarityName = "Легендарная";
-        expGain = 100;
-    } else if (rand < 0.25) { // 20% редкая (увеличил до 20% для баланса)
-        rewardPool = fishingRewards.rare;
-        rarityName = "Редкая";
-        expGain = 40;
-    } else { // 75% обычная
-        rewardPool = fishingRewards.common;
-        rarityName = "Обычная";
-        expGain = 15;
+    // Если из мини-игры пришёл конкретный улов
+    if (caughtFish && caughtFish.id) {
+        // Ищем в наградах
+        const allRewards = [...fishingRewards.common, ...fishingRewards.rare, ...fishingRewards.legendary, ...fishingRewards.trash];
+        reward = allRewards.find(r => r.id === caughtFish.id);
+        
+        if (reward) {
+            if (caughtFish.type === "trash") {
+                rarityName = "Мусор";
+                expGain = 5;
+            } else if (caughtFish.type === "legendary") {
+                rarityName = "Легендарная";
+                expGain = 100;
+            } else if (caughtFish.type === "rare") {
+                rarityName = "Редкая";
+                expGain = 40;
+            } else {
+                rarityName = "Обычная";
+                expGain = 15;
+            }
+        }
     }
     
-    const reward = rewardPool[Math.floor(Math.random() * rewardPool.length)];
+    // Если не пришло из мини-игры, определяем случайно
+    if (!reward) {
+        const rand = Math.random();
+        
+        if (rand < 0.05) { // 5% мусор
+            const trashList = fishingRewards.trash;
+            reward = trashList[Math.floor(Math.random() * trashList.length)];
+            rarityName = "Мусор";
+            expGain = 5;
+        } else if (rand < 0.1) { // 5% легендарная
+            reward = fishingRewards.legendary[0];
+            rarityName = "Легендарная";
+            expGain = 100;
+        } else if (rand < 0.3) { // 20% редкая
+            const rareList = fishingRewards.rare;
+            reward = rareList[Math.floor(Math.random() * rareList.length)];
+            rarityName = "Редкая";
+            expGain = 40;
+        } else { // 70% обычная
+            const commonList = fishingRewards.common;
+            reward = commonList[Math.floor(Math.random() * commonList.length)];
+            rarityName = "Обычная";
+            expGain = 15;
+        }
+    }
+    
+    if (!reward) return null;
     
     // Добавляем в инвентарь
     const existingItem = inventory.find(i => i.id === reward.id);
@@ -149,8 +257,14 @@ function giveReward(isSuccess) {
     updateUI();
     saveGameData();
     
-    showMessage(`🎣 Вы поймали ${rarityName} ${reward.name}! +${expGain} опыта`, "#4caf50");
-    addLogEntry(`🎣 Рыбалка: поймана ${rarityName} ${reward.name} (+${expGain} опыта)`, 'item');
+    // Сообщение в зависимости от типа
+    if (rarityName === "Мусор") {
+        showMessage(`🗑️ Вы поймали ${reward.icon} ${reward.name}! +${expGain} опыта (мусор не стоит ничего)`, "#ffd966");
+        addLogEntry(`🎣 Рыбалка: пойман мусор - ${reward.name} (+${expGain} опыта)`, 'item');
+    } else {
+        showMessage(`🎣 Вы поймали ${rarityName} ${reward.name}! +${expGain} опыта`, "#4caf50");
+        addLogEntry(`🎣 Рыбалка: поймана ${rarityName} ${reward.name} (+${expGain} опыта)`, 'item');
+    }
     
     return reward;
 }
@@ -194,8 +308,8 @@ export async function openFishingGame() {
     fishingIframe.style.cssText = `
         width: 100%;
         height: 100%;
-        max-width: 1100px;
-        max-height: 800px;
+        max-width: 1200px;
+        max-height: 850px;
         border: none;
         border-radius: 28px;
         box-shadow: 0 0 30px rgba(0,0,0,0.5);
@@ -204,19 +318,13 @@ export async function openFishingGame() {
     fishingModal.appendChild(fishingIframe);
     document.body.appendChild(fishingModal);
     
-    // Обработчик закрытия игры
-    const handleClose = () => {
-        closeFishingGame();
-    };
-    
     // Ждём загрузки iframe и устанавливаем колбэки
     fishingIframe.onload = () => {
-        // Отправляем колбэки в iframe
         const iframeWindow = fishingIframe.contentWindow;
         if (iframeWindow && iframeWindow.setFishingCallbacks) {
             iframeWindow.setFishingCallbacks(
-                () => { // onSuccess
-                    giveReward(true);
+                (caught) => { // onSuccess с переданной рыбой
+                    giveReward(true, caught);
                     setTimeout(() => closeFishingGame(), 1500);
                 },
                 () => { // onFail
