@@ -13,6 +13,7 @@ import { initCheats, initQuickCheats } from './cheats.js';
 import { setAchievementsData } from './achievements.js';
 import { showNewsIfNeeded, initNewsModal } from './news.js';
 import { isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
+import { updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -874,6 +875,102 @@ async function openRealEstateMarket() {
     }
 }
 
+// ========== СМЕНА НИКНЕЙМА ==========
+async function changeNickname(newNick) {
+    const user = auth.currentUser;
+    if (!user) {
+        showMessage('❌ Авторизуйтесь', '#e74c3c');
+        return false;
+    }
+    
+    newNick = newNick.trim();
+    if (!newNick) {
+        showMessage('❌ Ник не может быть пустым', '#e74c3c');
+        return false;
+    }
+    
+    if (newNick.length > 20) {
+        showMessage('❌ Ник не может быть длиннее 20 символов', '#e74c3c');
+        return false;
+    }
+    
+    if (newNick.length < 3) {
+        showMessage('❌ Ник должен содержать минимум 3 символа', '#e74c3c');
+        return false;
+    }
+    
+    // Проверка на недопустимые символы
+    const invalidChars = /[<>{}[\]\\/|@#$%^&*()+=!`~]/;
+    if (invalidChars.test(newNick)) {
+        showMessage('❌ Ник содержит недопустимые символы', '#e74c3c');
+        return false;
+    }
+    
+    // Проверка, что ник не совпадает с текущим
+    const currentNick = user.displayName;
+    if (currentNick === newNick) {
+        showMessage('❌ Это ваш текущий ник', '#ffd966');
+        return false;
+    }
+    
+    // Проверка уникальности ника
+    showMessage('🔍 Проверка уникальности ника...', '#ffd966');
+    
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('displayName', '==', newNick));
+        const querySnapshot = await getDocs(q);
+        
+        let nickExists = false;
+        querySnapshot.forEach(doc => {
+            if (doc.id !== user.uid) {
+                nickExists = true;
+            }
+        });
+        
+        if (nickExists) {
+            showMessage(`❌ Ник "${newNick}" уже занят! Выберите другой.`, '#e74c3c');
+            return false;
+        }
+        
+        // Обновляем displayName в Auth
+        await updateProfile(user, { displayName: newNick });
+        
+        // Обновляем displayName в Firestore
+        const userRef = doc(db, 'users', user.uid);
+        const { updateDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        await updateDoc(userRef, {
+            displayName: newNick
+        });
+        
+        // Обновляем отображение ника в интерфейсе
+        const playerNickSpan = document.getElementById('playerNick');
+        if (playerNickSpan) playerNickSpan.innerText = newNick;
+        
+        showMessage(`✅ Ник успешно изменён на "${newNick}"!`, '#4caf50');
+        
+        // Обновляем ники в активных предложениях обмена (опционально)
+        try {
+            const { updateNickInTradeOffers, updateNickInRealEstateListings } = await import('./firestore.js');
+            if (typeof updateNickInTradeOffers === 'function') {
+                await updateNickInTradeOffers(user.uid, newNick);
+            }
+            if (typeof updateNickInRealEstateListings === 'function') {
+                await updateNickInRealEstateListings(user.uid, newNick);
+            }
+        } catch (err) {
+            console.log('Не удалось обновить ники в предложениях/объявлениях:', err);
+        }
+        
+        return true;
+        
+    } catch (error) {
+        console.error('Ошибка смены ника:', error);
+        showMessage(`❌ Ошибка: ${error.message}`, '#e74c3c');
+        return false;
+    }
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
@@ -1004,6 +1101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutMenuBtn = document.getElementById('logoutMenuBtn');
     const themeToggle = document.getElementById('themeToggle');
     const musicToggle = document.getElementById('musicToggle');
+    const changeNickBtn = document.getElementById('changeNickBtn');
     const sendTradeBtn = document.getElementById('sendTradeBtn');
     
     if (loginBtn) loginBtn.addEventListener('click', () => { playClick(); showSplash(); });
@@ -1061,7 +1159,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // ===== НОВАЯ КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
+    // ===== КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
     if (realEstateMarketBtn) {
         realEstateMarketBtn.addEventListener('click', openRealEstateMarket);
     }
@@ -1134,6 +1232,31 @@ document.addEventListener('DOMContentLoaded', () => {
         musicToggle.addEventListener('click', () => {
             playClick();
             toggleMusic();
+        });
+    }
+    
+    // ===== КНОПКА: СМЕНА НИКА =====
+    if (changeNickBtn) {
+        changeNickBtn.addEventListener('click', () => {
+            playClick();
+            const currentNick = auth.currentUser?.displayName || 'Игрок';
+            document.getElementById('currentNickDisplay').innerText = currentNick;
+            document.getElementById('newNickInput').value = '';
+            document.getElementById('changeNickModal').style.display = 'flex';
+        });
+    }
+    
+    // ===== ОБРАБОТЧИК ПОДТВЕРЖДЕНИЯ СМЕНЫ НИКА =====
+    const confirmNickBtn = document.getElementById('confirmChangeNickBtn');
+    if (confirmNickBtn) {
+        confirmNickBtn.addEventListener('click', async () => {
+            const newNick = document.getElementById('newNickInput').value;
+            if (newNick) {
+                await changeNickname(newNick);
+                document.getElementById('changeNickModal').style.display = 'none';
+            } else {
+                showMessage('❌ Введите новый ник', '#e74c3c');
+            }
         });
     }
     
