@@ -5,14 +5,15 @@ export function renderInteractiveMap() {
     const container = document.getElementById('mapContainer');
     if (!container) return;
     
-    // Основные локации для перемещения
+    // Основные локации для перемещения (ДОБАВЛЕНА fishing_spot)
     const zones = [
         { id: "railway", name: "Вокзал", cx: 328, cy: 30, r: 20 },
         { id: "market", name: "Рынок", cx: 271, cy: 277, r: 20 },
         { id: "shelter", name: "Ночлежка", cx: 355, cy: 185, r: 20 },
         { id: "dump", name: "Свалка", cx: 300, cy: 1, r: 20 },
         { id: "church", name: "Церковь", cx: 304, cy: 243, r: 20 },
-        { id: "bar", name: "Бар", cx: 331, cy: 215, r: 20 }
+        { id: "bar", name: "Бар", cx: 331, cy: 215, r: 20 },
+        { id: "fishing_spot", name: "🏞️ Река Уводь", cx: 150, cy: 450, r: 25 }  // ← НОВАЯ ЛОКАЦИЯ
     ];
     
     // Точки для недвижимости
@@ -288,7 +289,7 @@ async function loadHousingList(type) {
     }
 }
 
-// ========== ИСПРАВЛЕННАЯ ПОКУПКА НЕДВИЖИМОСТИ ==========
+// ========== ПОКУПКА НЕДВИЖИМОСТИ ==========
 async function buyProperty(propertyId, price, type) {
     console.log(`🏠 Покупка ${propertyId} за ${price}₽`);
     
@@ -332,15 +333,15 @@ async function buyProperty(propertyId, price, type) {
             
             const newMoney = currentMoney - price;
             
-            // ✅ ПОЛУЧАЕМ ТЕКУЩИЙ СПИСОК ИЗ БД
+            // ПОЛУЧАЕМ ТЕКУЩИЙ СПИСОК ИЗ БД
             const currentOwned = userData?.housing?.owned || [];
             
-            // ✅ ПРОВЕРКА: не куплен ли уже этот объект
+            // ПРОВЕРКА: не куплен ли уже этот объект
             if (currentOwned.includes(propertyId)) {
                 throw new Error('Вы уже владеете этой недвижимостью');
             }
             
-            // ✅ СОЗДАЁМ НОВЫЙ МАССИВ (старый + новый объект)
+            // СОЗДАЁМ НОВЫЙ МАССИВ (старый + новый объект)
             const newOwnedHomes = [...currentOwned, propertyId];
             
             console.log(`🏠 Было в собственности: ${currentOwned.length} объектов`);
@@ -364,12 +365,12 @@ async function buyProperty(propertyId, price, type) {
             });
         });
         
-        // ✅ ОБНОВЛЯЕМ ЛОКАЛЬНОЕ СОСТОЯНИЕ
+        // ОБНОВЛЯЕМ ЛОКАЛЬНОЕ СОСТОЯНИЕ
         const newMoney = money - price;
         setStats(null, null, null, newMoney);
         updateStorageCapacity(type);
         
-        // ✅ ДОБАВЛЯЕМ В ЛОКАЛЬНЫЙ МАССИВ И УСТАНАВЛИВАЕМ КАК ОСНОВНОЕ
+        // ДОБАВЛЯЕМ В ЛОКАЛЬНЫЙ МАССИВ И УСТАНАВЛИВАЕМ КАК ОСНОВНОЕ
         if (!ownedHomes.includes(propertyId)) {
             ownedHomes.push(propertyId);
         }
