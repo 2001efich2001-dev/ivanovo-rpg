@@ -134,6 +134,7 @@ export async function isPropertyOnMarket(propertyId) {
 
 // ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ ==========
 // ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ (С ОБНОВЛЕНИЕМ ПРОДАВЦА) ==========
+// ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ (ПО АНАЛОГИИ С acceptTradeOffer) ==========
 export async function buyProperty(listingId, buyerId) {
     const user = window.auth?.currentUser;
     if (!user || user.uid !== buyerId) {
@@ -141,7 +142,7 @@ export async function buyProperty(listingId, buyerId) {
         return false;
     }
     
-    // ===== 1. АКТИВИРУЕМ ЗАЩИТУ =====
+    // Активируем защиту
     activateTradeGuard(10000, { action: 'buyProperty', listingId });
     window._preventAutoSave = true;
     window._lastLocalUpdate = new Date().toISOString();
@@ -173,15 +174,18 @@ export async function buyProperty(listingId, buyerId) {
         return false;
     }
     
-    // Сохраняем данные продавца для принудительного обновления
+    // Сохраняем данные для обновления UI
     const sellerId = listing.sellerId;
     const sellerName = listing.sellerName;
     const propertyId = listing.propertyId;
     const propertyName = listing.propertyName;
     const price = listing.price;
     
+    // Переменные для хранения результатов транзакции
+    let finalBuyerMoney = 0;
+    let finalSellerMoney = 0;
+    
     try {
-        // ===== 2. ТРАНЗАКЦИЯ =====
         await runTransaction(db, async (transaction) => {
             const buyerRef = doc(db, 'users', buyerId);
             const buyerSnap = await transaction.get(buyerRef);
@@ -211,24 +215,24 @@ export async function buyProperty(listingId, buyerId) {
             
             const now = new Date().toISOString();
             
-            // Обновляем деньги (с lastUpdated)
+            // Сохраняем результаты
+            finalBuyerMoney = buyerMoney - price;
+            finalSellerMoney = sellerMoney + price;
+            
+            // Обновляем
             transaction.update(buyerRef, { 
-                money: buyerMoney - price,
+                money: finalBuyerMoney,
                 lastUpdated: now 
             });
             transaction.update(sellerRef, { 
-                money: sellerMoney + price,
+                money: finalSellerMoney,
                 lastUpdated: now 
             });
-            
-            // Передаём недвижимость
             transaction.update(propertyRef, {
                 ownerId: buyerId,
                 ownerName: user.displayName,
                 purchasedAt: now
             });
-            
-            // Обновляем объявление
             transaction.update(listingRef, {
                 status: 'sold',
                 soldAt: now,
@@ -238,73 +242,72 @@ export async function buyProperty(listingId, buyerId) {
         });
         
         console.log('✅ Транзакция покупки недвижимости успешна');
+        showMessage('Обмен успешно завершён!', '#4caf50');
         
-        // ===== 3. ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ПОКУПАТЕЛЯ =====
-        const gameState = await import('./gameState.js');
-        
-        // Загружаем свежие данные покупателя
-        const buyerRef = doc(db, 'users', buyerId);
-        const buyerSnap = await getDoc(buyerRef);
-        const buyerData = buyerSnap.data();
-        const newBuyerMoney = buyerData?.money || 0;
-        
-        console.log(`💰 Новый баланс покупателя (${user.displayName}): ${newBuyerMoney}`);
-        
-        gameState.setStats(null, null, null, newBuyerMoney);
-        
-        // Добавляем недвижимость в ownedHomes покупателя
-        if (!gameState.ownedHomes.includes(propertyId)) {
-            gameState.ownedHomes.push(propertyId);
-        }
-        
-        // Обновляем вместимость хранилища покупателя
-        if (propertyId.startsWith('dorm')) gameState.updateStorageCapacity('dorm');
-        else if (propertyId.startsWith('apartment')) gameState.updateStorageCapacity('apartment');
-        else if (propertyId.startsWith('house')) gameState.updateStorageCapacity('house');
-        
-        await saveGameData();
-        gameState.updateUI();
-        
-        // ===== 4. ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ПРОДАВЦА (если продавец онлайн) =====
+        // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ПОКУПАТЕЛЯ =====
         const currentUser = window.auth?.currentUser;
         
-        // Если текущий пользователь НЕ продавец, но продавец онлайн — обновляем через реальное время?
-        // Но проще: если продавец - другой человек, мы не можем обновить его UI напрямую.
-        // Однако можем отправить сигнал или надеяться на realtime.
+        if (currentUser && currentUser.uid === buyerId) {
+            const gameState = await import('./gameState.js');
+            
+            gameState.setStats(null, null, null, finalBuyerMoney);
+            
+            // Добавляем недвижимость в ownedHomes
+            if (!gameState.ownedHomes.includes(propertyId)) {
+                gameState.ownedHomes.push(propertyId);
+            }
+            
+            // Обновляем вместимость хранилища
+            if (propertyId.startsWith('dorm')) gameState.updateStorageCapacity('dorm');
+            else if (propertyId.startsWith('apartment')) gameState.updateStorageCapacity('apartment');
+            else if (propertyId.startsWith('house')) gameState.updateStorageCapacity('house');
+            
+            gameState.updateUI();
+            
+            const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+            renderItemsTab();
+            renderEquipmentTab();
+            initInventoryTabs();
+            renderHousingTab();
+            
+            console.log('🏠 UI покупателя обновлён принудительно');
+            showMessage(`🏠 Вы купили ${propertyName} за ${price}₽`, '#4caf50');
+        }
         
-        // Пытаемся обновить продавца, если он в том же окне (не наш случай)
-        // В реальности продавец получит realtime обновление после снятия защиты.
+        // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ПРОДАВЦА =====
+        if (currentUser && currentUser.uid === sellerId) {
+            const gameState = await import('./gameState.js');
+            
+            gameState.setStats(null, null, null, finalSellerMoney);
+            
+            // Удаляем недвижимость из ownedHomes продавца
+            const index = gameState.ownedHomes.indexOf(propertyId);
+            if (index !== -1) gameState.ownedHomes.splice(index, 1);
+            
+            gameState.updateUI();
+            
+            const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+            renderItemsTab();
+            renderEquipmentTab();
+            initInventoryTabs();
+            renderHousingTab();
+            
+            console.log('🏠 UI продавца обновлён принудительно');
+            showMessage(`💰 Ваша недвижимость "${propertyName}" продана! +${price}₽`, '#4caf50');
+        }
         
-        console.log(`📢 Продавец (${sellerName}) получит обновление через realtime через 5 секунд`);
-        
-        // Обновляем вкладки UI покупателя
-        const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
-        renderItemsTab();
-        renderEquipmentTab();
-        initInventoryTabs();
-        renderHousingTab();
-        
-        showMessage(`🏠 Поздравляем! Вы купили ${propertyName} за ${price}₽`, '#4caf50');
-        showMessage(`💰 Ваш новый баланс: ${newBuyerMoney}₽`, '#4caf50');
-        
-        // ===== 5. СНИМАЕМ ЗАЩИТУ ЧЕРЕЗ 5 СЕКУНД =====
-        setTimeout(() => {
+        // Снимаем блокировку через 5 секунд
+        setTimeout(() => { 
             window._preventAutoSave = false;
             deactivateTradeGuard();
             console.log('✅ Защита покупки недвижимости снята');
-            
-            // После снятия защиты отправляем сигнал на обновление продавца
-            // (если нужно принудительно)
-            if (typeof window.refreshSellerAfterPurchase === 'function') {
-                window.refreshSellerAfterPurchase(sellerId);
-            }
         }, 5000);
         
         return true;
         
     } catch (error) {
         console.error('❌ Ошибка покупки недвижимости:', error);
-        showMessage(`❌ Ошибка покупки: ${error.message}`, '#e74c3c');
+        showMessage(`Ошибка: ${error.message}`, '#e74c3c');
         window._preventAutoSave = false;
         deactivateTradeGuard();
         return false;
