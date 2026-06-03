@@ -1,5 +1,6 @@
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, updateDoc, deleteDoc, query, where, getDocs, runTransaction, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { showMessage } from './utils.js';
+import { shouldBlockRealtime, activateTradeGuard, deactivateTradeGuard, isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
 
 let db = null;
 let unsubscribeUserListener = null;
@@ -9,9 +10,9 @@ export function initFirestore(auth) {
 }
 
 export async function saveGameData() {  
-    // Блокируем автосохранение во время обмена
-    if (window._preventAutoSave) {
-        console.log('💾 saveGameData: пропускаем сохранение (идет обмен)');
+    // Блокируем автосохранение во время обмена (через флаг ИЛИ guard)
+    if (window._preventAutoSave || isTradeGuardActive()) {
+        console.log('💾 saveGameData: пропускаем сохранение (идет обмен или защита активна)');
         return;
     }
     
@@ -172,7 +173,7 @@ export async function loadGameData(userId) {
     }
 }
 
-// ========== REAL-TIME ПОДПИСКА ==========
+// ========== REAL-TIME ПОДПИСКА С ЗАЩИТОЙ ОТ ОБМЕНА ==========
 export function subscribeToUserChanges(userId, onDataChanged) {
     if (!db) {
         console.error('Firestore не инициализирован');
@@ -185,10 +186,30 @@ export function subscribeToUserChanges(userId, onDataChanged) {
     }
     
     const userRef = doc(db, 'users', userId);
-    unsubscribeUserListener = onSnapshot(userRef, (docSnap) => {
+    unsubscribeUserListener = onSnapshot(userRef, async (docSnap) => {
         if (docSnap.exists() && onDataChanged) {
             console.log('🔄 Real-time: данные изменились в БД');
-            onDataChanged(docSnap.data());
+            
+            // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ПРОВЕРКА ЗАЩИТЫ =====
+            // Если защита активна — пропускаем realtime обновление
+            if (isTradeGuardActive()) {
+                const pendingTrade = getPendingTrade();
+                console.log(`🛡️ Real-time обновление пропущено (защита активна)`, pendingTrade);
+                return;
+            }
+            
+            // Если обновление пришло от нас самих во время транзакции — тоже пропускаем
+            const remoteData = docSnap.data();
+            const remoteLastUpdated = remoteData.lastUpdated ? new Date(remoteData.lastUpdated) : null;
+            const localLastUpdated = window._lastLocalUpdate ? new Date(window._lastLocalUpdate) : null;
+            
+            if (remoteLastUpdated && localLastUpdated && remoteLastUpdated < localLastUpdated) {
+                console.log('⏸️ Real-time: пропускаем устаревшее обновление (локальная версия новее)');
+                return;
+            }
+            
+            // Передаём данные в колбэк с флагом, что это realtime обновление
+            onDataChanged(remoteData, true);
         }
     }, (error) => {
         console.error('Ошибка в onSnapshot:', error);
@@ -252,11 +273,14 @@ export async function cancelTradeOffer(offerId, userId) {
     return true;
 }
 
-// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ (поддержка недвижимости) ==========
+// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ (с поддержкой tradeGuard) ==========
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
+    // АКТИВИРУЕМ ЗАЩИТУ ПЕРЕД НАЧАЛОМ ОБМЕНА (ваша идея!)
+    activateTradeGuard(10000, { offerId, userId, action: 'acceptTrade' });
     window._preventAutoSave = true;
+    window._lastLocalUpdate = new Date().toISOString(); // Запоминаем время локального обновления
     
     let retries = 3;
     
@@ -266,6 +290,8 @@ export async function acceptTradeOffer(offerId, userId) {
     let finalFromCurrent, finalToCurrent;
     let finalFromCapacity, finalToCapacity;
     let offerData = null;
+    let fromUserNick = '';
+    let toUserNick = '';
     
     while (retries > 0) {
         try {
@@ -276,6 +302,8 @@ export async function acceptTradeOffer(offerId, userId) {
                 
                 const offer = offerSnap.data();
                 offerData = offer;
+                fromUserNick = offer.fromUserNick;
+                toUserNick = offer.toUserNick;
                 
                 offer.fromHousing = offer.fromHousing || [];
                 offer.toHousing = offer.toHousing || [];
@@ -431,12 +459,15 @@ export async function acceptTradeOffer(offerId, userId) {
                 finalFromCapacity = fromNewCapacity;
                 finalToCapacity = toNewCapacity;
                 
+                const now = new Date().toISOString();
+                
                 transaction.update(fromUserRef, {
                     inventory: fromInventory,
                     money: fromNewMoney,
                     'housing.owned': fromHousing,
                     'housing.current': fromNewCurrent,
-                    'housing.storageCapacity': fromNewCapacity
+                    'housing.storageCapacity': fromNewCapacity,
+                    lastUpdated: now
                 });
                 
                 transaction.update(toUserRef, {
@@ -444,10 +475,11 @@ export async function acceptTradeOffer(offerId, userId) {
                     money: toNewMoney,
                     'housing.owned': newToHousing,
                     'housing.current': toNewCurrent,
-                    'housing.storageCapacity': toNewCapacity
+                    'housing.storageCapacity': toNewCapacity,
+                    lastUpdated: now
                 });
                 
-                transaction.update(offerRef, { status: 'accepted', completedAt: new Date().toISOString() });
+                transaction.update(offerRef, { status: 'accepted', completedAt: now });
             });
             
             showMessage('Обмен успешно завершён!', '#4caf50');
@@ -517,10 +549,12 @@ export async function acceptTradeOffer(offerId, userId) {
                 console.log('🏠 UI продавца обновлён принудительно');
             }
             
-            // Снимаем блокировку через 10 секунд
+            // Снимаем блокировку через 5 секунд (после того как все обновления устаканятся)
             setTimeout(() => { 
-                window._preventAutoSave = false; 
-            }, 10000);
+                window._preventAutoSave = false;
+                deactivateTradeGuard(); // Снимаем защиту
+                console.log('✅ Защита обмена снята');
+            }, 5000);
             
             return true;
             
@@ -537,11 +571,13 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage(`Ошибка: ${error.message}`, '#e74c3c');
             window._preventAutoSave = false;
+            deactivateTradeGuard(); // Снимаем защиту при ошибке
             return false;
         }
     }
     
     window._preventAutoSave = false;
+    deactivateTradeGuard();
     return false;
 }
 
@@ -561,7 +597,3 @@ export async function rejectTradeOffer(offerId, userId) {
 }
 
 export { db };
-
-
-
-
