@@ -1,6 +1,6 @@
 // js/realEstateMarket.js
 import { db } from './firestore.js';
-import { collection, addDoc, query, where, getDocs, updateDoc, doc, deleteDoc, orderBy, limit, runTransaction } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc, deleteDoc, orderBy, limit, runTransaction } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { showMessage } from './utils.js';
 import { saveGameData } from './firestore.js';
 import { activateTradeGuard, deactivateTradeGuard } from './tradeGuard.js';
@@ -119,6 +119,17 @@ export async function getMyListings() {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+}
+
+// ========== ПРОВЕРИТЬ, ВЫСТАВЛЕНА ЛИ НЕДВИЖИМОСТЬ НА ПРОДАЖУ ==========
+export async function isPropertyOnMarket(propertyId) {
+    const q = query(
+        collection(db, 'real_estate_listings'),
+        where('propertyId', '==', propertyId),
+        where('status', '==', 'active')
+    );
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
 }
 
 // ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ ==========
@@ -243,15 +254,4 @@ function getPropertyType(propertyId) {
     if (propertyId.startsWith('apartment')) return 'apartment';
     if (propertyId.startsWith('house')) return 'house';
     return 'unknown';
-}
-
-// ========== ПРОВЕРИТЬ, ВЫСТАВЛЕНА ЛИ НЕДВИЖИМОСТЬ НА ПРОДАЖУ ==========
-export async function isPropertyOnMarket(propertyId) {
-    const q = query(
-        collection(db, 'real_estate_listings'),
-        where('propertyId', '==', propertyId),
-        where('status', '==', 'active')
-    );
-    const snapshot = await getDocs(q);
-    return !snapshot.empty;
 }
