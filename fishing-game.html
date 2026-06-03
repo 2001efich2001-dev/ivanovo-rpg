@@ -130,6 +130,26 @@
         .biting {
             animation: biteFlash 0.3s ease-in-out 3;
         }
+        
+        .energy-warning {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #e74c3c;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            z-index: 10000;
+            animation: fadeOut 3s ease forwards;
+        }
+        
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
     </style>
 </head>
 <body>
@@ -161,11 +181,25 @@
         let gameResultCallback = null;
         let hasCast = false;
         let isGameActive = true;
-        let lastCaughtFish = null; // Храним последнюю пойманную рыбу
+        let lastCaughtFish = null;
         
         // Функция для установки колбэка из внешнего мира
         window.setFishingCallbacks = function(onSuccess, onFail) {
             gameResultCallback = { onSuccess, onFail };
+        };
+        
+        // Функция для проверки энергии через родительское окно
+        window.checkEnergy = async function() {
+            try {
+                const parent = window.parent;
+                const gameState = parent.gameState;
+                if (gameState && gameState.energy) {
+                    return gameState.energy;
+                }
+                return 100;
+            } catch(e) {
+                return 100;
+            }
         };
         
         // Функция для получения названия пойманной рыбы
@@ -223,22 +257,18 @@
         
         // Список возможных рыб и мусора
         const fishCatalog = {
-            // Обычные (70%)
             common: [
                 { name: "Мелкая рыбёшка", icon: "🐟", id: "fish_small" },
                 { name: "Средняя рыба", icon: "🐠", id: "fish_medium" },
                 { name: "Крупная рыба", icon: "🐡", id: "fish_big" }
             ],
-            // Редкие (20%)
             rare: [
                 { name: "Сазан", icon: "🎏", id: "fish_carp" },
                 { name: "Щука", icon: "🐊", id: "fish_pike" }
             ],
-            // Легендарная (5%)
             legendary: [
                 { name: "Рыба-меч", icon: "🗡️🐟", id: "fish_sword" }
             ],
-            // Мусор (5%)
             trash: [
                 { name: "Старый ботинок", icon: "👢", id: "old_boot", value: 0 },
                 { name: "Ржавая банка", icon: "🥫", id: "rusty_can", value: 0 },
@@ -248,27 +278,26 @@
             ]
         };
         
-        // Функция получения случайного улова
         function getRandomCatch() {
             const rand = Math.random();
             let result;
             
-            if (rand < 0.05) { // 5% мусор
+            if (rand < 0.05) {
                 const trashList = fishCatalog.trash;
                 result = trashList[Math.floor(Math.random() * trashList.length)];
                 result.type = "trash";
                 result.value = 0;
-            } else if (rand < 0.1) { // 5% легендарная (5-10%)
+            } else if (rand < 0.1) {
                 const legendaryList = fishCatalog.legendary;
                 result = legendaryList[0];
                 result.type = "legendary";
                 result.value = 500;
-            } else if (rand < 0.3) { // 20% редкая
+            } else if (rand < 0.3) {
                 const rareList = fishCatalog.rare;
                 result = rareList[Math.floor(Math.random() * rareList.length)];
                 result.type = "rare";
                 result.value = 150;
-            } else { // 70% обычная
+            } else {
                 const commonList = fishCatalog.common;
                 result = commonList[Math.floor(Math.random() * commonList.length)];
                 result.type = "common";
@@ -346,7 +375,6 @@
         function catchSuccess() {
             if(gameState !== STATE_FIGHTING) return;
             
-            // Получаем случайный улов
             const caught = getRandomCatch();
             lastCaughtFish = caught;
             
@@ -401,7 +429,7 @@
             box.style.boxShadow = '0 20px 35px black';
             box.style.border = '4px solid #c9a03d';
             box.style.maxWidth = '80%';
-            box.innerHTML = `${message}<br><br><button id="modalCloseBtn" style="background:#d48d3b; font-size:1.2rem; padding:8px 24px;">🎣 ЗАБРОСИТЬ СНОВА 🎣</button>`;
+            box.innerHTML = `${message}<br><br><button id="modalCloseBtn" style="background:#d48d3b; font-size:1.2rem; padding:8px 24px;">🎣 ПРОДОЛЖИТЬ РЫБАЛКУ 🎣</button>`;
             
             modalDiv.appendChild(box);
             document.body.appendChild(modalDiv);
@@ -417,7 +445,7 @@
                     } else if (!isSuccess && gameResultCallback.onFail) {
                         gameResultCallback.onFail();
                     }
-                    gameResultCallback = null;
+                    // НЕ обнуляем gameResultCallback, чтобы можно было рыбачить дальше!
                 }
                 
                 fullResetToIdle(false);
@@ -526,6 +554,14 @@
             }, 3500);
         }
         
+        function showEnergyWarning() {
+            const warning = document.createElement('div');
+            warning.className = 'energy-warning';
+            warning.innerHTML = '⚠️ НЕ ХВАТАЕТ ЭНЕРГИИ! Восстановите энергию и попробуйте снова.';
+            document.body.appendChild(warning);
+            setTimeout(() => warning.remove(), 3000);
+        }
+        
         function castRod(clientX, clientY) {
             if (hasCast) {
                 statusDiv.innerHTML = "⚠️ Удочка уже закинута! Жди поклёвку!";
@@ -542,6 +578,9 @@
                 return;
             }
             if(caughtMessageActive) return;
+            
+            // НЕ проверяем энергию здесь — она проверяется при открытии игры в родительском окне
+            // Если энергии нет — игра даже не откроется
             
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -706,10 +745,7 @@
         });
         
         document.getElementById('closeFishingBtn').addEventListener('click', () => {
-            if (gameResultCallback && gameResultCallback.onFail) {
-                gameResultCallback.onFail();
-            }
-            gameResultCallback = null;
+            // Отправляем событие закрытия в родительское окно
             const closeEvent = new CustomEvent('closeFishingGame');
             window.dispatchEvent(closeEvent);
         });
