@@ -42,7 +42,8 @@ export const itemsDB = {
     old_hat: { id: "old_hat", name: "Старая шапка", type: "clothes", icon: "🧢", image: "images/items/old_hat.png", effect: { cold: 5 }, price: 20, slot: "head", description: "+5 к теплу" },
     
     // Хлам
-    empty_bottle: { id: "empty_bottle", name: "Пустая бутылка", type: "junk", icon: "🍾", image: "images/items/empty_bottle.png", effect: {}, price: 5, slot: null, description: "Можно продать за 5₽" }
+    empty_bottle: { id: "empty_bottle", name: "Пустая бутылка", type: "junk", icon: "🍾", image: "images/items/empty_bottle.png", effect: {}, price: 5, slot: null, description: "Можно продать за 5₽" },
+    fishing_rod: {  id: "fishing_rod",  name: "Удочка",  type: "tool",   icon: "🎣",   image: "images/items/fishing_rod.png",   effect: {},   price: 200,    slot: null,   description: "Для рыбалки на реке Уводь" }
 };
 
 // Функция для получения цены продажи
