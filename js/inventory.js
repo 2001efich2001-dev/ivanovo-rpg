@@ -279,7 +279,7 @@ function showDepositModal(homeId) {
     updateMoneyDisplay();
 }
 
-// ========== РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" (ОБНОВЛЕНО: синхронизация с real_estate) ==========
+// ========== РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" (с кнопкой продажи игроку) ==========
 export async function renderHousingTab() {
     // Принудительно загружаем актуальную недвижимость из real_estate
     await loadOwnedHomesFromRealEstate();
@@ -350,7 +350,7 @@ export async function renderHousingTab() {
                         ${debtWarning}
                     ` : ''}
                     <div class="housing-item-sell-price" style="font-size: 0.8rem; color: #ffd966; margin-top: 4px;">
-                        💰 Цена продажи: ${sellPrice.toLocaleString()}₽
+                        💰 Цена продажи городу: ${sellPrice.toLocaleString()}₽
                     </div>
                 </div>
                 <div class="housing-item-status" style="font-size: 0.85rem;">
@@ -379,6 +379,15 @@ export async function renderHousingTab() {
                             font-weight: bold;
                         ">🏠 Сделать основным</button>
                     ` : ''}
+                    <button class="housing-sell-to-player-btn" data-id="${homeId}" data-name="${displayName}" style="
+                        background: #e67e22;
+                        border: none;
+                        padding: 8px 20px;
+                        border-radius: 40px;
+                        color: white;
+                        cursor: pointer;
+                        font-weight: bold;
+                    ">📢 Продать игроку</button>
                     <button class="housing-sell-btn" data-id="${homeId}" data-price="${sellPrice}" style="
                         background: #c0392b;
                         border: none;
@@ -424,7 +433,35 @@ export async function renderHousingTab() {
         btn._handler = handler;
     });
     
-    // Обработчики для кнопок "Продать"
+    // ===== НОВЫЙ ОБРАБОТЧИК: Продажа игроку =====
+    document.querySelectorAll('.housing-sell-to-player-btn').forEach(btn => {
+        btn.removeEventListener('click', btn._sellToPlayerHandler);
+        const handler = async () => {
+            const homeId = btn.dataset.id;
+            const displayName = btn.dataset.name;
+            playClick();
+            
+            const price = prompt(`💰 Введите цену для "${displayName}" (минимум 100₽):\n\nПосле выставления объявление появится в "Агентстве недвижимости Авит0"`, '10000');
+            if (!price) return;
+            
+            const numPrice = parseInt(price);
+            if (isNaN(numPrice) || numPrice < 100) {
+                showMessage('❌ Цена должна быть не менее 100₽', '#e74c3c');
+                return;
+            }
+            
+            const { listPropertyForSale } = await import('./realEstateMarket.js');
+            const success = await listPropertyForSale(homeId, numPrice);
+            if (success) {
+                renderHousingTab(); // обновляем вкладку
+                showMessage(`✅ "${displayName}" выставлен на продажу за ${numPrice.toLocaleString()}₽`, '#4caf50');
+            }
+        };
+        btn.addEventListener('click', handler);
+        btn._sellToPlayerHandler = handler;
+    });
+    
+    // Обработчики для кнопок "Продать городу"
     document.querySelectorAll('.housing-sell-btn').forEach(btn => {
         btn.removeEventListener('click', btn._sellHandler);
         const handler = async () => {
@@ -432,7 +469,7 @@ export async function renderHousingTab() {
             const sellPriceVal = parseInt(btn.dataset.price);
             playClick();
             
-            const confirm = window.confirm(`💰 Продать ${homeId.toUpperCase().replace(/_/g, ' ')} за ${sellPriceVal.toLocaleString()}₽?\n\nВернуть будет нельзя!`);
+            const confirm = window.confirm(`💰 Продать ${homeId.toUpperCase().replace(/_/g, ' ')} городу за ${sellPriceVal.toLocaleString()}₽?\n\nВернуть будет нельзя!`);
             if (confirm) {
                 await sellPropertyToCity(homeId, sellPriceVal);
                 renderHousingTab();
