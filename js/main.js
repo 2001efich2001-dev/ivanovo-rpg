@@ -1,5 +1,5 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
@@ -12,6 +12,7 @@ import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, a
 import { initCheats, initQuickCheats } from './cheats.js';
 import { setAchievementsData } from './achievements.js';
 import { showNewsIfNeeded, initNewsModal } from './news.js';
+import { isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -423,7 +424,7 @@ async function renderTradeInventorySelector(side) {
     });
 }
 
-// ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТПРАВКИ ПРЕДЛОЖЕНИЯ (с поддержкой недвижимости) ==========
+// ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТПРАВКИ ПРЕДЛОЖЕНИЯ ==========
 async function sendTradeOffer() {
     const modal = document.getElementById('tradeOfferModal');
     const targetUserId = modal.dataset.targetUserId;
@@ -454,7 +455,7 @@ async function sendTradeOffer() {
         fromHousing.push(homeId);
     }
     
-    // Недвижимость, которую хотим получить (пока не реализовано, можно будет добавить позже)
+    // Недвижимость, которую хотим получить
     const toHousing = [];
     
     const fromMoney = parseInt(document.getElementById('tradeFromMoney').value) || 0;
@@ -559,7 +560,7 @@ async function openMyOffersModal() {
     modal.style.display = 'flex';
 }
 
-// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ (ИСПРАВЛЕНО: блокировка ДО обновления) ==========
+// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ (С ЗАЩИТОЙ TRADEGUARD) ==========
 let realTimeUnsubscribe = null;
 let localLastUpdated = null;
 
@@ -569,59 +570,50 @@ function setupRealTimeUpdates(userId) {
         realTimeUnsubscribe = null;
     }
     
-    subscribeToUserChanges(userId, async (newData) => {
-        // Пропускаем если идёт обмен
-        if (window._preventAutoSave) {
-            console.log('🔄 Real-time: пропускаем обновление (идет обмен)');
+    subscribeToUserChanges(userId, async (newData, isRealtime = true) => {
+        // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ИСПОЛЬЗУЕМ TRADEGUARD =====
+        // Если защита активна — полностью пропускаем realtime обновление
+        if (isTradeGuardActive()) {
+            const pending = getPendingTrade();
+            const remaining = getTradeBlockTimeRemaining();
+            console.log(`🛡️ Real-time: обновление пропущено (защита активна, осталось ${remaining}с)`, pending);
             return;
         }
-        
-        // ===== БЛОКИРУЕМ АВТОСОХРАНЕНИЕ СРАЗУ =====
-        window._preventAutoSave = true;
         
         // Проверяем, что данные не старые
         const newLastUpdated = newData.lastUpdated ? new Date(newData.lastUpdated).getTime() : 0;
         
         if (localLastUpdated && newLastUpdated <= localLastUpdated) {
             console.log(`🔄 Real-time: пропускаем старые данные (локальное: ${new Date(localLastUpdated).toLocaleTimeString()}, новое: ${new Date(newLastUpdated).toLocaleTimeString()})`);
-            window._preventAutoSave = false;
             return;
         }
         
         console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
         
-        try {
-            const { setStats, inventory, equipped, setExpData, setEnergy, setTimeWeather, setActionLog, setCurrentLocation, updateUI } = await import('./gameState.js');
-            const { renderItemsTab, renderEquipmentTab, initInventoryTabs } = await import('./inventory.js');
-            const { renderLocation } = await import('./locations.js');
-            
-            setStats(newData.health, newData.hunger, newData.cold, newData.money);
-            inventory.length = 0;
-            inventory.push(...(newData.inventory ?? []));
-            Object.assign(equipped, newData.equipped ?? {});
-            setExpData(newData.experience, newData.level);
-            setEnergy(newData.energy);
-            setTimeWeather(newData.accumulatedMinutes, newData.currentWeather, newData.currentTemperature);
-            setActionLog(newData.actionLog ?? []);
-            setCurrentLocation(newData.currentLocation || 'church');
-            
-            // Обновляем локальную метку времени
+        // Используем защищённую функцию обновления
+        const updated = updateFromFirestoreWithGuard(newData, false);
+        
+        if (updated) {
             localLastUpdated = newLastUpdated;
             
-            updateUI();
-            renderItemsTab();
-            renderEquipmentTab();
-            initInventoryTabs();
-            renderLocation(newData.currentLocation || 'church');
-            
-            showMessage('🔄 Данные синхронизированы', '#4caf50');
-        } catch (err) {
-            console.error('Ошибка при обновлении данных:', err);
+            // Обновляем UI компоненты
+            try {
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                const { renderLocation } = await import('./locations.js');
+                
+                renderItemsTab();
+                renderEquipmentTab();
+                initInventoryTabs();
+                renderHousingTab?.();
+                renderLocation(currentLocation);
+                
+                showMessage('🔄 Данные синхронизированы', '#4caf50');
+            } catch (err) {
+                console.error('Ошибка при обновлении UI:', err);
+            }
+        } else {
+            console.log('🛡️ Real-time: обновление отклонено защитой');
         }
-        
-        setTimeout(() => {
-            window._preventAutoSave = false;
-        }, 2000);
     });
     
     realTimeUnsubscribe = () => unsubscribeFromUserChanges();
@@ -755,10 +747,55 @@ async function initAchievements() {
             }
         }
         
-        console.log('🏆 Система достижений инициализирована (без автоматической проверки)');
+        console.log('🏆 Система достижений инициализирована');
     } catch (err) {
         console.error('Ошибка инициализации ачивок:', err);
     }
+}
+
+// ========== ДОБАВЛЯЕМ ВИЗУАЛЬНЫЙ ИНДИКАТОР ЗАЩИТЫ ==========
+function initTradeGuardIndicator() {
+    // Добавляем индикатор в правый верхний угол (рядом с аватаром)
+    const gameRight = document.querySelector('.game-right');
+    if (gameRight && !document.getElementById('tradeGuardStatus')) {
+        const indicator = document.createElement('div');
+        indicator.id = 'tradeGuardStatus';
+        indicator.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(46, 125, 50, 0.9);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        `;
+        indicator.innerHTML = '🛡️ Обмен...';
+        gameRight.style.position = 'relative';
+        gameRight.appendChild(indicator);
+    }
+    
+    // Периодически проверяем статус защиты
+    setInterval(() => {
+        const indicator = document.getElementById('tradeGuardStatus');
+        if (indicator) {
+            if (isTradeGuardActive()) {
+                const remaining = getTradeBlockTimeRemaining();
+                indicator.style.display = 'flex';
+                indicator.innerHTML = `🛡️ Обмен (${remaining}с)`;
+                indicator.style.background = 'rgba(46, 125, 50, 0.9)';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+    }, 500);
 }
 
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
@@ -849,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ (при входе любого игрока) =====
+        // ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ =====
         try {
             const gameState = await import('./gameState.js');
             if (typeof gameState.checkAllHousingPayments === 'function') {
@@ -860,18 +897,21 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Ошибка при глобальной проверке недвижимости:', err);
         }
         
-        // ===== ПРОВЕРКА ТЕКУЩЕГО ЖИЛЬЯ (для себя) =====
+        // ===== ПРОВЕРКА ТЕКУЩЕГО ЖИЛЬЯ =====
         await checkHousingPayment();
         startHousingCheckTimer();
         
         // ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" =====
         setupAboutModal();
-
+        
         // ===== НОВОСТНОЕ ОКНО =====
         initNewsModal();
         setTimeout(() => {
             showNewsIfNeeded();
         }, 500);
+        
+        // ===== ИНИЦИАЛИЗАЦИЯ ИНДИКАТОРА ЗАЩИТЫ =====
+        initTradeGuardIndicator();
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
