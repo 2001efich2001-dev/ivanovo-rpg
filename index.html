@@ -115,6 +115,7 @@
             <div class="settings-item">
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
+                <button id="changeNickBtn" class="reset-btn" style="background: #e67e22;">✏️ Сменить ник</button>
             </div>
         </div>
     </div>
@@ -329,6 +330,19 @@
             </div>
             <div style="text-align: center; margin-top: 16px;">
                 <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для смены ника -->
+    <div id="changeNickModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h3>✏️ Сменить игровой ник</h3>
+            <p style="margin-bottom: 10px; color: var(--text-secondary);">Текущий ник: <strong id="currentNickDisplay"></strong></p>
+            <input type="text" id="newNickInput" placeholder="Новый ник" maxlength="20" style="width: 100%; padding: 12px; border-radius: 40px; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--card-border); margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <button id="confirmChangeNickBtn" class="action-btn" style="flex: 1;">✅ Сохранить</button>
+                <button class="close-modal reset-btn" style="flex: 1;">Отмена</button>
             </div>
         </div>
     </div>
