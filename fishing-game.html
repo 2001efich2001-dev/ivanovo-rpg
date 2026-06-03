@@ -116,15 +116,10 @@
             box-shadow: 0 1px 0 #6b3f1c;
         }
 
-        .info-text {
-            font-size: 0.8rem;
-            background: #000000aa;
-            padding: 6px 12px;
-            border-radius: 28px;
-            text-align: center;
-            color: #cfd8b0;
+        .close-game-btn {
+            background: #c0392b;
             margin-top: 12px;
-            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 0 #6b1a0f;
         }
 
         @keyframes biteFlash {
@@ -134,12 +129,6 @@
 
         .biting {
             animation: biteFlash 0.3s ease-in-out 3;
-        }
-        
-        .close-game-btn {
-            background: #c0392b;
-            margin-top: 12px;
-            box-shadow: 0 4px 0 #6b1a0f;
         }
     </style>
 </head>
@@ -162,15 +151,6 @@
             </div>
             <button id="resetBtn">🎯 НОВАЯ РЫБАЛКА</button>
         </div>
-        <div class="info-text">
-            💡 1. Тыкни на воду → заброс удочки с поплавком.<br>
-            💡 2. Жди поклёвку (терпение, время неизвестно!).<br>
-            💡 3. Нажми <kbd>ПРОБЕЛ</kbd> когда клюнет → подсечка!<br>
-            💡 4. ЗАЖИМАЙ ПРОБЕЛ: натяжение растёт, рыба идёт к берегу.<br>
-            💡 5. ОТПУСКАЙ: леска слабеет, рыба уплывает (в 2 раза медленнее).<br>
-            💡 6. У каждой рыбы свой характер! Не порви леску.<br>
-            💡 7. Доведи рыбу до самого низа экрана → ПОБЕДА!
-        </div>
         <button id="closeFishingBtn" class="close-game-btn">🚪 ЗАКОНЧИТЬ РЫБАЛКУ</button>
     </div>
 </div>
@@ -179,23 +159,27 @@
     (function(){
         // ========== ПЕРЕМЕННЫЕ ДЛЯ СВЯЗИ С РОДИТЕЛЬСКИМ ОКНОМ ==========
         let gameResultCallback = null;
-        let hasCast = false; // Флаг: закинута ли удочка
-        let isGameActive = true; // Флаг: активна ли игра (чтобы не закрывалась после модалки)
+        let hasCast = false;
+        let isGameActive = true;
+        let lastCaughtFish = null; // Храним последнюю пойманную рыбу
         
         // Функция для установки колбэка из внешнего мира
         window.setFishingCallbacks = function(onSuccess, onFail) {
             gameResultCallback = { onSuccess, onFail };
         };
         
+        // Функция для получения названия пойманной рыбы
+        window.getLastCaughtFish = function() {
+            return lastCaughtFish;
+        };
+        
         // ========== ОСТАЛЬНОЙ КОД ИГРЫ ==========
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Размеры канваса
         canvas.width = 1200;
         canvas.height = 700;
         
-        // Фон
         const BACKGROUND_IMAGE_PATH = "images/fishing_bg.jpg";
         let backgroundImage = new Image();
         let bgLoaded = false;
@@ -210,7 +194,6 @@
         };
         backgroundImage.src = BACKGROUND_IMAGE_PATH;
         
-        // Состояния
         const STATE_IDLE = 'idle';
         const STATE_WAITING_BITE = 'waiting_bite';
         const STATE_BITE = 'biting';
@@ -225,7 +208,7 @@
         let fishStats = {
             tensionGainSpeed: 0.012,
             tensionDecaySpeed: 0.024,
-            fishEscapeSpeed: 0.004,    // ← ИСПРАВЛЕНО: в 2 раза медленнее (было 0.008)
+            fishEscapeSpeed: 0.004,
             fishPullSpeed: 0.008
         };
         
@@ -238,13 +221,70 @@
         const tensionFillDiv = document.getElementById('tensionFill');
         const statusDiv = document.getElementById('statusMsg');
         
+        // Список возможных рыб и мусора
+        const fishCatalog = {
+            // Обычные (70%)
+            common: [
+                { name: "Мелкая рыбёшка", icon: "🐟", id: "fish_small" },
+                { name: "Средняя рыба", icon: "🐠", id: "fish_medium" },
+                { name: "Крупная рыба", icon: "🐡", id: "fish_big" }
+            ],
+            // Редкие (20%)
+            rare: [
+                { name: "Сазан", icon: "🎏", id: "fish_carp" },
+                { name: "Щука", icon: "🐊", id: "fish_pike" }
+            ],
+            // Легендарная (5%)
+            legendary: [
+                { name: "Рыба-меч", icon: "🗡️🐟", id: "fish_sword" }
+            ],
+            // Мусор (5%)
+            trash: [
+                { name: "Старый ботинок", icon: "👢", id: "old_boot", value: 0 },
+                { name: "Ржавая банка", icon: "🥫", id: "rusty_can", value: 0 },
+                { name: "Рваная сеть", icon: "🕸️", id: "torn_net", value: 0 },
+                { name: "Пластиковая бутылка", icon: "🍾", id: "plastic_bottle", value: 0 },
+                { name: "Грязная тряпка", icon: "🧽", id: "dirty_rag", value: 0 }
+            ]
+        };
+        
+        // Функция получения случайного улова
+        function getRandomCatch() {
+            const rand = Math.random();
+            let result;
+            
+            if (rand < 0.05) { // 5% мусор
+                const trashList = fishCatalog.trash;
+                result = trashList[Math.floor(Math.random() * trashList.length)];
+                result.type = "trash";
+                result.value = 0;
+            } else if (rand < 0.1) { // 5% легендарная (5-10%)
+                const legendaryList = fishCatalog.legendary;
+                result = legendaryList[0];
+                result.type = "legendary";
+                result.value = 500;
+            } else if (rand < 0.3) { // 20% редкая
+                const rareList = fishCatalog.rare;
+                result = rareList[Math.floor(Math.random() * rareList.length)];
+                result.type = "rare";
+                result.value = 150;
+            } else { // 70% обычная
+                const commonList = fishCatalog.common;
+                result = commonList[Math.floor(Math.random() * commonList.length)];
+                result.type = "common";
+                result.value = 50;
+            }
+            
+            return result;
+        }
+        
         function generateRandomFishStats() {
             const strength = 0.7 + Math.random() * 1.2;
             let tensionGain = 0.008 + (strength * 0.008);
             tensionGain = Math.min(0.028, Math.max(0.007, tensionGain));
             let tensionDecay = 0.018 + (Math.random() * 0.02);
             if(strength > 1.2) tensionDecay *= 0.7;
-            let escapeSpeed = 0.003 + (strength * 0.004); // ← ИСПРАВЛЕНО: медленнее
+            let escapeSpeed = 0.003 + (strength * 0.004);
             escapeSpeed = Math.min(0.015, escapeSpeed);
             let pullSpeed = 0.006 + ((2.2 - strength) * 0.006);
             pullSpeed = Math.min(0.022, Math.max(0.005, pullSpeed));
@@ -277,14 +317,14 @@
             hasHooked = false;
             currentTension = 0;
             fishPosition = 0;
-            hasCast = false; // ← ИСПРАВЛЕНО: сбрасываем флаг заброса
+            hasCast = false;
             if(!keepFloatVisual) {
                 floatX = null;
                 floatY = null;
             }
             updateTensionUI();
             drawCanvas();
-            statusDiv.innerHTML = "🎣 Удочка готова. Тыкни по воде!";
+            statusDiv.innerHTML = "🎣 Кликни по воде!";
             statusDiv.classList.remove("biting");
         }
         
@@ -297,7 +337,7 @@
             caughtMessageActive = true;
             statusDiv.innerHTML = "💔 ЛЕСКА ПОРВАНА!";
             drawCanvas();
-            showCaughtModal("💥 ЛЕСКА НЕ ВЫДЕРЖАЛА! 💥<br> 🐟 Рыба сорвалась!", false);
+            showCaughtModal("💥 ЛЕСКА НЕ ВЫДЕРЖАЛА! 💥<br> 🐟 Рыба сорвалась!", false, null);
             floatX = null;
             floatY = null;
             drawCanvas();
@@ -305,21 +345,33 @@
         
         function catchSuccess() {
             if(gameState !== STATE_FIGHTING) return;
+            
+            // Получаем случайный улов
+            const caught = getRandomCatch();
+            lastCaughtFish = caught;
+            
             clearGameTimers();
             stopFightingLoop();
             gameState = STATE_IDLE;
             hasCast = false;
             caughtMessageActive = true;
-            statusDiv.innerHTML = "🏆 УРА! ВЫТАЩИЛ! 🏆";
+            statusDiv.innerHTML = `🏆 УРА! ВЫТАЩИЛ ${caught.icon} ${caught.name}! 🏆`;
             drawCanvas();
-            showCaughtModal("✨ ПОЗДРАВЛЯЕМ! ✨<br> 🎣 Вы поймали рыбу! 🎣", true);
+            
+            let message = "";
+            if (caught.type === "trash") {
+                message = `😫 Ой... Вы поймали ${caught.icon} ${caught.name}! 🤦<br>🎣 Мусор не стоит ничего, но опыт вы получили!`;
+            } else {
+                message = `✨ ПОЗДРАВЛЯЕМ! ✨<br>🎣 Вы поймали ${caught.icon} ${caught.name}! 🎣<br>💰 Стоимость: ~${caught.value}₽`;
+            }
+            
+            showCaughtModal(message, true, caught);
             floatX = null;
             floatY = null;
             drawCanvas();
         }
         
-        function showCaughtModal(message, isSuccess) {
-            // Закрываем старую модалку если есть
+        function showCaughtModal(message, isSuccess, caught) {
             const oldModal = document.getElementById('fishingResultModal');
             if(oldModal) oldModal.remove();
             
@@ -359,10 +411,9 @@
                 caughtMessageActive = false;
                 isGameActive = true;
                 
-                // Вызываем колбэк результата игры только один раз
                 if (gameResultCallback) {
                     if (isSuccess && gameResultCallback.onSuccess) {
-                        gameResultCallback.onSuccess();
+                        gameResultCallback.onSuccess(caught);
                     } else if (!isSuccess && gameResultCallback.onFail) {
                         gameResultCallback.onFail();
                     }
@@ -476,7 +527,6 @@
         }
         
         function castRod(clientX, clientY) {
-            // ИСПРАВЛЕНО: если удочка уже закинута — ничего не делаем
             if (hasCast) {
                 statusDiv.innerHTML = "⚠️ Удочка уже закинута! Жди поклёвку!";
                 setTimeout(() => {
@@ -506,7 +556,7 @@
             
             clearGameTimers();
             gameState = STATE_WAITING_BITE;
-            hasCast = true; // ← ИСПРАВЛЕНО: запоминаем, что удочка закинута
+            hasCast = true;
             hasHooked = false;
             currentTension = 0;
             fishPosition = 0;
