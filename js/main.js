@@ -7,7 +7,7 @@ import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
 import { logAction, showMessage } from './utils.js';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { collection, query, orderBy, limit, getDocs, doc, getDoc, where } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
 import { setAchievementsData } from './achievements.js';
