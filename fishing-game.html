@@ -35,6 +35,8 @@
             border-radius: 28px;
             box-shadow: 0 8px 18px rgba(0,0,0,0.5);
             cursor: crosshair;
+            width: 100%;
+            height: auto;
         }
 
         .info-panel {
@@ -144,7 +146,7 @@
 <body>
 <div>
     <div class="game-container">
-        <canvas id="gameCanvas" width="1000" height="550" style="width:100%; height:auto; max-width:1000px; aspect-ratio:1000/550"></canvas>
+        <canvas id="gameCanvas" width="1200" height="700" style="width:100%; height:auto; max-width:1200px; aspect-ratio:1200/700"></canvas>
         <div class="info-panel">
             <div class="tension-meter">
                 <div class="tension-label">
@@ -165,7 +167,7 @@
             💡 2. Жди поклёвку (терпение, время неизвестно!).<br>
             💡 3. Нажми <kbd>ПРОБЕЛ</kbd> когда клюнет → подсечка!<br>
             💡 4. ЗАЖИМАЙ ПРОБЕЛ: натяжение растёт, рыба идёт к берегу.<br>
-            💡 5. ОТПУСКАЙ: леска слабеет, рыба уплывает.<br>
+            💡 5. ОТПУСКАЙ: леска слабеет, рыба уплывает (в 2 раза медленнее).<br>
             💡 6. У каждой рыбы свой характер! Не порви леску.<br>
             💡 7. Доведи рыбу до самого низа экрана → ПОБЕДА!
         </div>
@@ -177,18 +179,23 @@
     (function(){
         // ========== ПЕРЕМЕННЫЕ ДЛЯ СВЯЗИ С РОДИТЕЛЬСКИМ ОКНОМ ==========
         let gameResultCallback = null;
+        let hasCast = false; // Флаг: закинута ли удочка
+        let isGameActive = true; // Флаг: активна ли игра (чтобы не закрывалась после модалки)
         
         // Функция для установки колбэка из внешнего мира
         window.setFishingCallbacks = function(onSuccess, onFail) {
             gameResultCallback = { onSuccess, onFail };
         };
         
-        // ========== ОСТАЛЬНОЙ КОД ИГРЫ (ВАШ ОРИГИНАЛЬНЫЙ) ==========
-        // -------- CANVAS ----------
+        // ========== ОСТАЛЬНОЙ КОД ИГРЫ ==========
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
-        // -------- ФОН-КАРТИНКА ----------
+        // Размеры канваса
+        canvas.width = 1200;
+        canvas.height = 700;
+        
+        // Фон
         const BACKGROUND_IMAGE_PATH = "images/fishing_bg.jpg";
         let backgroundImage = new Image();
         let bgLoaded = false;
@@ -203,7 +210,7 @@
         };
         backgroundImage.src = BACKGROUND_IMAGE_PATH;
         
-        // -------- ИГРОВЫЕ СОСТОЯНИЯ ----------
+        // Состояния
         const STATE_IDLE = 'idle';
         const STATE_WAITING_BITE = 'waiting_bite';
         const STATE_BITE = 'biting';
@@ -218,7 +225,7 @@
         let fishStats = {
             tensionGainSpeed: 0.012,
             tensionDecaySpeed: 0.024,
-            fishEscapeSpeed: 0.008,
+            fishEscapeSpeed: 0.004,    // ← ИСПРАВЛЕНО: в 2 раза медленнее (было 0.008)
             fishPullSpeed: 0.008
         };
         
@@ -237,8 +244,8 @@
             tensionGain = Math.min(0.028, Math.max(0.007, tensionGain));
             let tensionDecay = 0.018 + (Math.random() * 0.02);
             if(strength > 1.2) tensionDecay *= 0.7;
-            let escapeSpeed = 0.006 + (strength * 0.007);
-            escapeSpeed = Math.min(0.025, escapeSpeed);
+            let escapeSpeed = 0.003 + (strength * 0.004); // ← ИСПРАВЛЕНО: медленнее
+            escapeSpeed = Math.min(0.015, escapeSpeed);
             let pullSpeed = 0.006 + ((2.2 - strength) * 0.006);
             pullSpeed = Math.min(0.022, Math.max(0.005, pullSpeed));
             
@@ -270,6 +277,7 @@
             hasHooked = false;
             currentTension = 0;
             fishPosition = 0;
+            hasCast = false; // ← ИСПРАВЛЕНО: сбрасываем флаг заброса
             if(!keepFloatVisual) {
                 floatX = null;
                 floatY = null;
@@ -285,6 +293,7 @@
             clearGameTimers();
             stopFightingLoop();
             gameState = STATE_IDLE;
+            hasCast = false;
             caughtMessageActive = true;
             statusDiv.innerHTML = "💔 ЛЕСКА ПОРВАНА!";
             drawCanvas();
@@ -299,6 +308,7 @@
             clearGameTimers();
             stopFightingLoop();
             gameState = STATE_IDLE;
+            hasCast = false;
             caughtMessageActive = true;
             statusDiv.innerHTML = "🏆 УРА! ВЫТАЩИЛ! 🏆";
             drawCanvas();
@@ -347,8 +357,9 @@
             const closeModal = () => {
                 modalDiv.remove();
                 caughtMessageActive = false;
+                isGameActive = true;
                 
-                // Вызываем колбэк результата игры
+                // Вызываем колбэк результата игры только один раз
                 if (gameResultCallback) {
                     if (isSuccess && gameResultCallback.onSuccess) {
                         gameResultCallback.onSuccess();
@@ -457,6 +468,7 @@
                     floatX = null;
                     floatY = null;
                     gameState = STATE_IDLE;
+                    hasCast = false;
                     clearGameTimers();
                     drawCanvas();
                 }
@@ -464,6 +476,17 @@
         }
         
         function castRod(clientX, clientY) {
+            // ИСПРАВЛЕНО: если удочка уже закинута — ничего не делаем
+            if (hasCast) {
+                statusDiv.innerHTML = "⚠️ Удочка уже закинута! Жди поклёвку!";
+                setTimeout(() => {
+                    if (gameState === STATE_WAITING_BITE) {
+                        statusDiv.innerHTML = `🎣 Заброшено! Жди поклёвку... 🎣`;
+                    }
+                }, 1500);
+                return;
+            }
+            
             if(gameState !== STATE_IDLE) {
                 statusDiv.innerHTML = "⚠️ Сначала закончи с рыбой!";
                 return;
@@ -483,6 +506,7 @@
             
             clearGameTimers();
             gameState = STATE_WAITING_BITE;
+            hasCast = true; // ← ИСПРАВЛЕНО: запоминаем, что удочка закинута
             hasHooked = false;
             currentTension = 0;
             fishPosition = 0;
@@ -493,7 +517,7 @@
                 onBite();
             }, biteDelay);
             
-            statusDiv.innerHTML = `🎣 Заброшено! Жди поклёвку... (время неизвестно) 🎣`;
+            statusDiv.innerHTML = `🎣 Заброшено! Жди поклёвку... 🎣`;
             statusDiv.classList.remove("biting");
             drawCanvas();
         }
@@ -632,7 +656,6 @@
         });
         
         document.getElementById('closeFishingBtn').addEventListener('click', () => {
-            // Закрываем игру без результата
             if (gameResultCallback && gameResultCallback.onFail) {
                 gameResultCallback.onFail();
             }
