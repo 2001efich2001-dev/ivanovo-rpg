@@ -798,6 +798,82 @@ function initTradeGuardIndicator() {
     }, 500);
 }
 
+// ========== ОТКРЫТИЕ АГЕНТСТВА НЕДВИЖИМОСТИ "АВИТ0" ==========
+async function openRealEstateMarket() {
+    playClick();
+    
+    const modal = document.getElementById('realEstateMarketModal');
+    const container = document.getElementById('marketListings');
+    
+    if (!modal || !container) {
+        console.error('Модальное окно агентства не найдено');
+        return;
+    }
+    
+    container.innerHTML = '<div style="text-align:center; padding:20px;">📭 Загрузка объявлений...</div>';
+    modal.style.display = 'flex';
+    
+    try {
+        const { getActiveListings, buyProperty } = await import('./realEstateMarket.js');
+        const listings = await getActiveListings();
+        
+        if (listings.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px;">📭 Нет активных объявлений о продаже недвижимости</div>';
+            return;
+        }
+        
+        let html = '<div class="market-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;">';
+        
+        for (const listing of listings) {
+            const typeIcon = listing.propertyType === 'dorm' ? '🏢' : (listing.propertyType === 'apartment' ? '🏠' : '🏡');
+            html += `
+                <div class="market-card" style="background: var(--card-bg); border-radius: 16px; padding: 16px; text-align: center; border: 1px solid var(--card-border); transition: transform 0.2s;">
+                    <div style="font-size: 48px; margin-bottom: 8px;">${typeIcon}</div>
+                    <div style="font-weight: bold; font-size: 1rem; margin-bottom: 4px;">${escapeHtml(listing.propertyName)}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 8px;">📦 Продавец: ${escapeHtml(listing.sellerName)}</div>
+                    <div style="font-size: 1.2rem; color: var(--accent-gold); font-weight: bold; margin-bottom: 12px;">💰 ${listing.price.toLocaleString()}₽</div>
+                    <button class="buy-from-market-btn action-btn" data-id="${listing.id}" data-price="${listing.price}" style="background: var(--buy-btn-bg); border: none; padding: 8px 16px; border-radius: 40px; color: white; cursor: pointer; width: 100%;">💸 Купить</button>
+                </div>
+            `;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Обработчики покупки
+        document.querySelectorAll('.buy-from-market-btn').forEach(btn => {
+            btn.removeEventListener('click', btn._marketHandler);
+            const handler = async () => {
+                const listingId = btn.dataset.id;
+                const price = parseInt(btn.dataset.price);
+                const user = auth.currentUser;
+                
+                if (!user) {
+                    showMessage('❌ Авторизуйтесь для покупки', '#e74c3c');
+                    return;
+                }
+                
+                if (confirm(`💰 Купить эту недвижимость за ${price.toLocaleString()}₽?`)) {
+                    const { buyProperty } = await import('./realEstateMarket.js');
+                    const success = await buyProperty(listingId, user.uid);
+                    if (success) {
+                        // Обновляем доску и вкладку недвижимости
+                        await openRealEstateMarket(); // переоткрываем доску
+                        const { renderHousingTab } = await import('./inventory.js');
+                        renderHousingTab();
+                        showMessage(`🏠 Поздравляем! Вы купили недвижимость!`, '#4caf50');
+                    }
+                }
+            };
+            btn.addEventListener('click', handler);
+            btn._marketHandler = handler;
+        });
+        
+    } catch (error) {
+        console.error('Ошибка загрузки объявлений:', error);
+        container.innerHTML = '<div style="text-align:center; padding:20px; color: #e74c3c;">❌ Ошибка загрузки объявлений</div>';
+    }
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
@@ -922,6 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
     const shopBtn = document.getElementById('shopBtn');
+    const realEstateMarketBtn = document.getElementById('realEstateMarketBtn');
     const topPlayersBtn = document.getElementById('topPlayersBtn');
     const myOffersBtn = document.getElementById('myOffersBtn');
     const logoutMenuBtn = document.getElementById('logoutMenuBtn');
@@ -982,6 +1059,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             modal.style.display = 'flex';
         });
+    }
+    
+    // ===== НОВАЯ КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
+    if (realEstateMarketBtn) {
+        realEstateMarketBtn.addEventListener('click', openRealEstateMarket);
     }
     
     if (topPlayersBtn) {
