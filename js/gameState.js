@@ -1,6 +1,7 @@
 // js/gameState.js
 import { showMessage } from './utils.js';
 import { saveGameData } from './firestore.js';
+import { shouldBlockRealtime, deactivateTradeGuard, getRemainingBlockTime, isTradeGuardActive } from './tradeGuard.js';
 
 export let health = 100;
 export let maxHealth = 100;
@@ -177,7 +178,7 @@ export function updateEnergy() {
         updateUI();
         if (onEnergyUpdateCallback) onEnergyUpdateCallback();
         // Сохраняем только если не идёт обмен
-        if (!window._preventAutoSave) {
+        if (!window._preventAutoSave && !isTradeGuardActive()) {
             import('./firestore.js').then(m => {
                 if (typeof m.saveGameData === 'function') m.saveGameData();
             });
@@ -233,7 +234,7 @@ export function updateIntoxication() {
         updateUI();
         if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
         // Сохраняем только если не идёт обмен
-        if (!window._preventAutoSave) {
+        if (!window._preventAutoSave && !isTradeGuardActive()) {
             import('./firestore.js').then(m => {
                 if (typeof m.saveGameData === 'function') m.saveGameData();
             });
@@ -329,7 +330,7 @@ export function addExperience(amount) {
     if (onExpUpdateCallback) onExpUpdateCallback();
     
     // Сохраняем только если не идёт обмен
-    if (!window._preventAutoSave) {
+    if (!window._preventAutoSave && !isTradeGuardActive()) {
         import('./firestore.js').then(m => {
             if (typeof m.saveGameData === 'function') m.saveGameData();
         });
@@ -1080,4 +1081,116 @@ export async function validateCurrentHome() {
             await saveGameData();
         }
     }
+}
+
+// ========== НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ИЗ FIRESTORE С ЗАЩИТОЙ ==========
+/**
+ * Обновить состояние из Firestore (с защитой от обмена)
+ * @param {Object} remoteData - Данные из Firestore
+ * @param {boolean} force - Принудительное обновление (игнорировать защиту)
+ * @returns {boolean} - Было ли обновление применено
+ */
+export function updateFromFirestoreWithGuard(remoteData, force = false) {
+    // Если защита активна и не форсируем — пропускаем обновление
+    if (!force && shouldBlockRealtime()) {
+        const remaining = getRemainingBlockTime();
+        console.log(`🛡️ updateFromFirestoreWithGuard: обновление отклонено (защита активна, осталось ${remaining}с)`);
+        
+        // Добавляем запись в лог для отладки (но не спамим)
+        if (Math.random() < 0.1) { // только 10% случаев, чтобы не заспамить лог
+            addLogEntry(`🛡️ Пропущено автоматическое обновление (обработка обмена ${remaining}с)`, 'system');
+        }
+        return false;
+    }
+    
+    // Применяем обновление
+    let updated = false;
+    
+    if (remoteData.health !== undefined) {
+        health = Math.min(maxHealth, Math.max(0, remoteData.health));
+        updated = true;
+    }
+    if (remoteData.hunger !== undefined) {
+        hunger = Math.min(maxHunger, Math.max(0, remoteData.hunger));
+        updated = true;
+    }
+    if (remoteData.cold !== undefined) {
+        cold = Math.min(maxCold, Math.max(0, remoteData.cold));
+        updated = true;
+    }
+    if (remoteData.money !== undefined) {
+        money = Math.max(0, remoteData.money);
+        updated = true;
+    }
+    if (remoteData.energy !== undefined) {
+        energy = Math.min(maxEnergy, Math.max(0, remoteData.energy));
+        lastEnergyUpdate = Date.now();
+        updated = true;
+    }
+    if (remoteData.intoxication !== undefined) {
+        intoxication = Math.min(maxIntoxication, Math.max(0, remoteData.intoxication));
+        lastIntoxicationUpdate = Date.now();
+        updated = true;
+    }
+    if (remoteData.experience !== undefined) {
+        experience = Math.max(0, remoteData.experience);
+        updated = true;
+    }
+    if (remoteData.level !== undefined) {
+        level = Math.max(1, remoteData.level);
+        requiredExp = calculateRequiredExp(level);
+        updated = true;
+    }
+    if (remoteData.inventory !== undefined && Array.isArray(remoteData.inventory)) {
+        inventory.length = 0;
+        inventory.push(...remoteData.inventory);
+        updated = true;
+    }
+    if (remoteData.equipped !== undefined) {
+        equipped = { ...equipped, ...remoteData.equipped };
+        updated = true;
+    }
+    if (remoteData.currentLocation !== undefined) {
+        currentLocation = remoteData.currentLocation;
+        updated = true;
+    }
+    if (remoteData.housing !== undefined) {
+        setHousingData(remoteData.housing);
+        updated = true;
+    }
+    if (remoteData.lastUpdated !== undefined) {
+        lastUpdated = remoteData.lastUpdated;
+        updated = true;
+    }
+    
+    if (updated) {
+        updateUI();
+        console.log('🔄 updateFromFirestoreWithGuard: данные обновлены из Firestore');
+        
+        // Если обновление пришло и защита была активна, но мы форсированно применили — снимаем защиту
+        if (force && shouldBlockRealtime()) {
+            deactivateTradeGuard();
+            console.log('🔄 Форсированное обновление применено, защита снята');
+            addLogEntry(`🔄 Принудительное обновление данных после обмена`, 'system');
+        }
+    }
+    
+    return updated;
+}
+
+// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ TRADE ==========
+/**
+ * Проверить, активна ли сейчас защита обмена
+ * @returns {boolean}
+ */
+export function isTradeBlocked() {
+    return isTradeGuardActive();
+}
+
+/**
+ * Получить время до снятия защиты (в секундах)
+ * @returns {number}
+ */
+export function getTradeBlockTimeRemaining() {
+    return getRemainingBlockTime();
 }
