@@ -224,6 +224,62 @@ export function unsubscribeFromUserChanges() {
     }
 }
 
+// ========== ОБНОВЛЕНИЕ НИКА В ПРЕДЛОЖЕНИЯХ ОБМЕНА ==========
+export async function updateNickInTradeOffers(userId, newNick) {
+    if (!db) return;
+    
+    try {
+        // Обновляем исходящие предложения (где пользователь отправитель)
+        const outgoingQuery = query(collection(db, 'trade_offers'), where('fromUserId', '==', userId));
+        const outgoingSnapshot = await getDocs(outgoingQuery);
+        
+        for (const docSnap of outgoingSnapshot.docs) {
+            await updateDoc(doc(db, 'trade_offers', docSnap.id), {
+                fromUserNick: newNick
+            });
+        }
+        
+        // Обновляем входящие предложения (где пользователь получатель)
+        const incomingQuery = query(collection(db, 'trade_offers'), where('toUserId', '==', userId));
+        const incomingSnapshot = await getDocs(incomingQuery);
+        
+        for (const docSnap of incomingSnapshot.docs) {
+            await updateDoc(doc(db, 'trade_offers', docSnap.id), {
+                toUserNick: newNick
+            });
+        }
+        
+        console.log(`✏️ Обновлены ники в предложениях обмена для ${userId} → ${newNick}`);
+    } catch (error) {
+        console.error('Ошибка обновления ников в предложениях:', error);
+    }
+}
+
+// ========== ОБНОВЛЕНИЕ НИКА В ОБЪЯВЛЕНИЯХ НЕДВИЖИМОСТИ ==========
+export async function updateNickInRealEstateListings(userId, newNick) {
+    if (!db) return;
+    
+    try {
+        // Обновляем активные объявления продавца
+        const listingsQuery = query(
+            collection(db, 'real_estate_listings'),
+            where('sellerId', '==', userId),
+            where('status', '==', 'active')
+        );
+        const listingsSnapshot = await getDocs(listingsQuery);
+        
+        for (const docSnap of listingsSnapshot.docs) {
+            await updateDoc(doc(db, 'real_estate_listings', docSnap.id), {
+                sellerName: newNick
+            });
+        }
+        
+        console.log(`✏️ Обновлены ники в объявлениях недвижимости для ${userId} → ${newNick}`);
+    } catch (error) {
+        console.error('Ошибка обновления ников в объявлениях:', error);
+    }
+}
+
 // ========== ТОРГОВЛЯ ==========
 export async function createTradeOffer(fromUserId, fromUserNick, toUserId, toUserNick, fromItems, fromMoney, toItems, toMoney, fromHousing, toHousing) {
     if (!db) return null;
