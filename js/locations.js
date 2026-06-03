@@ -22,7 +22,10 @@ const energyCosts = {
     drink: 5,     // выпить водку
     fight: 25,    // подраться
     eat: 5,       // поесть в столовой
-    sleep: 0      // сон (восстанавливает энергию, не тратит)
+    sleep: 0,     // сон (восстанавливает энергию, не тратит)
+    fishing: 15,  // рыбалка
+    relax: 0,     // отдых
+    collect_water: 5 // набор воды
 };
 
 // Модификация риска в зависимости от опьянения (чем выше опьянение, тем выше шанс неудачи)
@@ -126,7 +129,7 @@ export const locationsDB = {
         ]
     },
 
-        // ========== ЛОКАЦИИ ДЛЯ ЖИЛЬЯ ==========
+    // ========== ЛОКАЦИИ ДЛЯ ЖИЛЬЯ ==========
     dump_home: {
         id: "dump_home",
         name: "🗑️ Моя помойка",
@@ -183,6 +186,46 @@ export const locationsDB = {
             { id: "sleep_house", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 50, energy: 50 }, cost: 0, risk: 0 },
             { id: "sauna", name: "Сауна", desc: "Попариться", effect: { health: 20, hunger: -10 }, cost: 0, risk: 0 },
             { id: "garage_storage", name: "Открыть гараж", desc: "Хранилище вещей", effect: {}, cost: 0, risk: 0 }
+        ]
+    },
+
+    // ========== НОВАЯ ЛОКАЦИЯ: РЕКА УВОДЬ (РЫБАЛКА) ==========
+    fishing_spot: {
+        id: "fishing_spot",
+        name: "🏞️ Река Уводь",
+        description: "Тихое место на берегу реки Уводь. Вода прозрачная, слышен плеск рыбы. Местные говорят, что здесь водится легендарная рыба-меч!",
+        bgImage: "images/fishing_spot_bg.jpg",
+        zones: [
+            { id: "fishing_zone", name: "🎣 Рыбалка", description: "Забросить удочку и попытать счастья (тратит 15 энергии)", cx: 200, cy: 200, r: 60, actionId: "fishing" },
+            { id: "relax_zone", name: "🌿 Отдохнуть", description: "Посмотреть на воду и восстановить силы", cx: 400, cy: 180, r: 50, actionId: "relax" },
+            { id: "collect_water_zone", name: "💧 Набрать воды", description: "Набрать свежей речной воды", cx: 600, cy: 220, r: 45, actionId: "collect_water" }
+        ],
+        actions: [
+            { 
+                id: "fishing", 
+                name: "🎣 Порыбачить", 
+                desc: "Забросить удочку и поймать рыбу (требуется удочка, тратит 15 энергии)", 
+                effect: { items: [] }, 
+                risk: 0,
+                needsItem: "fishing_rod",
+                cost: 0
+            },
+            { 
+                id: "relax", 
+                name: "🌿 Отдохнуть", 
+                desc: "Посмотреть на воду и восстановить силы", 
+                effect: { health: 5, hunger: 5, cold: 5 }, 
+                risk: 0,
+                cost: 0
+            },
+            { 
+                id: "collect_water", 
+                name: "💧 Набрать воды", 
+                desc: "Набрать свежей речной воды", 
+                effect: { items: ["water"] }, 
+                risk: 0,
+                cost: 0
+            }
         ]
     }
 };
@@ -312,6 +355,87 @@ function hideTooltip() {
 // Функции для действий
 async function executeAction(locationId, action) {
     playClick();
+    
+    // Особый случай: рыбалка
+    if (action.id === 'fishing') {
+        // Проверяем наличие удочки
+        const hasRod = inventory.find(i => i.id === 'fishing_rod' && i.count > 0);
+        if (!hasRod) {
+            showMessage("❌ У вас нет удочки! Купите её в магазине.", "#e74c3c");
+            return;
+        }
+        
+        // Проверка энергии
+        const energyCost = energyCosts.fishing || 15;
+        if (!hasEnoughEnergy(energyCost)) {
+            showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+            return;
+        }
+        
+        // Проверка возможности выполнения действия
+        if (!canPerformAction(action.name)) {
+            return;
+        }
+        
+        // Тратим энергию
+        spendEnergy(energyCost);
+        
+        // Открываем мини-игру рыбалки
+        try {
+            const { openFishingGame } = await import('./minigameFishing.js');
+            await openFishingGame();
+            
+            // Логируем действие
+            logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - начало рыбалки`, 'location');
+        } catch (error) {
+            console.error('Ошибка открытия рыбалки:', error);
+            showMessage("❌ Ошибка запуска рыбалки. Попробуйте позже.", "#e74c3c");
+            // Возвращаем энергию при ошибке
+            setEnergy(Math.min(100, energy + energyCost));
+        }
+        
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
+    
+    // Особый случай: отдых
+    if (action.id === 'relax') {
+        const newHealth = Math.min(maxHealth, health + 5);
+        const newHunger = Math.min(maxHunger, hunger + 5);
+        const newCold = Math.min(maxCold, cold + 5);
+        setStats(newHealth, newHunger, newCold, money);
+        updateUI();
+        await saveGameData();
+        showMessage("🌿 Вы отдохнули у реки! +5 здоровья, +5 голода, +5 тепла", "#4caf50");
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - +5 здоровья, +5 голода, +5 тепла`, 'location');
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
+    
+    // Особый случай: набор воды
+    if (action.id === 'collect_water') {
+        const energyCost = energyCosts.collect_water || 5;
+        if (!hasEnoughEnergy(energyCost)) {
+            showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+            return;
+        }
+        
+        spendEnergy(energyCost);
+        
+        const existingWater = inventory.find(i => i.id === 'water');
+        if (existingWater) {
+            existingWater.count++;
+        } else {
+            inventory.push({ id: 'water', count: 1 });
+        }
+        
+        updateUI();
+        await saveGameData();
+        showMessage("💧 Вы набрали бутылку свежей воды!", "#4caf50");
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - +1 бутылка воды`, 'item');
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
     
     // Проверка энергии (кроме сна, так как он восстанавливает)
     const energyCost = energyCosts[action.id] || 0;
