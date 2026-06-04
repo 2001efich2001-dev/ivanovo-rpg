@@ -1317,3 +1317,33 @@ body {
     background: var(--reset-bg);
     color: var(--reset-text);
 }
+
+/* ===== ПРОКРУТКА МАГАЗИНА (ДОПОЛНИТЕЛЬНЫЕ СТИЛИ) ===== */
+#shopBuyTab,
+#shopSellTab {
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+
+/* Стили скроллбара внутри контейнера магазина */
+#shopModal .modal-content > div:first-of-type {
+    scrollbar-width: thin;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar {
+    width: 6px;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar-track {
+    background: var(--stat-bg);
+    border-radius: 4px;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border-radius: 4px;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar-thumb:hover {
+    background: #e67e22;
+}
