@@ -130,7 +130,6 @@
             box-shadow: 0 4px 0 #6b1a0f;
         }
 
-        /* ===== НОВАЯ ПАНЕЛЬ С ПРАВИЛАМИ ===== */
         .rules-panel {
             margin-top: 15px;
             background: rgba(0,0,0,0.6);
@@ -212,7 +211,6 @@
             <button id="closeFishingBtn" class="close-game-btn">🚪 ЗАКОНЧИТЬ РЫБАЛКУ</button>
         </div>
         
-        <!-- ===== ПАНЕЛЬ С ПОДСКАЗКАМИ ===== -->
         <div class="rules-panel">
             <div class="rule-item">
                 <span class="rule-icon">1</span>
@@ -240,6 +238,75 @@
 
 <script>
     (function(){
+        // ========== ЗВУКИ ЧЕРЕЗ WEB AUDIO API ==========
+        let audioCtx = null;
+        
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+        
+        function playTone(freq, duration, volume = 0.15, type = 'sine') {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(() => playToneInternal(freq, duration, volume, type));
+            } else {
+                playToneInternal(freq, duration, volume, type);
+            }
+        }
+        
+        function playToneInternal(freq, duration, volume, type) {
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = freq;
+            osc.type = type;
+            gain.gain.setValueAtTime(volume, now);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.start();
+            osc.stop(now + duration);
+        }
+        
+        // Звуки для рыбалки
+        function playCastSound() {
+            playTone(523, 0.12, 0.12, 'sine'); // До (заброс)
+        }
+        
+        function playBiteSound() {
+            playTone(880, 0.08, 0.15, 'triangle'); // Высокий сигнал
+        }
+        
+        function playHookSound() {
+            playTone(660, 0.1, 0.13, 'sawtooth'); // Подсечка
+        }
+        
+        function playMissedSound() {
+            playTone(330, 0.3, 0.1, 'sine'); // Низкий грустный звук
+        }
+        
+        function playSuccessSound() {
+            playTone(523, 0.1, 0.12, 'sine');
+            setTimeout(() => playTone(659, 0.12, 0.12, 'sine'), 100);
+            setTimeout(() => playTone(784, 0.15, 0.12, 'sine'), 200);
+        }
+        
+        function playLineBreakSound() {
+            playTone(200, 0.15, 0.2, 'sawtooth');
+            setTimeout(() => playTone(150, 0.2, 0.15, 'sawtooth'), 100);
+        }
+        
+        function playFightSound() {
+            playTone(440, 0.05, 0.08, 'square');
+        }
+        
         // ========== ПЕРЕМЕННЫЕ ДЛЯ СВЯЗИ С РОДИТЕЛЬСКИМ ОКНОМ ==========
         let gameResultCallback = null;
         let hasCast = false;
@@ -253,6 +320,11 @@
         window.getLastCaughtFish = function() {
             return lastCaughtFish;
         };
+        
+        // Инициализируем аудио при первом клике
+        document.body.addEventListener('click', () => {
+            initAudio();
+        }, { once: true });
         
         // ========== ОСТАЛЬНОЙ КОД ИГРЫ ==========
         const canvas = document.getElementById('gameCanvas');
@@ -406,6 +478,7 @@
         
         function lineBreak() {
             if(gameState !== STATE_FIGHTING) return;
+            playLineBreakSound(); // 🔊 Звук обрыва лески
             clearGameTimers();
             stopFightingLoop();
             gameState = STATE_IDLE;
@@ -425,6 +498,7 @@
             const caught = getRandomCatch();
             lastCaughtFish = caught;
             
+            playSuccessSound(); // 🔊 Звук победы
             clearGameTimers();
             stopFightingLoop();
             gameState = STATE_IDLE;
@@ -554,6 +628,7 @@
         
         function startFighting() {
             if(gameState !== STATE_BITE) return;
+            playHookSound(); // 🔊 Звук подсечки
             clearGameTimers();
             gameState = STATE_FIGHTING;
             hasHooked = true;
@@ -580,6 +655,7 @@
         
         function onBite() {
             if(gameState !== STATE_WAITING_BITE) return;
+            playBiteSound(); // 🔊 Звук поклёвки
             gameState = STATE_BITE;
             statusDiv.innerHTML = "🐟 КЛЮЁТ!!! БЫСТРО НАЖМИ ПРОБЕЛ!!! 🐟";
             statusDiv.classList.add("biting");
@@ -587,6 +663,7 @@
             
             biteWindowTimer = setTimeout(() => {
                 if(gameState === STATE_BITE) {
+                    playMissedSound(); // 🔊 Звук пропущенной поклёвки
                     statusDiv.innerHTML = "😞 Поздно! Рыба ушла. Закинь заново";
                     statusDiv.classList.remove("biting");
                     fullResetToIdle(true);
@@ -616,6 +693,8 @@
                 return;
             }
             if(caughtMessageActive) return;
+            
+            playCastSound(); // 🔊 Звук заброса удочки
             
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -655,6 +734,7 @@
                 else if(gameState === STATE_FIGHTING) {
                     if(!spacePressed) {
                         spacePressed = true;
+                        playFightSound(); // 🔊 Звук натяжения (при зажатии пробела)
                     }
                 }
             }
