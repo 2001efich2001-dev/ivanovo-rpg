@@ -95,6 +95,7 @@
             font-size: 1.1rem;
             backdrop-filter: blur(2px);
             box-shadow: inset 0 1px 3px #6b8c5c, 0 4px 8px black;
+            position: relative;
         }
 
         button {
@@ -116,10 +117,23 @@
             box-shadow: 0 1px 0 #6b3f1c;
         }
 
+        .button-group {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
         .close-game-btn {
             background: #c0392b;
-            margin-top: 12px;
             box-shadow: 0 4px 0 #6b1a0f;
+        }
+
+        .help-btn {
+            background: #2980b9;
+            box-shadow: 0 4px 0 #1a5276;
+            font-size: 1.2rem;
+            padding: 8px 16px;
         }
 
         @keyframes biteFlash {
@@ -150,6 +164,55 @@
             70% { opacity: 1; }
             100% { opacity: 0; visibility: hidden; }
         }
+        
+        /* Стили для тултипа подсказки */
+        .help-tooltip {
+            position: fixed;
+            background: #2c2c2c;
+            color: #ffecb3;
+            padding: 15px 20px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            max-width: 300px;
+            z-index: 10001;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 1px solid #d6a15a;
+            pointer-events: none;
+            font-family: inherit;
+            backdrop-filter: blur(4px);
+        }
+        
+        .help-tooltip h4 {
+            margin: 0 0 8px 0;
+            color: #d6a15a;
+            font-size: 1rem;
+        }
+        
+        .help-tooltip p {
+            margin: 5px 0;
+            line-height: 1.4;
+        }
+        
+        .help-tooltip .step {
+            margin-bottom: 8px;
+            border-bottom: 1px solid #4a4a4a;
+            padding-bottom: 5px;
+        }
+        
+        .help-tooltip .step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .help-tooltip kbd {
+            background: #1a1a1a;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: bold;
+            color: #f5a623;
+        }
     </style>
 </head>
 <body>
@@ -168,10 +231,13 @@
             </div>
             <div class="status-card" id="statusMsg">
                 🎣 Кликни по воде!
+                <button id="helpBtn" class="help-btn" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); padding: 4px 10px; font-size: 0.8rem;">❔</button>
             </div>
             <button id="resetBtn">🎯 НОВАЯ РЫБАЛКА</button>
         </div>
-        <button id="closeFishingBtn" class="close-game-btn">🚪 ЗАКОНЧИТЬ РЫБАЛКУ</button>
+        <div class="button-group">
+            <button id="closeFishingBtn" class="close-game-btn">🚪 ЗАКОНЧИТЬ РЫБАЛКУ</button>
+        </div>
     </div>
 </div>
 
@@ -188,24 +254,59 @@
             gameResultCallback = { onSuccess, onFail };
         };
         
-        // Функция для проверки энергии через родительское окно
-        window.checkEnergy = async function() {
-            try {
-                const parent = window.parent;
-                const gameState = parent.gameState;
-                if (gameState && gameState.energy) {
-                    return gameState.energy;
-                }
-                return 100;
-            } catch(e) {
-                return 100;
-            }
-        };
-        
         // Функция для получения названия пойманной рыбы
         window.getLastCaughtFish = function() {
             return lastCaughtFish;
         };
+        
+        // ========== ПОДСКАЗКА ==========
+        let helpTooltip = null;
+        
+        function showHelpTooltip(event) {
+            if (helpTooltip) {
+                helpTooltip.remove();
+                helpTooltip = null;
+            }
+            
+            helpTooltip = document.createElement('div');
+            helpTooltip.className = 'help-tooltip';
+            helpTooltip.innerHTML = `
+                <h4>🎣 ПРАВИЛА РЫБАЛКИ</h4>
+                <div class="step">
+                    <strong>1️⃣ Закинь удочку</strong><br>
+                    Кликни по воде левой кнопкой мыши
+                </div>
+                <div class="step">
+                    <strong>2️⃣ Жди поклёвку</strong><br>
+                    Время неизвестно — будь внимателен!
+                </div>
+                <div class="step">
+                    <strong>3️⃣ Подсекай!</strong><br>
+                    Когда клюнет — нажми <kbd>ПРОБЕЛ</kbd> мгновенно!
+                </div>
+                <div class="step">
+                    <strong>4️⃣ Вываживай рыбу</strong><br>
+                    ЗАЖИМАЙ <kbd>ПРОБЕЛ</kbd> — рыба идёт к берегу<br>
+                    ОТПУСКАЙ <kbd>ПРОБЕЛ</kbd> — рыба уплывает<br>
+                    Следи за натяжением лески — не порви!
+                </div>
+                <div class="step">
+                    <strong>5️⃣ Победа!</strong><br>
+                    Доведи рыбу до берега — и она твоя!
+                </div>
+            `;
+            helpTooltip.style.position = 'fixed';
+            helpTooltip.style.left = (event.clientX + 15) + 'px';
+            helpTooltip.style.top = (event.clientY + 15) + 'px';
+            document.body.appendChild(helpTooltip);
+        }
+        
+        function hideHelpTooltip() {
+            if (helpTooltip) {
+                helpTooltip.remove();
+                helpTooltip = null;
+            }
+        }
         
         // ========== ОСТАЛЬНОЙ КОД ИГРЫ ==========
         const canvas = document.getElementById('gameCanvas');
@@ -445,7 +546,6 @@
                     } else if (!isSuccess && gameResultCallback.onFail) {
                         gameResultCallback.onFail();
                     }
-                    // НЕ обнуляем gameResultCallback, чтобы можно было рыбачить дальше!
                 }
                 
                 fullResetToIdle(false);
@@ -554,14 +654,6 @@
             }, 3500);
         }
         
-        function showEnergyWarning() {
-            const warning = document.createElement('div');
-            warning.className = 'energy-warning';
-            warning.innerHTML = '⚠️ НЕ ХВАТАЕТ ЭНЕРГИИ! Восстановите энергию и попробуйте снова.';
-            document.body.appendChild(warning);
-            setTimeout(() => warning.remove(), 3000);
-        }
-        
         function castRod(clientX, clientY) {
             if (hasCast) {
                 statusDiv.innerHTML = "⚠️ Удочка уже закинута! Жди поклёвку!";
@@ -578,9 +670,6 @@
                 return;
             }
             if(caughtMessageActive) return;
-            
-            // НЕ проверяем энергию здесь — она проверяется при открытии игры в родительском окне
-            // Если энергии нет — игра даже не откроется
             
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
@@ -744,11 +833,32 @@
             drawCanvas();
         });
         
-        document.getElementById('closeFishingBtn').addEventListener('click', () => {
-            // Отправляем событие закрытия в родительское окно
-            const closeEvent = new CustomEvent('closeFishingGame');
-            window.dispatchEvent(closeEvent);
-        });
+        // ===== ИСПРАВЛЕННАЯ КНОПКА "ЗАКОНЧИТЬ РЫБАЛКУ" =====
+        const closeBtn = document.getElementById('closeFishingBtn');
+        if (closeBtn) {
+            // Убираем старые обработчики
+            const newCloseBtn = closeBtn.cloneNode(true);
+            closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+            
+            newCloseBtn.addEventListener('click', () => {
+                // Отправляем событие закрытия в родительское окно
+                const closeEvent = new CustomEvent('closeFishingGame');
+                window.dispatchEvent(closeEvent);
+            });
+        }
+        
+        // ===== КНОПКА ПОДСКАЗКИ =====
+        const helpBtn = document.getElementById('helpBtn');
+        if (helpBtn) {
+            helpBtn.addEventListener('mouseenter', showHelpTooltip);
+            helpBtn.addEventListener('mouseleave', hideHelpTooltip);
+            helpBtn.addEventListener('mousemove', (e) => {
+                if (helpTooltip) {
+                    helpTooltip.style.left = (e.clientX + 15) + 'px';
+                    helpTooltip.style.top = (e.clientY + 15) + 'px';
+                }
+            });
+        }
         
         fullResetToIdle(false);
         drawCanvas();
