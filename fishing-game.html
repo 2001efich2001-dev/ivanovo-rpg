@@ -96,7 +96,6 @@
             font-size: 1.1rem;
             backdrop-filter: blur(2px);
             box-shadow: inset 0 1px 3px #6b8c5c, 0 4px 8px black;
-            position: relative;
         }
 
         button {
@@ -122,6 +121,7 @@
             display: flex;
             gap: 12px;
             justify-content: center;
+            align-items: center;
             margin-top: 12px;
         }
 
@@ -131,21 +131,19 @@
         }
 
         .help-btn {
-            background: #2980b9;
-            box-shadow: 0 4px 0 #1a5276;
+            background: #f39c12;
+            box-shadow: 0 4px 0 #c87f0a;
             font-size: 1.2rem;
-            padding: 4px 10px;
-            border-radius: 30px;
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            z-index: 10;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 50px;
+            min-width: 45px;
+            text-align: center;
+            color: #2c2b26;
         }
 
         .help-btn:hover {
-            background: #1a6b9a;
+            background: #e67e22;
         }
 
         @keyframes biteFlash {
@@ -157,26 +155,6 @@
             animation: biteFlash 0.3s ease-in-out 3;
         }
         
-        .energy-warning {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #e74c3c;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: bold;
-            z-index: 10000;
-            animation: fadeOut 3s ease forwards;
-        }
-        
-        @keyframes fadeOut {
-            0% { opacity: 1; }
-            70% { opacity: 1; }
-            100% { opacity: 0; visibility: hidden; }
-        }
-        
         .help-tooltip {
             position: fixed;
             background: #2c2c2c;
@@ -184,10 +162,10 @@
             padding: 15px 20px;
             border-radius: 16px;
             font-size: 0.9rem;
-            max-width: 300px;
+            max-width: 320px;
             z-index: 10001;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            border: 1px solid #d6a15a;
+            border: 1px solid #f39c12;
             pointer-events: none;
             font-family: inherit;
             backdrop-filter: blur(4px);
@@ -195,13 +173,8 @@
         
         .help-tooltip h4 {
             margin: 0 0 8px 0;
-            color: #d6a15a;
+            color: #f39c12;
             font-size: 1rem;
-        }
-        
-        .help-tooltip p {
-            margin: 5px 0;
-            line-height: 1.4;
         }
         
         .help-tooltip .step {
@@ -222,7 +195,7 @@
             border-radius: 6px;
             font-family: monospace;
             font-weight: bold;
-            color: #f5a623;
+            color: #f39c12;
         }
     </style>
 </head>
@@ -242,12 +215,12 @@
             </div>
             <div class="status-card" id="statusMsg">
                 🎣 Кликни по воде!
-                <button id="helpBtn" class="help-btn">❔</button>
             </div>
             <button id="resetBtn">🎯 НОВАЯ РЫБАЛКА</button>
         </div>
         <div class="button-group">
             <button id="closeFishingBtn" class="close-game-btn">🚪 ЗАКОНЧИТЬ РЫБАЛКУ</button>
+            <button id="helpBtn" class="help-btn" title="Правила рыбалки">❔</button>
         </div>
     </div>
 </div>
@@ -425,7 +398,7 @@
             if(strength > 1.2) tensionDecay *= 0.7;
             let escapeSpeed = 0.003 + (strength * 0.004);
             escapeSpeed = Math.min(0.015, escapeSpeed);
-            let pullSpeed = 0.008 + ((2.2 - strength) * 0.008); // ← УВЕЛИЧЕНА скорость приближения
+            let pullSpeed = 0.008 + ((2.2 - strength) * 0.008);
             pullSpeed = Math.min(0.028, Math.max(0.008, pullSpeed));
             
             return {
@@ -845,24 +818,18 @@
         // ===== КНОПКА "ЗАКОНЧИТЬ РЫБАЛКУ" =====
         const closeBtn = document.getElementById('closeFishingBtn');
         if (closeBtn) {
-            // Убираем старые обработчики
             const newCloseBtn = closeBtn.cloneNode(true);
             closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
             
             newCloseBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Кнопка ЗАКОНЧИТЬ РЫБАЛКУ нажата');
-                // Отправляем событие закрытия в родительское окно
                 window.parent.postMessage('closeFishingGame', '*');
-                // Также отправляем через CustomEvent
                 const closeEvent = new CustomEvent('closeFishingGame');
                 window.dispatchEvent(closeEvent);
             });
-        } else {
-            console.error('Кнопка closeFishingBtn не найдена!');
         }
         
-        // ===== КНОПКА ПОДСКАЗКИ =====
+        // ===== КНОПКА ПОДСКАЗКИ (ЖЁЛТЫЙ КРУЖОК) =====
         const helpBtn = document.getElementById('helpBtn');
         if (helpBtn) {
             helpBtn.addEventListener('mouseenter', showHelpTooltip);
@@ -873,8 +840,6 @@
                     helpTooltip.style.top = (e.clientY + 15) + 'px';
                 }
             });
-        } else {
-            console.error('Кнопка helpBtn не найдена!');
         }
         
         fullResetToIdle(false);
