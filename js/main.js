@@ -1125,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
- if (shopBtn) {
+if (shopBtn) {
     shopBtn.addEventListener('click', async () => {
         playClick();
         const shop = await import('./shop.js');
@@ -1172,11 +1172,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     shop.renderShopSellTab();
                 }
             }
-            // Обновляем отображение денег
+            // Обновляем отображение денег (без await)
             const moneySpan = document.getElementById('shopMoneyValue');
             if (moneySpan) {
-                const gameState = await import('./gameState.js');
-                moneySpan.textContent = Math.floor(gameState.money);
+                import('./gameState.js').then(gameState => {
+                    moneySpan.textContent = Math.floor(gameState.money);
+                });
             }
         }, 50);
     });
