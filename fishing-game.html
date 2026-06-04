@@ -130,20 +130,53 @@
             box-shadow: 0 4px 0 #6b1a0f;
         }
 
-        .help-btn {
-            background: #f39c12;
-            box-shadow: 0 4px 0 #c87f0a;
-            font-size: 1.2rem;
-            font-weight: bold;
-            padding: 8px 16px;
-            border-radius: 50px;
-            min-width: 45px;
-            text-align: center;
-            color: #2c2b26;
+        /* ===== НОВАЯ ПАНЕЛЬ С ПРАВИЛАМИ ===== */
+        .rules-panel {
+            margin-top: 15px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 20px;
+            padding: 10px 15px;
+            backdrop-filter: blur(4px);
+            font-size: 0.7rem;
+            color: #ffecb3;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            border: 1px solid #d6a15a;
         }
-
-        .help-btn:hover {
-            background: #e67e22;
+        
+        .rule-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .rule-icon {
+            background: #f39c12;
+            color: #2c2b26;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: bold;
+        }
+        
+        .rule-text {
+            font-size: 0.7rem;
+        }
+        
+        .rule-text kbd {
+            background: #1a1a1a;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-weight: bold;
+            color: #f39c12;
+            font-size: 0.65rem;
         }
 
         @keyframes biteFlash {
@@ -153,49 +186,6 @@
 
         .biting {
             animation: biteFlash 0.3s ease-in-out 3;
-        }
-        
-        .help-tooltip {
-            position: fixed;
-            background: #2c2c2c;
-            color: #ffecb3;
-            padding: 15px 20px;
-            border-radius: 16px;
-            font-size: 0.9rem;
-            max-width: 320px;
-            z-index: 10001;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            border: 1px solid #f39c12;
-            pointer-events: none;
-            font-family: inherit;
-            backdrop-filter: blur(4px);
-        }
-        
-        .help-tooltip h4 {
-            margin: 0 0 8px 0;
-            color: #f39c12;
-            font-size: 1rem;
-        }
-        
-        .help-tooltip .step {
-            margin-bottom: 8px;
-            border-bottom: 1px solid #4a4a4a;
-            padding-bottom: 5px;
-        }
-        
-        .help-tooltip .step:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        
-        .help-tooltip kbd {
-            background: #1a1a1a;
-            padding: 2px 6px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-weight: bold;
-            color: #f39c12;
         }
     </style>
 </head>
@@ -220,7 +210,30 @@
         </div>
         <div class="button-group">
             <button id="closeFishingBtn" class="close-game-btn">🚪 ЗАКОНЧИТЬ РЫБАЛКУ</button>
-            <button id="helpBtn" class="help-btn" title="Правила рыбалки">❔</button>
+        </div>
+        
+        <!-- ===== ПАНЕЛЬ С ПОДСКАЗКАМИ ===== -->
+        <div class="rules-panel">
+            <div class="rule-item">
+                <span class="rule-icon">1</span>
+                <span class="rule-text">Кликни по воде</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-icon">2</span>
+                <span class="rule-text">Жди поклёвку</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-icon">3</span>
+                <span class="rule-text">Нажми <kbd>ПРОБЕЛ</kbd> на поклёвке</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-icon">4</span>
+                <span class="rule-text">Зажимай/отпускай <kbd>ПРОБЕЛ</kbd> → тяни рыбу</span>
+            </div>
+            <div class="rule-item">
+                <span class="rule-icon">5</span>
+                <span class="rule-text">Не порви леску!</span>
+            </div>
         </div>
     </div>
 </div>
@@ -240,55 +253,6 @@
         window.getLastCaughtFish = function() {
             return lastCaughtFish;
         };
-        
-        // ========== ПОДСКАЗКА ==========
-        let helpTooltip = null;
-        
-        function showHelpTooltip(event) {
-            if (helpTooltip) {
-                helpTooltip.remove();
-                helpTooltip = null;
-            }
-            
-            helpTooltip = document.createElement('div');
-            helpTooltip.className = 'help-tooltip';
-            helpTooltip.innerHTML = `
-                <h4>🎣 ПРАВИЛА РЫБАЛКИ</h4>
-                <div class="step">
-                    <strong>1️⃣ Закинь удочку</strong><br>
-                    Кликни по воде левой кнопкой мыши
-                </div>
-                <div class="step">
-                    <strong>2️⃣ Жди поклёвку</strong><br>
-                    Время неизвестно — будь внимателен!
-                </div>
-                <div class="step">
-                    <strong>3️⃣ Подсекай!</strong><br>
-                    Когда клюнет — нажми <kbd>ПРОБЕЛ</kbd> мгновенно!
-                </div>
-                <div class="step">
-                    <strong>4️⃣ Вываживай рыбу</strong><br>
-                    ЗАЖИМАЙ <kbd>ПРОБЕЛ</kbd> — рыба идёт к берегу<br>
-                    ОТПУСКАЙ <kbd>ПРОБЕЛ</kbd> — рыба уплывает<br>
-                    Следи за натяжением лески — не порви!
-                </div>
-                <div class="step">
-                    <strong>5️⃣ Победа!</strong><br>
-                    Доведи рыбу до берега — и она твоя!
-                </div>
-            `;
-            helpTooltip.style.position = 'fixed';
-            helpTooltip.style.left = (event.clientX + 15) + 'px';
-            helpTooltip.style.top = (event.clientY + 15) + 'px';
-            document.body.appendChild(helpTooltip);
-        }
-        
-        function hideHelpTooltip() {
-            if (helpTooltip) {
-                helpTooltip.remove();
-                helpTooltip = null;
-            }
-        }
         
         // ========== ОСТАЛЬНОЙ КОД ИГРЫ ==========
         const canvas = document.getElementById('gameCanvas');
@@ -826,19 +790,6 @@
                 window.parent.postMessage('closeFishingGame', '*');
                 const closeEvent = new CustomEvent('closeFishingGame');
                 window.dispatchEvent(closeEvent);
-            });
-        }
-        
-        // ===== КНОПКА ПОДСКАЗКИ (ЖЁЛТЫЙ КРУЖОК) =====
-        const helpBtn = document.getElementById('helpBtn');
-        if (helpBtn) {
-            helpBtn.addEventListener('mouseenter', showHelpTooltip);
-            helpBtn.addEventListener('mouseleave', hideHelpTooltip);
-            helpBtn.addEventListener('mousemove', (e) => {
-                if (helpTooltip) {
-                    helpTooltip.style.left = (e.clientX + 15) + 'px';
-                    helpTooltip.style.top = (e.clientY + 15) + 'px';
-                }
             });
         }
         
