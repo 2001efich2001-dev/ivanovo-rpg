@@ -27,6 +27,7 @@
             padding: 20px;
             backdrop-filter: blur(2px);
             box-shadow: 0 20px 35px rgba(0,0,0,0.5);
+            position: relative;
         }
 
         canvas {
@@ -133,7 +134,18 @@
             background: #2980b9;
             box-shadow: 0 4px 0 #1a5276;
             font-size: 1.2rem;
-            padding: 8px 16px;
+            padding: 4px 10px;
+            border-radius: 30px;
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .help-btn:hover {
+            background: #1a6b9a;
         }
 
         @keyframes biteFlash {
@@ -165,7 +177,6 @@
             100% { opacity: 0; visibility: hidden; }
         }
         
-        /* Стили для тултипа подсказки */
         .help-tooltip {
             position: fixed;
             background: #2c2c2c;
@@ -231,7 +242,7 @@
             </div>
             <div class="status-card" id="statusMsg">
                 🎣 Кликни по воде!
-                <button id="helpBtn" class="help-btn" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); padding: 4px 10px; font-size: 0.8rem;">❔</button>
+                <button id="helpBtn" class="help-btn">❔</button>
             </div>
             <button id="resetBtn">🎯 НОВАЯ РЫБАЛКА</button>
         </div>
@@ -249,12 +260,10 @@
         let isGameActive = true;
         let lastCaughtFish = null;
         
-        // Функция для установки колбэка из внешнего мира
         window.setFishingCallbacks = function(onSuccess, onFail) {
             gameResultCallback = { onSuccess, onFail };
         };
         
-        // Функция для получения названия пойманной рыбы
         window.getLastCaughtFish = function() {
             return lastCaughtFish;
         };
@@ -416,8 +425,8 @@
             if(strength > 1.2) tensionDecay *= 0.7;
             let escapeSpeed = 0.003 + (strength * 0.004);
             escapeSpeed = Math.min(0.015, escapeSpeed);
-            let pullSpeed = 0.006 + ((2.2 - strength) * 0.006);
-            pullSpeed = Math.min(0.022, Math.max(0.005, pullSpeed));
+            let pullSpeed = 0.008 + ((2.2 - strength) * 0.008); // ← УВЕЛИЧЕНА скорость приближения
+            pullSpeed = Math.min(0.028, Math.max(0.008, pullSpeed));
             
             return {
                 tensionGainSpeed: tensionGain,
@@ -833,18 +842,24 @@
             drawCanvas();
         });
         
-        // ===== ИСПРАВЛЕННАЯ КНОПКА "ЗАКОНЧИТЬ РЫБАЛКУ" =====
+        // ===== КНОПКА "ЗАКОНЧИТЬ РЫБАЛКУ" =====
         const closeBtn = document.getElementById('closeFishingBtn');
         if (closeBtn) {
             // Убираем старые обработчики
             const newCloseBtn = closeBtn.cloneNode(true);
             closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
             
-            newCloseBtn.addEventListener('click', () => {
+            newCloseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Кнопка ЗАКОНЧИТЬ РЫБАЛКУ нажата');
                 // Отправляем событие закрытия в родительское окно
+                window.parent.postMessage('closeFishingGame', '*');
+                // Также отправляем через CustomEvent
                 const closeEvent = new CustomEvent('closeFishingGame');
                 window.dispatchEvent(closeEvent);
             });
+        } else {
+            console.error('Кнопка closeFishingBtn не найдена!');
         }
         
         // ===== КНОПКА ПОДСКАЗКИ =====
@@ -858,6 +873,8 @@
                     helpTooltip.style.top = (e.clientY + 15) + 'px';
                 }
             });
+        } else {
+            console.error('Кнопка helpBtn не найдена!');
         }
         
         fullResetToIdle(false);
