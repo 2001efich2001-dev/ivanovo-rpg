@@ -1125,39 +1125,62 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    if (shopBtn) {
-        shopBtn.addEventListener('click', async () => {
-            playClick();
-            const shop = await import('./shop.js');
-            shop.renderShopBuyTab();
-            shop.renderShopSellTab();
-            const modal = document.getElementById('shopModal');
-            const tabs = modal.querySelectorAll('.tab-btn');
-            const buyTab = document.getElementById('shopBuyTab');
-            const sellTab = document.getElementById('shopSellTab');
-            const switchShopTab = (tab) => {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                if (tab.dataset.shopTab === 'buy') {
+ if (shopBtn) {
+    shopBtn.addEventListener('click', async () => {
+        playClick();
+        const shop = await import('./shop.js');
+        shop.renderShopBuyTab();
+        shop.renderShopSellTab();
+        const modal = document.getElementById('shopModal');
+        const tabs = modal.querySelectorAll('.tab-btn');
+        const buyTab = document.getElementById('shopBuyTab');
+        const sellTab = document.getElementById('shopSellTab');
+        const switchShopTab = (tab) => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            if (tab.dataset.shopTab === 'buy') {
+                buyTab.style.display = 'flex';
+                sellTab.style.display = 'none';
+                shop.renderShopBuyTab();
+            } else {
+                buyTab.style.display = 'none';
+                sellTab.style.display = 'flex';
+                shop.renderShopSellTab();
+            }
+        };
+        const newTabs = modal.querySelectorAll('.tab-btn');
+        newTabs.forEach(tab => {
+            tab.removeEventListener('click', tab._shopListener);
+            const handler = () => switchShopTab(tab);
+            tab.addEventListener('click', handler);
+            tab._shopListener = handler;
+        });
+        modal.style.display = 'flex';
+        
+        // ===== КОСТЫЛЬ: принудительный перерендер активной вкладки =====
+        setTimeout(() => {
+            const activeTab = modal.querySelector('.tab-btn.active');
+            if (activeTab) {
+                // Принудительно вызываем переключение на ту же вкладку
+                if (activeTab.dataset.shopTab === 'buy') {
                     buyTab.style.display = 'flex';
                     sellTab.style.display = 'none';
                     shop.renderShopBuyTab();
-                } else {
+                } else if (activeTab.dataset.shopTab === 'sell') {
                     buyTab.style.display = 'none';
                     sellTab.style.display = 'flex';
                     shop.renderShopSellTab();
                 }
-            };
-            const newTabs = modal.querySelectorAll('.tab-btn');
-            newTabs.forEach(tab => {
-                tab.removeEventListener('click', tab._shopListener);
-                const handler = () => switchShopTab(tab);
-                tab.addEventListener('click', handler);
-                tab._shopListener = handler;
-            });
-            modal.style.display = 'flex';
-        });
-    }
+            }
+            // Обновляем отображение денег
+            const moneySpan = document.getElementById('shopMoneyValue');
+            if (moneySpan) {
+                const gameState = await import('./gameState.js');
+                moneySpan.textContent = Math.floor(gameState.money);
+            }
+        }, 50);
+    });
+}
     
     // ===== КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
     if (realEstateMarketBtn) {
