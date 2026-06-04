@@ -8,10 +8,171 @@ let fishingModal = null;
 let fishingIframe = null;
 let isFishingOpen = false;
 
-// ========== ДОБАВЛЯЕМ РЫБУ И МУСОР В БАЗУ ПРЕДМЕТОВ ==========
+// ========== ДОБАВЛЯЕМ РЫБУ, МУСОР И УДОЧКУ В БАЗУ ПРЕДМЕТОВ ==========
 export function initFishingItems() {
-    // ... (весь существующий код добавления предметов)
-    // Рыба, мусор, удочка — всё остаётся без изменений
+    // Удочка (если ещё не добавлена)
+    if (!itemsDB.fishing_rod) {
+        itemsDB.fishing_rod = {
+            id: "fishing_rod",
+            name: "Удочка",
+            type: "tool",
+            icon: "🎣",
+            image: "images/items/fishing_rod.png",
+            effect: {},
+            price: 200,
+            slot: null,
+            description: "Для рыбалки на реке Уводь"
+        };
+    }
+    
+    // Рыба
+    if (!itemsDB.fish_small) {
+        itemsDB.fish_small = {
+            id: "fish_small",
+            name: "Мелкая рыбёшка",
+            type: "food",
+            icon: "🐟",
+            image: "images/items/fish_small.png",
+            effect: { hunger: 10, health: 0, cold: 0, intoxication: 0 },
+            price: 15,
+            slot: null,
+            description: "Восстанавливает 10 голода"
+        };
+    }
+    if (!itemsDB.fish_medium) {
+        itemsDB.fish_medium = {
+            id: "fish_medium",
+            name: "Средняя рыба",
+            type: "food",
+            icon: "🐠",
+            image: "images/items/fish_medium.png",
+            effect: { hunger: 20, health: 0, cold: 0, intoxication: 0 },
+            price: 30,
+            slot: null,
+            description: "Восстанавливает 20 голода"
+        };
+    }
+    if (!itemsDB.fish_big) {
+        itemsDB.fish_big = {
+            id: "fish_big",
+            name: "Крупная рыба",
+            type: "food",
+            icon: "🐡",
+            image: "images/items/fish_big.png",
+            effect: { hunger: 35, health: 0, cold: 0, intoxication: 0 },
+            price: 50,
+            slot: null,
+            description: "Восстанавливает 35 голода"
+        };
+    }
+    if (!itemsDB.fish_carp) {
+        itemsDB.fish_carp = {
+            id: "fish_carp",
+            name: "Сазан",
+            type: "food",
+            icon: "🎏",
+            image: "images/items/fish_carp.png",
+            effect: { hunger: 50, health: 5, cold: 0, intoxication: 0 },
+            price: 100,
+            slot: null,
+            description: "Восстанавливает 50 голода, +5 здоровья"
+        };
+    }
+    if (!itemsDB.fish_pike) {
+        itemsDB.fish_pike = {
+            id: "fish_pike",
+            name: "Щука",
+            type: "food",
+            icon: "🐊",
+            image: "images/items/fish_pike.png",
+            effect: { hunger: 60, health: 10, cold: 0, intoxication: 0 },
+            price: 150,
+            slot: null,
+            description: "Восстанавливает 60 голода, +10 здоровья"
+        };
+    }
+    if (!itemsDB.fish_sword) {
+        itemsDB.fish_sword = {
+            id: "fish_sword",
+            name: "Рыба-меч",
+            type: "food",
+            icon: "🗡️🐟",
+            image: "images/items/fish_sword.png",
+            effect: { hunger: 100, health: 30, cold: 0, intoxication: 0 },
+            price: 500,
+            slot: null,
+            description: "Восстанавливает 100 голода, +30 здоровья! Легендарная рыба!"
+        };
+    }
+    
+    // Мусор
+    if (!itemsDB.old_boot) {
+        itemsDB.old_boot = {
+            id: "old_boot",
+            name: "Старый ботинок",
+            type: "junk",
+            icon: "👢",
+            image: "images/items/old_boot.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
+    if (!itemsDB.rusty_can) {
+        itemsDB.rusty_can = {
+            id: "rusty_can",
+            name: "Ржавая банка",
+            type: "junk",
+            icon: "🥫",
+            image: "images/items/rusty_can.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
+    if (!itemsDB.torn_net) {
+        itemsDB.torn_net = {
+            id: "torn_net",
+            name: "Рваная сеть",
+            type: "junk",
+            icon: "🕸️",
+            image: "images/items/torn_net.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
+    if (!itemsDB.plastic_bottle) {
+        itemsDB.plastic_bottle = {
+            id: "plastic_bottle",
+            name: "Пластиковая бутылка",
+            type: "junk",
+            icon: "🍾",
+            image: "images/items/plastic_bottle.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Можно сдать на переработку? Нет, это просто мусор"
+        };
+    }
+    if (!itemsDB.dirty_rag) {
+        itemsDB.dirty_rag = {
+            id: "dirty_rag",
+            name: "Грязная тряпка",
+            type: "junk",
+            icon: "🧽",
+            image: "images/items/dirty_rag.png",
+            effect: {},
+            price: 0,
+            slot: null,
+            description: "Просто мусор... Можно выбросить"
+        };
+    }
+    
+    console.log('🎣 Инициализированы предметы для рыбалки');
 }
 
 // ========== НАГРАДЫ ЗА РЫБАЛКУ (С МУСОРОМ) ==========
@@ -180,21 +341,15 @@ export async function openFishingGame() {
             iframeWindow.setFishingCallbacks(
                 (caught) => {
                     giveReward(true, caught);
-                    // НЕ ЗАКРЫВАЕМ ОКНО! Игрок может продолжать рыбачить
                 },
                 () => {
                     giveReward(false);
-                    // НЕ ЗАКРЫВАЕМ ОКНО! Игрок может продолжать рыбачить
                 }
             );
         }
     };
     
     // Слушаем событие закрытия из iframe (кнопка или ESC)
-    const handleClose = () => {
-        closeFishingGame();
-    };
-    
     window.addEventListener('message', function onMessage(event) {
         if (event.data === 'closeFishingGame') {
             closeFishingGame();
@@ -223,4 +378,5 @@ function closeFishingGame() {
     isFishingOpen = false;
 }
 
+// Инициализируем предметы при загрузке
 initFishingItems();
