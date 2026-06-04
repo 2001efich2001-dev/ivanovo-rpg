@@ -1347,3 +1347,29 @@ body {
 #shopModal .modal-content > div:first-of-type::-webkit-scrollbar-thumb:hover {
     background: #e67e22;
 }
+
+/* ФИКС: правильный рендер магазина при открытии */
+#shopModal {
+    contain: strict;
+}
+
+#shopModal .modal-content {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+#shopBuyTab, #shopSellTab {
+    display: grid !important;
+    grid-template-columns: repeat(5, 1fr) !important;
+}
+
+/* Убираем лишние анимации, которые могут мешать */
+#shopBuyTab .inventory-slot,
+#shopSellTab .inventory-slot {
+    transition: none;
+}
+
+#shopBuyTab .inventory-slot:hover,
+#shopSellTab .inventory-slot:hover {
+    transition: transform 0.05s ease;
+}
