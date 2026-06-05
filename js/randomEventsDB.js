@@ -126,17 +126,17 @@ export const eventsDB = {
     },
 
     // ===== ТИП В: Погодное событие (с временным эффектом) =====
-    blizzard: {
-        id: "blizzard",
-        name: "Сильная метель",
-        description: "Наблюдается сильная буря. Вы замерзаете быстрее!",
-        image: "images/events/blizzard.jpg",
-        type: "weather",
-        trigger: "weather",
-        weatherCondition: "snow",
-        chance: 0.15,
-        duration: 60000,            // 60 секунд реального времени
-        effect: { coldMultiplier: 2.0 },  // ускорение падения тепла в 2 раза
-        effectMessage: "Буря утихла. Теперь вы замерзаете нормально."
-    }
+  blizzard: {
+    id: "blizzard",
+    name: "❄️ СИЛЬНАЯ МЕТЕЛЬ ❄️",
+    description: "На город обрушилась мощная метель! Снег и ветер пронизывают до костей. Вы замерзаете в 2 раза быстрее!",
+    image: "images/events/blizzard.jpg",
+    type: "weather",
+    trigger: "weather",
+    weatherCondition: "snow",
+    chance: 0.35,  // ← Увеличиваем с 0.15 до 0.35 (35%)
+    duration: 90000,  // ← Увеличиваем с 60 до 90 секунд
+    effect: { coldMultiplier: 2.5 },  // ← Увеличиваем множитель для заметности
+    effectMessage: "❄️ Метель утихла. Вы снова можете дышать."
+}
 };
