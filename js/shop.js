@@ -18,6 +18,18 @@ function updateShopMoneyDisplay() {
     }
 }
 
+// ===== НОВАЯ ФУНКЦИЯ: принудительный перерендер сетки =====
+function forceRepaintGrid(container) {
+    if (!container) return;
+    // Сохраняем текущий display
+    const originalDisplay = container.style.display;
+    // Меняем display для принудительного пересчёта
+    container.style.display = 'none';
+    container.offsetHeight; // триггерим reflow
+    container.style.display = originalDisplay || 'grid';
+    container.offsetHeight; // ещё один reflow для надёжности
+}
+
 // Показать тултип
 let activeTooltip = null;
 
@@ -122,6 +134,11 @@ export function renderShopBuyTab() {
             }
         });
     });
+    
+    // ===== ПРИНУДИТЕЛЬНЫЙ ПЕРЕРЕНДЕР ПОСЛЕ РЕНДЕРА =====
+    setTimeout(() => {
+        forceRepaintGrid(container);
+    }, 10);
 }
 
 // Рендер вкладки "Продать"
@@ -204,6 +221,11 @@ export function renderShopSellTab() {
             }
         });
     });
+    
+    // ===== ПРИНУДИТЕЛЬНЫЙ ПЕРЕРЕНДЕР ПОСЛЕ РЕНДЕРА =====
+    setTimeout(() => {
+        forceRepaintGrid(container);
+    }, 10);
 }
 
 // Покупка предмета

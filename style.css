@@ -1231,3 +1231,119 @@ body {
         min-width: 160px;
     }
 }
+
+/* ===== МОДАЛЬНОЕ ОКНО НЕДВИЖИМОСТИ ===== */
+.housing-modal-content {
+    max-width: 600px !important;
+    width: 90% !important;
+}
+
+.housing-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 8px;
+}
+
+.housing-item {
+    background: var(--stat-bg);
+    border-radius: 24px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-left: 4px solid var(--accent-gold);
+}
+
+.housing-item-info {
+    flex: 2;
+}
+
+.housing-item-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: var(--accent-gold);
+}
+
+.housing-item-price {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.housing-item-owner {
+    font-size: 0.8rem;
+    color: #2ecc71;
+}
+
+.housing-item-status {
+    font-size: 0.8rem;
+    color: #e74c3c;
+}
+
+.housing-buy-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 8px 20px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.05s linear;
+}
+
+.housing-buy-btn:active {
+    transform: translateY(2px);
+}
+
+.housing-buy-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.housing-close-btn {
+    background: var(--reset-bg);
+    color: var(--reset-text);
+}
+/* Кнопки в карте */
+#homeBtn {
+    background: var(--accent-gold);
+    color: #1e2a32;
+}
+
+#closeMapModal {
+    background: var(--reset-bg);
+    color: var(--reset-text);
+}
+
+/* ===== ПРОКРУТКА МАГАЗИНА (ДОПОЛНИТЕЛЬНЫЕ СТИЛИ) ===== */
+#shopBuyTab,
+#shopSellTab {
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+
+/* Стили скроллбара внутри контейнера магазина */
+#shopModal .modal-content > div:first-of-type {
+    scrollbar-width: thin;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar {
+    width: 6px;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar-track {
+    background: var(--stat-bg);
+    border-radius: 4px;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar-thumb {
+    background: var(--accent-gold);
+    border-radius: 4px;
+}
+
+#shopModal .modal-content > div:first-of-type::-webkit-scrollbar-thumb:hover {
+    background: #e67e22;
+}

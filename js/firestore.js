@@ -1,5 +1,6 @@
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, updateDoc, deleteDoc, query, where, getDocs, runTransaction, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { showMessage } from './utils.js';
+import { shouldBlockRealtime, activateTradeGuard, deactivateTradeGuard, isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
 
 let db = null;
 let unsubscribeUserListener = null;
@@ -8,7 +9,13 @@ export function initFirestore(auth) {
     db = getFirestore(auth.app);
 }
 
-export async function saveGameData() {    
+export async function saveGameData() {  
+    // Блокируем автосохранение во время обмена (через флаг ИЛИ guard)
+    if (window._preventAutoSave || isTradeGuardActive()) {
+        console.log('💾 saveGameData: пропускаем сохранение (идет обмен или защита активна)');
+        return;
+    }
+    
     const user = window.auth?.currentUser;
     if (!user || !db) return;
     
@@ -29,11 +36,9 @@ export async function saveGameData() {
     const lastEnergyUpdateVal = gameState.lastEnergyUpdate ?? Date.now();
     const lastIntoxicationUpdateVal = gameState.lastIntoxicationUpdate ?? Date.now();
     
-    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ ЕЖЕДНЕВНОГО БОНУСА =====
     const dailyBonusLastClaimVal = gameState.dailyBonusLastClaim ?? null;
     const dailyBonusStreakVal = gameState.dailyBonusStreak ?? 0;
     
-    // ===== ДОБАВЛЯЕМ ПОЛЯ ДЛЯ АЧИВОК =====
     let achievementsData = null;
     try {
         const { getAchievementsData } = await import('./achievements.js');
@@ -41,6 +46,19 @@ export async function saveGameData() {
     } catch (err) {
         console.warn('Модуль ачивок не загружен');
     }
+    
+    const housingData = {
+        current: gameState.currentHome ?? null,
+        owned: gameState.ownedHomes ?? [],
+        storage: gameState.homeStorage ?? [],
+        storageCapacity: gameState.homeStorageCapacity ?? 0,
+        debt: gameState.housingDebt ?? 0,
+        lastTaxPaid: gameState.lastTaxPaid ?? null,
+        account: gameState.housingAccount ?? 20000,
+        dailyCost: gameState.housingDailyCost ?? 0,
+        lastHousingCheck: gameState.lastHousingCheck ?? null,
+        lastGlobalHousingCheck: gameState.lastGlobalHousingCheck ?? null
+    };
     
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
@@ -62,12 +80,12 @@ export async function saveGameData() {
         lastEnergyUpdate: lastEnergyUpdateVal,
         lastIntoxicationUpdate: lastIntoxicationUpdateVal,
         lastUpdated: new Date().toISOString(),
-        // ===== НОВЫЕ ПОЛЯ =====
         dailyBonusLastClaim: dailyBonusLastClaimVal,
         dailyBonusStreak: dailyBonusStreakVal,
-        achievements: achievementsData
+        achievements: achievementsData,
+        housing: housingData
     }, { merge: true });
-    console.log("Данные сохранены", { achievements: achievementsData });
+    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData });
 }
 
 export async function loadGameData(userId) {
@@ -93,11 +111,9 @@ export async function loadGameData(userId) {
         }
         await setCurrentLocation(data.currentLocation || 'church');
         
-        // ===== ЗАГРУЖАЕМ ДАННЫЕ ЕЖЕДНЕВНОГО БОНУСА =====
         const { setDailyBonusData } = await import('./dailyBonus.js');
         setDailyBonusData(data.dailyBonusLastClaim ?? null, data.dailyBonusStreak ?? 0);
         
-        // ===== ЗАГРУЖАЕМ ДАННЫЕ АЧИВОК =====
         if (data.achievements) {
             try {
                 const { setAchievementsData } = await import('./achievements.js');
@@ -106,6 +122,15 @@ export async function loadGameData(userId) {
             } catch (err) {
                 console.warn('Модуль ачивок не загружен');
             }
+        }
+        
+        if (data.housing) {
+            const { setHousingData } = await import('./gameState.js');
+            setHousingData(data.housing);
+            console.log('🏠 Загружены данные жилья:', data.housing);
+        } else {
+            const { initHousingData } = await import('./gameState.js');
+            initHousingData();
         }
         
         updateUI();
@@ -135,9 +160,11 @@ export async function loadGameData(userId) {
         gameState.lastIntoxicationUpdate = Date.now();
         await gameState.setCurrentLocation('church');
         
-        // ===== ИНИЦИАЛИЗИРУЕМ ДАННЫЕ БОНУСА ДЛЯ НОВОГО АККАУНТА =====
         const { setDailyBonusData } = await import('./dailyBonus.js');
         setDailyBonusData(null, 0);
+        
+        const { initHousingData } = await import('./gameState.js');
+        initHousingData();
         
         gameState.updateUI();
         
@@ -146,7 +173,7 @@ export async function loadGameData(userId) {
     }
 }
 
-// ========== REAL-TIME ПОДПИСКА ==========
+// ========== REAL-TIME ПОДПИСКА С ЗАЩИТОЙ ОТ ОБМЕНА ==========
 export function subscribeToUserChanges(userId, onDataChanged) {
     if (!db) {
         console.error('Firestore не инициализирован');
@@ -159,10 +186,30 @@ export function subscribeToUserChanges(userId, onDataChanged) {
     }
     
     const userRef = doc(db, 'users', userId);
-    unsubscribeUserListener = onSnapshot(userRef, (docSnap) => {
+    unsubscribeUserListener = onSnapshot(userRef, async (docSnap) => {
         if (docSnap.exists() && onDataChanged) {
             console.log('🔄 Real-time: данные изменились в БД');
-            onDataChanged(docSnap.data());
+            
+            // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ПРОВЕРКА ЗАЩИТЫ =====
+            // Если защита активна — пропускаем realtime обновление
+            if (isTradeGuardActive()) {
+                const pendingTrade = getPendingTrade();
+                console.log(`🛡️ Real-time обновление пропущено (защита активна)`, pendingTrade);
+                return;
+            }
+            
+            // Если обновление пришло от нас самих во время транзакции — тоже пропускаем
+            const remoteData = docSnap.data();
+            const remoteLastUpdated = remoteData.lastUpdated ? new Date(remoteData.lastUpdated) : null;
+            const localLastUpdated = window._lastLocalUpdate ? new Date(window._lastLocalUpdate) : null;
+            
+            if (remoteLastUpdated && localLastUpdated && remoteLastUpdated < localLastUpdated) {
+                console.log('⏸️ Real-time: пропускаем устаревшее обновление (локальная версия новее)');
+                return;
+            }
+            
+            // Передаём данные в колбэк с флагом, что это realtime обновление
+            onDataChanged(remoteData, true);
         }
     }, (error) => {
         console.error('Ошибка в onSnapshot:', error);
@@ -177,13 +224,71 @@ export function unsubscribeFromUserChanges() {
     }
 }
 
+// ========== ОБНОВЛЕНИЕ НИКА В ПРЕДЛОЖЕНИЯХ ОБМЕНА ==========
+export async function updateNickInTradeOffers(userId, newNick) {
+    if (!db) return;
+    
+    try {
+        // Обновляем исходящие предложения (где пользователь отправитель)
+        const outgoingQuery = query(collection(db, 'trade_offers'), where('fromUserId', '==', userId));
+        const outgoingSnapshot = await getDocs(outgoingQuery);
+        
+        for (const docSnap of outgoingSnapshot.docs) {
+            await updateDoc(doc(db, 'trade_offers', docSnap.id), {
+                fromUserNick: newNick
+            });
+        }
+        
+        // Обновляем входящие предложения (где пользователь получатель)
+        const incomingQuery = query(collection(db, 'trade_offers'), where('toUserId', '==', userId));
+        const incomingSnapshot = await getDocs(incomingQuery);
+        
+        for (const docSnap of incomingSnapshot.docs) {
+            await updateDoc(doc(db, 'trade_offers', docSnap.id), {
+                toUserNick: newNick
+            });
+        }
+        
+        console.log(`✏️ Обновлены ники в предложениях обмена для ${userId} → ${newNick}`);
+    } catch (error) {
+        console.error('Ошибка обновления ников в предложениях:', error);
+    }
+}
+
+// ========== ОБНОВЛЕНИЕ НИКА В ОБЪЯВЛЕНИЯХ НЕДВИЖИМОСТИ ==========
+export async function updateNickInRealEstateListings(userId, newNick) {
+    if (!db) return;
+    
+    try {
+        // Обновляем активные объявления продавца
+        const listingsQuery = query(
+            collection(db, 'real_estate_listings'),
+            where('sellerId', '==', userId),
+            where('status', '==', 'active')
+        );
+        const listingsSnapshot = await getDocs(listingsQuery);
+        
+        for (const docSnap of listingsSnapshot.docs) {
+            await updateDoc(doc(db, 'real_estate_listings', docSnap.id), {
+                sellerName: newNick
+            });
+        }
+        
+        console.log(`✏️ Обновлены ники в объявлениях недвижимости для ${userId} → ${newNick}`);
+    } catch (error) {
+        console.error('Ошибка обновления ников в объявлениях:', error);
+    }
+}
+
 // ========== ТОРГОВЛЯ ==========
-export async function createTradeOffer(fromUserId, fromUserNick, toUserId, toUserNick, fromItems, fromMoney, toItems, toMoney) {
+export async function createTradeOffer(fromUserId, fromUserNick, toUserId, toUserNick, fromItems, fromMoney, toItems, toMoney, fromHousing, toHousing) {
     if (!db) return null;
     const offer = {
         fromUserId, fromUserNick, toUserId, toUserNick,
         fromItems: fromItems || [], fromMoney: fromMoney || 0,
         toItems: toItems || [], toMoney: toMoney || 0,
+        fromHousing: fromHousing || [],
+        toHousing: toHousing || [],
         status: 'pending',
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
@@ -224,19 +329,28 @@ export async function cancelTradeOffer(offerId, userId) {
     return true;
 }
 
-// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ ==========
+// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ (с поддержкой tradeGuard) ==========
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
-    // БЛОКИРУЕМ АВТОСОХРАНЕНИЕ ПЕРЕД ТРАНЗАКЦИЕЙ
+    // АКТИВИРУЕМ ЗАЩИТУ ПЕРЕД НАЧАЛОМ ОБМЕНА (ваша идея!)
+    activateTradeGuard(10000, { offerId, userId, action: 'acceptTrade' });
     window._preventAutoSave = true;
+    window._lastLocalUpdate = new Date().toISOString(); // Запоминаем время локального обновления
     
     let retries = 3;
     
+    // Переменные для хранения результатов транзакции
+    let finalFromInventory, finalToInventory, finalFromMoney, finalToMoney;
+    let finalFromHousing, finalToHousing;
+    let finalFromCurrent, finalToCurrent;
+    let finalFromCapacity, finalToCapacity;
+    let offerData = null;
+    let fromUserNick = '';
+    let toUserNick = '';
+    
     while (retries > 0) {
         try {
-            let offerData = null;
-            
             await runTransaction(db, async (transaction) => {
                 const offerRef = doc(db, 'trade_offers', offerId);
                 const offerSnap = await transaction.get(offerRef);
@@ -244,6 +358,16 @@ export async function acceptTradeOffer(offerId, userId) {
                 
                 const offer = offerSnap.data();
                 offerData = offer;
+                fromUserNick = offer.fromUserNick;
+                toUserNick = offer.toUserNick;
+                
+                offer.fromHousing = offer.fromHousing || [];
+                offer.toHousing = offer.toHousing || [];
+                offer.fromItems = offer.fromItems || [];
+                offer.toItems = offer.toItems || [];
+                offer.fromMoney = offer.fromMoney || 0;
+                offer.toMoney = offer.toMoney || 0;
+                
                 if (offer.status !== 'pending') throw new Error('Предложение уже обработано');
                 if (offer.toUserId !== userId) throw new Error('Вы не получатель');
                 if (new Date(offer.expiresAt) < new Date()) throw new Error('Срок истёк');
@@ -262,20 +386,34 @@ export async function acceptTradeOffer(offerId, userId) {
                 let fromInventory = (fromUserData.inventory || []).map(i => ({ ...i }));
                 let toInventory = (toUserData.inventory || []).map(i => ({ ...i }));
                 
-                // Проверки
+                let fromHousing = fromUserData?.housing?.owned || [];
+                let toHousing = toUserData?.housing?.owned || [];
+                const fromHousingOffer = offer.fromHousing || [];
+                const toHousingOffer = offer.toHousing || [];
+                
+                // ===== ПРОВЕРКИ =====
                 for (const item of offer.fromItems || []) {
                     const idx = fromInventory.findIndex(i => i.id === item.id);
                     if (idx === -1 || fromInventory[idx].count < (item.count || 1)) {
-                        throw new Error(`Нет ${item.id}`);
+                        throw new Error(`Нет предмета ${item.id}`);
                     }
                 }
                 for (const item of offer.toItems || []) {
                     const idx = toInventory.findIndex(i => i.id === item.id);
                     if (idx === -1 || toInventory[idx].count < (item.count || 1)) {
-                        throw new Error(`Нет ${item.id}`);
+                        throw new Error(`Нет предмета ${item.id}`);
                     }
                 }
-                
+                for (const homeId of fromHousingOffer) {
+                    if (!fromHousing.includes(homeId)) {
+                        throw new Error(`Нет недвижимости ${homeId}`);
+                    }
+                }
+                for (const homeId of toHousingOffer) {
+                    if (!toHousing.includes(homeId)) {
+                        throw new Error(`Нет недвижимости ${homeId}`);
+                    }
+                }
                 if (fromMoneyNum > 0 && (fromUserData.money || 0) < fromMoneyNum) {
                     throw new Error('Недостаточно денег у отправителя');
                 }
@@ -283,7 +421,7 @@ export async function acceptTradeOffer(offerId, userId) {
                     throw new Error('Недостаточно денег у вас');
                 }
                 
-                // Обновление отправителя
+                // ===== ОБНОВЛЕНИЕ ОТПРАВИТЕЛЯ =====
                 for (const item of offer.fromItems || []) {
                     const cnt = item.count || 1;
                     const idx = fromInventory.findIndex(i => i.id === item.id);
@@ -296,8 +434,23 @@ export async function acceptTradeOffer(offerId, userId) {
                     if (idx !== -1) fromInventory[idx].count += cnt;
                     else fromInventory.push({ id: item.id, count: cnt });
                 }
+                for (const homeId of fromHousingOffer) {
+                    const idx = fromHousing.indexOf(homeId);
+                    if (idx !== -1) fromHousing.splice(idx, 1);
+                    const propertyRef = doc(db, 'real_estate', homeId);
+                    transaction.update(propertyRef, {
+                        ownerId: null,
+                        ownerName: null,
+                        purchasedAt: null
+                    });
+                }
+                for (const homeId of toHousingOffer) {
+                    if (!fromHousing.includes(homeId)) {
+                        fromHousing.push(homeId);
+                    }
+                }
                 
-                // Обновление получателя
+                // ===== ОБНОВЛЕНИЕ ПОЛУЧАТЕЛЯ =====
                 for (const item of offer.toItems || []) {
                     const cnt = item.count || 1;
                     const idx = toInventory.findIndex(i => i.id === item.id);
@@ -310,31 +463,153 @@ export async function acceptTradeOffer(offerId, userId) {
                     if (idx !== -1) toInventory[idx].count += cnt;
                     else toInventory.push({ id: item.id, count: cnt });
                 }
+                for (const homeId of toHousingOffer) {
+                    const idx = toHousing.indexOf(homeId);
+                    if (idx !== -1) toHousing.splice(idx, 1);
+                    const propertyRef = doc(db, 'real_estate', homeId);
+                    transaction.update(propertyRef, {
+                        ownerId: null,
+                        ownerName: null,
+                        purchasedAt: null
+                    });
+                }
+                let newToHousing = [...toHousing];
+                for (const homeId of fromHousingOffer) {
+                    if (!newToHousing.includes(homeId)) {
+                        newToHousing.push(homeId);
+                        const propertyRef = doc(db, 'real_estate', homeId);
+                        transaction.update(propertyRef, {
+                            ownerId: offer.toUserId,
+                            ownerName: offer.toUserNick,
+                            purchasedAt: new Date().toISOString()
+                        });
+                    }
+                }
                 
                 const fromNewMoney = (fromUserData.money || 0) - fromMoneyNum + toMoneyNum;
                 const toNewMoney = (toUserData.money || 0) - toMoneyNum + fromMoneyNum;
                 
-                transaction.update(fromUserRef, { inventory: fromInventory, money: fromNewMoney });
-                transaction.update(toUserRef, { inventory: toInventory, money: toNewMoney });
-                transaction.update(offerRef, { status: 'accepted', completedAt: new Date().toISOString() });
+                let fromNewCurrent = fromUserData?.housing?.current;
+                if (fromHousingOffer.includes(fromNewCurrent)) {
+                    fromNewCurrent = fromHousing.length > 0 ? fromHousing[0] : null;
+                }
+                let fromNewCapacity = 0;
+                if (fromNewCurrent) {
+                    if (fromNewCurrent.startsWith('dorm')) fromNewCapacity = 10;
+                    else if (fromNewCurrent.startsWith('apartment')) fromNewCapacity = 20;
+                    else if (fromNewCurrent.startsWith('house')) fromNewCapacity = 40;
+                }
+                
+                let toNewCurrent = toUserData?.housing?.current;
+                let toNewCapacity = toUserData?.housing?.storageCapacity || 0;
+                
+                // Сохраняем результаты для локального обновления
+                finalFromInventory = fromInventory;
+                finalToInventory = toInventory;
+                finalFromMoney = fromNewMoney;
+                finalToMoney = toNewMoney;
+                finalFromHousing = fromHousing;
+                finalToHousing = newToHousing;
+                finalFromCurrent = fromNewCurrent;
+                finalToCurrent = toNewCurrent;
+                finalFromCapacity = fromNewCapacity;
+                finalToCapacity = toNewCapacity;
+                
+                const now = new Date().toISOString();
+                
+                transaction.update(fromUserRef, {
+                    inventory: fromInventory,
+                    money: fromNewMoney,
+                    'housing.owned': fromHousing,
+                    'housing.current': fromNewCurrent,
+                    'housing.storageCapacity': fromNewCapacity,
+                    lastUpdated: now
+                });
+                
+                transaction.update(toUserRef, {
+                    inventory: toInventory,
+                    money: toNewMoney,
+                    'housing.owned': newToHousing,
+                    'housing.current': toNewCurrent,
+                    'housing.storageCapacity': toNewCapacity,
+                    lastUpdated: now
+                });
+                
+                transaction.update(offerRef, { status: 'accepted', completedAt: now });
             });
             
-            // Успех — выходим из цикла
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // Обновляем данные текущего игрока (получателя)
+            // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ТЕКУЩЕГО ИГРОКА =====
             const currentUser = window.auth?.currentUser;
-            if (currentUser) {
-                await loadGameData(currentUser.uid);
-                const { renderEquipmentTab, renderItemsTab, initInventoryTabs } = await import('./inventory.js');
+            
+            if (currentUser && currentUser.uid === userId) {
+                const gameState = await import('./gameState.js');
+                
+                gameState.setStats(null, null, null, finalToMoney);
+                gameState.inventory.length = 0;
+                gameState.inventory.push(...finalToInventory);
+                
+                const housingDataForUpdate = {
+                    current: finalToCurrent,
+                    owned: finalToHousing || [],
+                    storage: gameState.homeStorage || [],
+                    storageCapacity: finalToCapacity,
+                    debt: gameState.housingDebt || 0,
+                    lastTaxPaid: gameState.lastTaxPaid || null,
+                    account: gameState.housingAccount || 20000,
+                    dailyCost: gameState.housingDailyCost || 0,
+                    lastHousingCheck: gameState.lastHousingCheck || null,
+                    lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
+                };
+                gameState.setHousingData(housingDataForUpdate);
+                gameState.updateUI();
+                
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
                 renderItemsTab();
                 renderEquipmentTab();
                 initInventoryTabs();
+                renderHousingTab();
+                
+                console.log('🏠 UI покупателя обновлён принудительно');
             }
             
-            // Снимаем блокировку через 5 секунд
+            if (currentUser && offerData && currentUser.uid === offerData.fromUserId) {
+                const gameState = await import('./gameState.js');
+                
+                gameState.setStats(null, null, null, finalFromMoney);
+                gameState.inventory.length = 0;
+                gameState.inventory.push(...finalFromInventory);
+                
+                const housingDataForUpdate = {
+                    current: finalFromCurrent,
+                    owned: finalFromHousing || [],
+                    storage: gameState.homeStorage || [],
+                    storageCapacity: finalFromCapacity,
+                    debt: gameState.housingDebt || 0,
+                    lastTaxPaid: gameState.lastTaxPaid || null,
+                    account: gameState.housingAccount || 20000,
+                    dailyCost: gameState.housingDailyCost || 0,
+                    lastHousingCheck: gameState.lastHousingCheck || null,
+                    lastGlobalHousingCheck: gameState.lastGlobalHousingCheck || null
+                };
+                gameState.setHousingData(housingDataForUpdate);
+                gameState.updateUI();
+                
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                renderItemsTab();
+                renderEquipmentTab();
+                initInventoryTabs();
+                renderHousingTab();
+                
+                console.log('🏠 UI продавца обновлён принудительно');
+            }
+            
+            // Снимаем блокировку через 5 секунд (после того как все обновления устаканятся)
             setTimeout(() => { 
-                window._preventAutoSave = false; 
+                window._preventAutoSave = false;
+                deactivateTradeGuard(); // Снимаем защиту
+                console.log('✅ Защита обмена снята');
             }, 5000);
             
             return true;
@@ -342,7 +617,6 @@ export async function acceptTradeOffer(offerId, userId) {
         } catch (error) {
             console.error(`❌ Ошибка транзакции (осталось попыток: ${retries - 1}):`, error);
             
-            // Если конфликт версий и есть ещё попытки — повторяем
             if (error.message?.includes('failed-precondition') || error.code === 'failed-precondition') {
                 if (retries > 1) {
                     retries--;
@@ -351,14 +625,15 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
             }
             
-            // Неустранимая ошибка или кончились попытки
             showMessage(`Ошибка: ${error.message}`, '#e74c3c');
             window._preventAutoSave = false;
+            deactivateTradeGuard(); // Снимаем защиту при ошибке
             return false;
         }
     }
     
     window._preventAutoSave = false;
+    deactivateTradeGuard();
     return false;
 }
 

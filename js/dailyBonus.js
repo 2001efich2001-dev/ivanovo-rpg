@@ -152,22 +152,29 @@ export async function claimDailyBonus() {
     
     updateUI();
     
-    // ===== ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ В FIRESTORE =====
-    try {
-        const { saveGameData } = await import('./firestore.js');
-        
-        // Временно отключаем блокировку автосохранения
-        const originalPrevent = window._preventAutoSave;
-        window._preventAutoSave = false;
-        
-        await saveGameData();
-        
-        // Восстанавливаем блокировку
-        window._preventAutoSave = originalPrevent;
-        
-        console.log('✅ Бонус успешно сохранён в Firestore');
-    } catch (err) {
-        console.error('❌ Ошибка при сохранении бонуса:', err);
+    // ===== ПРИНУДИТЕЛЬНОЕ СОХРАНЕНИЕ В FIRESTORE С ПРОВЕРКОЙ =====
+    if (!window._preventAutoSave) {
+        try {
+            const { saveGameData } = await import('./firestore.js');
+            await saveGameData();
+            console.log('✅ Бонус успешно сохранён в Firestore');
+        } catch (err) {
+            console.error('❌ Ошибка при сохранении бонуса:', err);
+        }
+    } else {
+        console.log('⏳ Бонус: пропускаем сохранение (идет обмен)');
+        // Откладываем сохранение на потом
+        setTimeout(async () => {
+            if (!window._preventAutoSave) {
+                try {
+                    const { saveGameData } = await import('./firestore.js');
+                    await saveGameData();
+                    console.log('✅ Бонус сохранён после обмена');
+                } catch (err) {
+                    console.error('❌ Ошибка при отложенном сохранении бонуса:', err);
+                }
+            }
+        }, 6000);
     }
     
     // Показываем модальное окно с наградой

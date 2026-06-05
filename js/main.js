@@ -1,17 +1,19 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining } from './gameState.js';
 import { initAuth, auth } from './auth.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs } from './inventory.js';
+import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
 import { logAction, showMessage } from './utils.js';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { collection, query, orderBy, limit, getDocs, doc, getDoc, where } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
 import { setAchievementsData } from './achievements.js';
 import { showNewsIfNeeded, initNewsModal } from './news.js';
+import { isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
+import { updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -281,41 +283,6 @@ async function checkNewTradeOffers() {
     }
 }
 
-async function openTradeOfferModal(targetUserId, targetUserNick) {
-    const modal = document.getElementById('tradeOfferModal');
-    if (!modal) return;
-    modal.dataset.targetUserId = targetUserId;
-    modal.dataset.targetUserNick = targetUserNick;
-    const title = modal.querySelector('.modal-content h3');
-    if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
-    document.getElementById('tradeFromItems').innerHTML = '<div class="inventory-grid-header"><span>📦 Я отдаю</span><span>💰 Ваши деньги: <span id="tradeFromMoneyDisplay">0</span>₽</span></div><div class="inventory-grid" style="min-height: 300px;">Загрузка инвентаря...</div>';
-    document.getElementById('tradeToItems').innerHTML = '<div class="inventory-grid-header"><span>🎁 Я получаю</span><span>💰 Деньги: 0₽</span></div><div class="inventory-grid" style="min-height: 300px;">Загрузка...</div>';
-    document.getElementById('tradeFromMoney').value = 0;
-    document.getElementById('tradeToMoney').value = 0;
-    document.getElementById('tradeSelectedFrom').innerHTML = '';
-    document.getElementById('tradeSelectedTo').innerHTML = '';
-    modal.style.display = 'flex';
-    await renderTradeInventorySelector('from');
-    await renderTradeInventorySelector('to');
-    
-    // Обновляем отображение денег при изменении
-    const fromMoneyInput = document.getElementById('tradeFromMoney');
-    const toMoneyInput = document.getElementById('tradeToMoney');
-    const fromMoneyDisplay = document.getElementById('tradeFromMoneyDisplay');
-    const toMoneyDisplay = document.getElementById('tradeToMoneyDisplay');
-    
-    if (fromMoneyInput) {
-        fromMoneyInput.addEventListener('input', () => {
-            if (fromMoneyDisplay) fromMoneyDisplay.textContent = fromMoneyInput.value;
-        });
-    }
-    if (toMoneyInput) {
-        toMoneyInput.addEventListener('input', () => {
-            if (toMoneyDisplay) toMoneyDisplay.textContent = toMoneyInput.value;
-        });
-    }
-}
-
 async function renderTradeInventorySelector(side) {
     const user = auth.currentUser;
     if (!user) return;
@@ -458,6 +425,7 @@ async function renderTradeInventorySelector(side) {
     });
 }
 
+// ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТПРАВКИ ПРЕДЛОЖЕНИЯ ==========
 async function sendTradeOffer() {
     const modal = document.getElementById('tradeOfferModal');
     const targetUserId = modal.dataset.targetUserId;
@@ -465,6 +433,7 @@ async function sendTradeOffer() {
     const user = auth.currentUser;
     if (!user || !targetUserId) return;
     
+    // Собираем предметы, которые отдаём
     const fromItems = [];
     for (const el of document.querySelectorAll('#tradeSelectedFrom .selected-item')) {
         const itemId = el.dataset.id;
@@ -472,6 +441,7 @@ async function sendTradeOffer() {
         fromItems.push({ id: itemId, count });
     }
     
+    // Собираем предметы, которые получаем
     const toItems = [];
     for (const el of document.querySelectorAll('#tradeSelectedTo .selected-item')) {
         const itemId = el.dataset.id;
@@ -479,20 +449,31 @@ async function sendTradeOffer() {
         toItems.push({ id: itemId, count });
     }
     
+    // Собираем недвижимость, которую продаём
+    const fromHousing = [];
+    for (const el of document.querySelectorAll('#tradeSelectedHousing .selected-item')) {
+        const homeId = el.dataset.id;
+        fromHousing.push(homeId);
+    }
+    
+    // Недвижимость, которую хотим получить
+    const toHousing = [];
+    
     const fromMoney = parseInt(document.getElementById('tradeFromMoney').value) || 0;
     const toMoney = parseInt(document.getElementById('tradeToMoney').value) || 0;
     
-    if (fromItems.length === 0 && fromMoney === 0 && toItems.length === 0 && toMoney === 0) {
+    if (fromItems.length === 0 && fromMoney === 0 && toItems.length === 0 && toMoney === 0 && fromHousing.length === 0 && toHousing.length === 0) {
         showMessage('Предложите хоть что-то в обмен', '#e74c3c');
         return;
     }
     
     try {
-        await createTradeOffer(user.uid, user.displayName, targetUserId, targetUserNick, fromItems, fromMoney, toItems, toMoney);
+        await createTradeOffer(user.uid, user.displayName, targetUserId, targetUserNick, fromItems, fromMoney, toItems, toMoney, fromHousing, toHousing);
         showMessage('Предложение обмена отправлено!', '#4caf50');
         modal.style.display = 'none';
         document.getElementById('tradeSelectedFrom').innerHTML = '';
         document.getElementById('tradeSelectedTo').innerHTML = '';
+        document.getElementById('tradeSelectedHousing').innerHTML = '';
         document.getElementById('tradeFromMoney').value = 0;
         document.getElementById('tradeToMoney').value = 0;
     } catch (error) {
@@ -580,8 +561,9 @@ async function openMyOffersModal() {
     modal.style.display = 'flex';
 }
 
-// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ ==========
+// ========== REAL-TIME ОБНОВЛЕНИЕ ДАННЫХ (С ЗАЩИТОЙ TRADEGUARD) ==========
 let realTimeUnsubscribe = null;
+let localLastUpdated = null;
 
 function setupRealTimeUpdates(userId) {
     if (realTimeUnsubscribe) {
@@ -589,43 +571,97 @@ function setupRealTimeUpdates(userId) {
         realTimeUnsubscribe = null;
     }
     
-    subscribeToUserChanges(userId, async (newData) => {
-        console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
-        
-        window._preventAutoSave = true;
-        
-        try {
-            const { setStats, inventory, equipped, setExpData, setEnergy, setTimeWeather, setActionLog, setCurrentLocation, updateUI } = await import('./gameState.js');
-            const { renderItemsTab, renderEquipmentTab, initInventoryTabs } = await import('./inventory.js');
-            const { renderLocation } = await import('./locations.js');
-            
-            setStats(newData.health, newData.hunger, newData.cold, newData.money);
-            inventory.length = 0;
-            inventory.push(...(newData.inventory ?? []));
-            Object.assign(equipped, newData.equipped ?? {});
-            setExpData(newData.experience, newData.level);
-            setEnergy(newData.energy);
-            setTimeWeather(newData.accumulatedMinutes, newData.currentWeather, newData.currentTemperature);
-            setActionLog(newData.actionLog ?? []);
-            setCurrentLocation(newData.currentLocation || 'church');
-            
-            updateUI();
-            renderItemsTab();
-            renderEquipmentTab();
-            initInventoryTabs();
-            renderLocation(newData.currentLocation || 'church');
-            
-            showMessage('🔄 Данные синхронизированы после обмена', '#4caf50');
-        } catch (err) {
-            console.error('Ошибка при обновлении данных:', err);
+    subscribeToUserChanges(userId, async (newData, isRealtime = true) => {
+        // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ИСПОЛЬЗУЕМ TRADEGUARD =====
+        // Если защита активна — полностью пропускаем realtime обновление
+        if (isTradeGuardActive()) {
+            const pending = getPendingTrade();
+            const remaining = getTradeBlockTimeRemaining();
+            console.log(`🛡️ Real-time: обновление пропущено (защита активна, осталось ${remaining}с)`, pending);
+            return;
         }
         
-        setTimeout(() => {
-            window._preventAutoSave = false;
-        }, 2000);
+        // Проверяем, что данные не старые
+        const newLastUpdated = newData.lastUpdated ? new Date(newData.lastUpdated).getTime() : 0;
+        
+        if (localLastUpdated && newLastUpdated <= localLastUpdated) {
+            console.log(`🔄 Real-time: пропускаем старые данные (локальное: ${new Date(localLastUpdated).toLocaleTimeString()}, новое: ${new Date(newLastUpdated).toLocaleTimeString()})`);
+            return;
+        }
+        
+        console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
+        
+        // Используем защищённую функцию обновления
+        const updated = updateFromFirestoreWithGuard(newData, false);
+        
+        if (updated) {
+            localLastUpdated = newLastUpdated;
+            
+            // Обновляем UI компоненты
+            try {
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                const { renderLocation } = await import('./locations.js');
+                
+                renderItemsTab();
+                renderEquipmentTab();
+                initInventoryTabs();
+                renderHousingTab?.();
+                renderLocation(currentLocation);
+                
+                showMessage('🔄 Данные синхронизированы', '#4caf50');
+            } catch (err) {
+                console.error('Ошибка при обновлении UI:', err);
+            }
+        } else {
+            console.log('🛡️ Real-time: обновление отклонено защитой');
+        }
     });
     
     realTimeUnsubscribe = () => unsubscribeFromUserChanges();
+}
+
+// ========== КОММУНАЛКА/АРЕНДА ==========
+let housingCheckInterval = null;
+
+async function checkHousingPayment() {
+    const user = window.auth?.currentUser;
+    if (!user) return;
+    
+    try {
+        const gameState = await import('./gameState.js');
+        const result = await gameState.checkHousingPayment();
+        
+        if (result && result.success === false) {
+            const { renderHousingTab } = await import('./inventory.js');
+            const housingTab = document.getElementById('housingTab');
+            if (housingTab && housingTab.style.display !== 'none') {
+                renderHousingTab();
+            }
+            
+            const { currentLocation, setCurrentLocation } = gameState;
+            if (currentLocation === 'dorm_home' || currentLocation === 'apartment_home' || currentLocation === 'house_home') {
+                setCurrentLocation('dump_home');
+            }
+        }
+    } catch (err) {
+        console.error('Ошибка при проверке коммуналки:', err);
+    }
+}
+
+function startHousingCheckTimer() {
+    if (housingCheckInterval) clearInterval(housingCheckInterval);
+    
+    housingCheckInterval = setInterval(() => {
+        console.log('🏠 Плановая проверка коммуналки/аренды...');
+        checkHousingPayment();
+    }, 24 * 60 * 60 * 1000);
+}
+
+function stopHousingCheckTimer() {
+    if (housingCheckInterval) {
+        clearInterval(housingCheckInterval);
+        housingCheckInterval = null;
+    }
 }
 
 // ========== ЕЖЕДНЕВНЫЙ БОНУС ==========
@@ -701,7 +737,6 @@ async function initAchievements() {
     try {
         const { setAchievementsData: setData } = await import('./achievements.js');
         
-        // Загружаем данные ачивок из Firestore (без проверки)
         const user = auth.currentUser;
         if (user) {
             const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -713,10 +748,226 @@ async function initAchievements() {
             }
         }
         
-        // НЕ вызываем check() здесь — ачивки будут проверяться только при действиях
-        console.log('🏆 Система достижений инициализирована (без автоматической проверки)');
+        console.log('🏆 Система достижений инициализирована');
     } catch (err) {
         console.error('Ошибка инициализации ачивок:', err);
+    }
+}
+
+// ========== ДОБАВЛЯЕМ ВИЗУАЛЬНЫЙ ИНДИКАТОР ЗАЩИТЫ ==========
+function initTradeGuardIndicator() {
+    // Добавляем индикатор в правый верхний угол (рядом с аватаром)
+    const gameRight = document.querySelector('.game-right');
+    if (gameRight && !document.getElementById('tradeGuardStatus')) {
+        const indicator = document.createElement('div');
+        indicator.id = 'tradeGuardStatus';
+        indicator.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(46, 125, 50, 0.9);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            display: none;
+            align-items: center;
+            gap: 5px;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+            pointer-events: none;
+        `;
+        indicator.innerHTML = '🛡️ Обмен...';
+        gameRight.style.position = 'relative';
+        gameRight.appendChild(indicator);
+    }
+    
+    // Периодически проверяем статус защиты
+    setInterval(() => {
+        const indicator = document.getElementById('tradeGuardStatus');
+        if (indicator) {
+            if (isTradeGuardActive()) {
+                const remaining = getTradeBlockTimeRemaining();
+                indicator.style.display = 'flex';
+                indicator.innerHTML = `🛡️ Обмен (${remaining}с)`;
+                indicator.style.background = 'rgba(46, 125, 50, 0.9)';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
+    }, 500);
+}
+
+// ========== ОТКРЫТИЕ АГЕНТСТВА НЕДВИЖИМОСТИ "АВИТ0" ==========
+async function openRealEstateMarket() {
+    playClick();
+    
+    const modal = document.getElementById('realEstateMarketModal');
+    const container = document.getElementById('marketListings');
+    
+    if (!modal || !container) {
+        console.error('Модальное окно агентства не найдено');
+        return;
+    }
+    
+    container.innerHTML = '<div style="text-align:center; padding:20px;">📭 Загрузка объявлений...</div>';
+    modal.style.display = 'flex';
+    
+    try {
+        const { getActiveListings, buyProperty } = await import('./realEstateMarket.js');
+        const listings = await getActiveListings();
+        
+        if (listings.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px;">📭 Нет активных объявлений о продаже недвижимости</div>';
+            return;
+        }
+        
+        let html = '<div class="market-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;">';
+        
+        for (const listing of listings) {
+            const typeIcon = listing.propertyType === 'dorm' ? '🏢' : (listing.propertyType === 'apartment' ? '🏠' : '🏡');
+            html += `
+                <div class="market-card" style="background: var(--card-bg); border-radius: 16px; padding: 16px; text-align: center; border: 1px solid var(--card-border); transition: transform 0.2s;">
+                    <div style="font-size: 48px; margin-bottom: 8px;">${typeIcon}</div>
+                    <div style="font-weight: bold; font-size: 1rem; margin-bottom: 4px;">${escapeHtml(listing.propertyName)}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 8px;">📦 Продавец: ${escapeHtml(listing.sellerName)}</div>
+                    <div style="font-size: 1.2rem; color: var(--accent-gold); font-weight: bold; margin-bottom: 12px;">💰 ${listing.price.toLocaleString()}₽</div>
+                    <button class="buy-from-market-btn action-btn" data-id="${listing.id}" data-price="${listing.price}" style="background: var(--buy-btn-bg); border: none; padding: 8px 16px; border-radius: 40px; color: white; cursor: pointer; width: 100%;">💸 Купить</button>
+                </div>
+            `;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+        
+        // Обработчики покупки
+        document.querySelectorAll('.buy-from-market-btn').forEach(btn => {
+            btn.removeEventListener('click', btn._marketHandler);
+            const handler = async () => {
+                const listingId = btn.dataset.id;
+                const price = parseInt(btn.dataset.price);
+                const user = auth.currentUser;
+                
+                if (!user) {
+                    showMessage('❌ Авторизуйтесь для покупки', '#e74c3c');
+                    return;
+                }
+                
+                if (confirm(`💰 Купить эту недвижимость за ${price.toLocaleString()}₽?`)) {
+                    const { buyProperty } = await import('./realEstateMarket.js');
+                    const success = await buyProperty(listingId, user.uid);
+                    if (success) {
+                        // Обновляем доску и вкладку недвижимости
+                        await openRealEstateMarket(); // переоткрываем доску
+                        const { renderHousingTab } = await import('./inventory.js');
+                        renderHousingTab();
+                        showMessage(`🏠 Поздравляем! Вы купили недвижимость!`, '#4caf50');
+                    }
+                }
+            };
+            btn.addEventListener('click', handler);
+            btn._marketHandler = handler;
+        });
+        
+    } catch (error) {
+        console.error('Ошибка загрузки объявлений:', error);
+        container.innerHTML = '<div style="text-align:center; padding:20px; color: #e74c3c;">❌ Ошибка загрузки объявлений</div>';
+    }
+}
+
+// ========== СМЕНА НИКНЕЙМА ==========
+async function changeNickname(newNick) {
+    const user = auth.currentUser;
+    if (!user) {
+        showMessage('❌ Авторизуйтесь', '#e74c3c');
+        return false;
+    }
+    
+    newNick = newNick.trim();
+    if (!newNick) {
+        showMessage('❌ Ник не может быть пустым', '#e74c3c');
+        return false;
+    }
+    
+    if (newNick.length > 20) {
+        showMessage('❌ Ник не может быть длиннее 20 символов', '#e74c3c');
+        return false;
+    }
+    
+    if (newNick.length < 3) {
+        showMessage('❌ Ник должен содержать минимум 3 символа', '#e74c3c');
+        return false;
+    }
+    
+    // Проверка на недопустимые символы
+    const invalidChars = /[<>{}[\]\\/|@#$%^&*()+=!`~]/;
+    if (invalidChars.test(newNick)) {
+        showMessage('❌ Ник содержит недопустимые символы', '#e74c3c');
+        return false;
+    }
+    
+    // Проверка, что ник не совпадает с текущим
+    const currentNick = user.displayName;
+    if (currentNick === newNick) {
+        showMessage('❌ Это ваш текущий ник', '#ffd966');
+        return false;
+    }
+    
+    // Проверка уникальности ника
+    showMessage('🔍 Проверка уникальности ника...', '#ffd966');
+    
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('displayName', '==', newNick));
+        const querySnapshot = await getDocs(q);
+        
+        let nickExists = false;
+        querySnapshot.forEach(doc => {
+            if (doc.id !== user.uid) {
+                nickExists = true;
+            }
+        });
+        
+        if (nickExists) {
+            showMessage(`❌ Ник "${newNick}" уже занят! Выберите другой.`, '#e74c3c');
+            return false;
+        }
+        
+        // Обновляем displayName в Auth
+        await updateProfile(user, { displayName: newNick });
+        
+        // Обновляем displayName в Firestore
+        const userRef = doc(db, 'users', user.uid);
+        const { updateDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        await updateDoc(userRef, {
+            displayName: newNick
+        });
+        
+        // Обновляем отображение ника в интерфейсе
+        const playerNickSpan = document.getElementById('playerNick');
+        if (playerNickSpan) playerNickSpan.innerText = newNick;
+        
+        showMessage(`✅ Ник успешно изменён на "${newNick}"!`, '#4caf50');
+        
+        // Обновляем ники в активных предложениях обмена (опционально)
+        try {
+            const { updateNickInTradeOffers, updateNickInRealEstateListings } = await import('./firestore.js');
+            if (typeof updateNickInTradeOffers === 'function') {
+                await updateNickInTradeOffers(user.uid, newNick);
+            }
+            if (typeof updateNickInRealEstateListings === 'function') {
+                await updateNickInRealEstateListings(user.uid, newNick);
+            }
+        } catch (err) {
+            console.log('Не удалось обновить ники в предложениях/объявлениях:', err);
+        }
+        
+        return true;
+        
+    } catch (error) {
+        console.error('Ошибка смены ника:', error);
+        showMessage(`❌ Ошибка: ${error.message}`, '#e74c3c');
+        return false;
     }
 }
 
@@ -733,7 +984,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setLogUpdateCallback(() => { renderLogPanel(); });
     setExpUpdateCallback(() => { updateUI(); });
     
-    function afterLogin() {
+    async function afterLogin() {
         const user = window.auth?.currentUser;
         
         if (user) {
@@ -744,8 +995,19 @@ document.addEventListener('DOMContentLoaded', () => {
         window._preventAutoSave = false;
         
         if (user) {
+            // Загружаем lastUpdated из Firestore при входе
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists() && userDoc.data().lastUpdated) {
+                    localLastUpdated = new Date(userDoc.data().lastUpdated).getTime();
+                    console.log('📅 Загружена метка времени lastUpdated:', new Date(localLastUpdated).toLocaleTimeString());
+                }
+            } catch (err) {
+                console.warn('Не удалось загрузить lastUpdated:', err);
+            }
+            
             setupRealTimeUpdates(user.uid);
-            initAchievements(); // Инициализируем ачивки (только загрузка данных)
+            initAchievements();
         }
         
         renderItemsTab();
@@ -797,14 +1059,32 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
+        // ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ =====
+        try {
+            const gameState = await import('./gameState.js');
+            if (typeof gameState.checkAllHousingPayments === 'function') {
+                await gameState.checkAllHousingPayments();
+                console.log('🏠 Глобальная проверка недвижимости выполнена');
+            }
+        } catch (err) {
+            console.error('Ошибка при глобальной проверке недвижимости:', err);
+        }
+        
+        // ===== ПРОВЕРКА ТЕКУЩЕГО ЖИЛЬЯ =====
+        await checkHousingPayment();
+        startHousingCheckTimer();
+        
         // ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" =====
         setupAboutModal();
-
+        
         // ===== НОВОСТНОЕ ОКНО =====
         initNewsModal();
         setTimeout(() => {
             showNewsIfNeeded();
         }, 500);
+        
+        // ===== ИНИЦИАЛИЗАЦИЯ ИНДИКАТОРА ЗАЩИТЫ =====
+        initTradeGuardIndicator();
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
@@ -815,11 +1095,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
     const shopBtn = document.getElementById('shopBtn');
+    const realEstateMarketBtn = document.getElementById('realEstateMarketBtn');
     const topPlayersBtn = document.getElementById('topPlayersBtn');
     const myOffersBtn = document.getElementById('myOffersBtn');
     const logoutMenuBtn = document.getElementById('logoutMenuBtn');
     const themeToggle = document.getElementById('themeToggle');
     const musicToggle = document.getElementById('musicToggle');
+    const changeNickBtn = document.getElementById('changeNickBtn');
     const sendTradeBtn = document.getElementById('sendTradeBtn');
     
     if (loginBtn) loginBtn.addEventListener('click', () => { playClick(); showSplash(); });
@@ -843,38 +1125,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    if (shopBtn) {
-        shopBtn.addEventListener('click', async () => {
-            playClick();
-            const shop = await import('./shop.js');
-            shop.renderShopBuyTab();
-            shop.renderShopSellTab();
-            const modal = document.getElementById('shopModal');
-            const tabs = modal.querySelectorAll('.tab-btn');
-            const buyTab = document.getElementById('shopBuyTab');
-            const sellTab = document.getElementById('shopSellTab');
-            const switchShopTab = (tab) => {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                if (tab.dataset.shopTab === 'buy') {
+if (shopBtn) {
+    shopBtn.addEventListener('click', async () => {
+        playClick();
+        const shop = await import('./shop.js');
+        shop.renderShopBuyTab();
+        shop.renderShopSellTab();
+        const modal = document.getElementById('shopModal');
+        const tabs = modal.querySelectorAll('.tab-btn');
+        const buyTab = document.getElementById('shopBuyTab');
+        const sellTab = document.getElementById('shopSellTab');
+        const switchShopTab = (tab) => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            if (tab.dataset.shopTab === 'buy') {
+                buyTab.style.display = 'flex';
+                sellTab.style.display = 'none';
+                shop.renderShopBuyTab();
+            } else {
+                buyTab.style.display = 'none';
+                sellTab.style.display = 'flex';
+                shop.renderShopSellTab();
+            }
+        };
+        const newTabs = modal.querySelectorAll('.tab-btn');
+        newTabs.forEach(tab => {
+            tab.removeEventListener('click', tab._shopListener);
+            const handler = () => switchShopTab(tab);
+            tab.addEventListener('click', handler);
+            tab._shopListener = handler;
+        });
+        modal.style.display = 'flex';
+        
+        // ===== КОСТЫЛЬ: принудительный перерендер активной вкладки =====
+        setTimeout(() => {
+            const activeTab = modal.querySelector('.tab-btn.active');
+            if (activeTab) {
+                // Принудительно вызываем переключение на ту же вкладку
+                if (activeTab.dataset.shopTab === 'buy') {
                     buyTab.style.display = 'flex';
                     sellTab.style.display = 'none';
                     shop.renderShopBuyTab();
-                } else {
+                } else if (activeTab.dataset.shopTab === 'sell') {
                     buyTab.style.display = 'none';
                     sellTab.style.display = 'flex';
                     shop.renderShopSellTab();
                 }
-            };
-            const newTabs = modal.querySelectorAll('.tab-btn');
-            newTabs.forEach(tab => {
-                tab.removeEventListener('click', tab._shopListener);
-                const handler = () => switchShopTab(tab);
-                tab.addEventListener('click', handler);
-                tab._shopListener = handler;
-            });
-            modal.style.display = 'flex';
-        });
+            }
+            // Обновляем отображение денег (без await)
+            const moneySpan = document.getElementById('shopMoneyValue');
+            if (moneySpan) {
+                import('./gameState.js').then(gameState => {
+                    moneySpan.textContent = Math.floor(gameState.money);
+                });
+            }
+        }, 50);
+    });
+}
+    
+    // ===== КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
+    if (realEstateMarketBtn) {
+        realEstateMarketBtn.addEventListener('click', openRealEstateMarket);
     }
     
     if (topPlayersBtn) {
@@ -910,6 +1221,7 @@ document.addEventListener('DOMContentLoaded', () => {
             playClick();
             stopWeatherEffects();
             stopTimeWeatherUpdates();
+            stopHousingCheckTimer();
             
             if (realTimeUnsubscribe) {
                 realTimeUnsubscribe();
@@ -944,6 +1256,31 @@ document.addEventListener('DOMContentLoaded', () => {
         musicToggle.addEventListener('click', () => {
             playClick();
             toggleMusic();
+        });
+    }
+    
+    // ===== КНОПКА: СМЕНА НИКА =====
+    if (changeNickBtn) {
+        changeNickBtn.addEventListener('click', () => {
+            playClick();
+            const currentNick = auth.currentUser?.displayName || 'Игрок';
+            document.getElementById('currentNickDisplay').innerText = currentNick;
+            document.getElementById('newNickInput').value = '';
+            document.getElementById('changeNickModal').style.display = 'flex';
+        });
+    }
+    
+    // ===== ОБРАБОТЧИК ПОДТВЕРЖДЕНИЯ СМЕНЫ НИКА =====
+    const confirmNickBtn = document.getElementById('confirmChangeNickBtn');
+    if (confirmNickBtn) {
+        confirmNickBtn.addEventListener('click', async () => {
+            const newNick = document.getElementById('newNickInput').value;
+            if (newNick) {
+                await changeNickname(newNick);
+                document.getElementById('changeNickModal').style.display = 'none';
+            } else {
+                showMessage('❌ Введите новый ник', '#e74c3c');
+            }
         });
     }
     

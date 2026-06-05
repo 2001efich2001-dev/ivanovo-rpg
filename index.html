@@ -102,6 +102,7 @@
                 <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
                 <button class="action-btn" id="mapBtn">🗺️ Карта</button>
                 <button class="action-btn" id="shopBtn">🏪 Магазин</button>
+                <button class="action-btn" id="realEstateMarketBtn">📢 Агентство недвижимости "Авит0"</button>
                 <button class="action-btn" id="myOffersBtn">
                     💼 Мои предложения
                     <span id="tradeNotification" class="trade-notification" style="display: none;">
@@ -114,6 +115,7 @@
             <div class="settings-item">
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
                 <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
+                <button id="changeNickBtn" class="reset-btn" style="background: #e67e22;">✏️ Сменить ник</button>
             </div>
         </div>
     </div>
@@ -130,11 +132,20 @@
         </div>
     </div>
 
-    <!-- Модальное окно для предложения обмена -->
+    <!-- Модальное окно для предложения обмена (ОБНОВЛЕНО: добавлена вкладка "🏠 Недвижимость") -->
     <div id="tradeOfferModal" class="modal">
         <div class="modal-content" style="max-width: 900px; width: 90%;">
             <h3>💼 Предложить обмен</h3>
-            <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            
+            <!-- Вкладки обмена -->
+            <div style="display: flex; gap: 16px; margin-bottom: 15px; justify-content: center;">
+                <button class="trade-tab-btn active" data-trade-tab="items">📦 Вещи</button>
+                <button class="trade-tab-btn" data-trade-tab="receive">🎁 Получить</button>
+                <button class="trade-tab-btn" data-trade-tab="housing">🏠 Недвижимость</button>
+            </div>
+            
+            <!-- Вкладка "Вещи (Я отдаю)" -->
+            <div id="tradeItemsTab" style="display: flex; flex-wrap: wrap; gap: 20px;">
                 <div style="flex: 1;">
                     <strong>📦 Я отдаю:</strong>
                     <div id="tradeFromItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
@@ -158,6 +169,19 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Вкладка "Недвижимость (Я продаю)" -->
+            <div id="tradeHousingTab" style="display: none;">
+                <div style="margin-bottom: 15px;">
+                    <strong>🏠 Я продаю недвижимость:</strong>
+                </div>
+                <div id="tradeHousingItems" class="inventory-grid" style="max-height: 300px; overflow-y: auto;"></div>
+                <div class="selected-items" style="margin-top: 10px;">
+                    <strong>Выбрано:</strong>
+                    <div id="tradeSelectedHousing" class="selected-items-list"></div>
+                </div>
+            </div>
+            
             <div style="text-align: center; margin-top: 20px;">
                 <button id="sendTradeBtn" class="action-btn">📤 Отправить предложение</button>
                 <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
@@ -176,32 +200,39 @@
         </div>
     </div>
 
-    <!-- Остальные модальные окна без изменений -->
-<div id="inventoryModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <div style="display:flex; gap:16px;">
-                <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
-                <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
-                <button class="tab-btn" data-tab="achievements">🏆 Достижения</button>
+    <!-- Модальное окно инвентаря -->
+    <div id="inventoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <div style="display:flex; gap:16px; flex-wrap: wrap;">
+                    <button class="tab-btn active" data-tab="items">🎒 Вещи</button>
+                    <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
+                    <button class="tab-btn" data-tab="achievements">🏆 Достижения</button>
+                    <button class="tab-btn" data-tab="housing">🏠 Моё жильё</button>
+                </div>
+                <div style="display:flex; gap:16px; align-items: center;">
+                    <div id="equipmentTotalBonus" class="equipment-total-bonus-inline" style="font-size:0.8rem; color: var(--accent-gold);">🔥 +0</div>
+                    <div id="inventoryPageInfo" class="page-info" style="font-size:0.85rem;">Страница 1 / 1</div>
+                </div>
             </div>
-            <div style="display:flex; gap:16px; align-items: center;">
-                <div id="equipmentTotalBonus" class="equipment-total-bonus-inline" style="font-size:0.8rem; color: var(--accent-gold);">🔥 +0</div>
-                <div id="inventoryPageInfo" class="page-info" style="font-size:0.85rem;">Страница 1 / 1</div>
-            </div>
+            <div id="itemsTab" class="inventory-grid"></div>
+            <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
+            <div id="achievementsTab" class="achievements-grid" style="display: none;"></div>
+            <div id="housingTab" class="housing-list" style="display: none;"></div>
+            <button class="close-modal">Закрыть</button>
         </div>
-        <div id="itemsTab" class="inventory-grid"></div>
-        <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
-        <div id="achievementsTab" class="achievements-grid" style="display: none;"></div>
-        <button class="close-modal">Закрыть</button>
     </div>
-</div>
 
     <div id="mapModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
-            <h3>🗺️ Карта города Иваново</h3>
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <h3 style="margin:0;">🗺️ Карта города Иваново</h3>
+                <div style="display:flex; gap:12px;">
+                    <button id="homeBtn" class="action-btn" style="padding:8px 16px;">🏠 Домой</button>
+                    <button id="closeMapModal" class="reset-btn" style="padding:8px 16px;">❌ Закрыть</button>
+                </div>
+            </div>
             <div id="mapContainer" class="map-container"></div>
-            <button class="close-modal">Закрыть</button>
         </div>
     </div>
 
@@ -209,20 +240,23 @@
         <div class="modal-content" id="locationModalContent"></div>
     </div>
 
-  <div id="shopModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
-            <div style="display:flex; gap:16px;">
-                <button class="tab-btn active" data-shop-tab="buy">🛍️ Купить</button>
-                <button class="tab-btn" data-shop-tab="sell">💰 Продать</button>
+    <!-- ===== ОБНОВЛЁННОЕ МОДАЛЬНОЕ ОКНО МАГАЗИНА (С ПРОКРУТКОЙ) ===== -->
+    <div id="shopModal" class="modal">
+        <div class="modal-content" style="max-width: 830px; width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px; flex-shrink: 0;">
+                <div style="display:flex; gap:16px;">
+                    <button class="tab-btn active" data-shop-tab="buy">🛍️ Купить</button>
+                    <button class="tab-btn" data-shop-tab="sell">💰 Продать</button>
+                </div>
+                <div id="shopMoneyInfo" class="shop-money-info" style="font-size:0.85rem; color: var(--accent-gold);">💰 Деньги: <span id="shopMoneyValue">0</span>₽</div>
             </div>
-            <div id="shopMoneyInfo" class="shop-money-info" style="font-size:0.85rem; color: var(--accent-gold);">💰 Деньги: <span id="shopMoneyValue">0</span>₽</div>
+            <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 4px;">
+                <div id="shopBuyTab" class="inventory-grid"></div>
+                <div id="shopSellTab" class="inventory-grid" style="display: none;"></div>
+            </div>
+            <button class="close-modal" style="margin-top: 16px; flex-shrink: 0;">Закрыть</button>
         </div>
-        <div id="shopBuyTab" class="inventory-grid"></div>
-        <div id="shopSellTab" class="inventory-grid" style="display: none;"></div>
-        <button class="close-modal">Закрыть</button>
     </div>
-</div>
 
     <!-- Модальное окно для случайных событий -->
     <div id="eventModal" class="modal">
@@ -248,14 +282,14 @@
         </div>
     </div>
     
-   <div class="global-footer">
-    <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
-    <p>RPG-Иваново · Альфа 0.0.20 · Ачивки и шкала опьяненияс</p>
-</div>
+    <div class="global-footer">
+        <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
+        <p>RPG-Иваново · Альфа 0.1.24 · Глобоальное обновление: обмен, недвижимость, мини-игры </p>
+    </div>
 
     <script type="module" src="js/main.js"></script>
 
-        <!-- Модальное окно для новостей -->
+    <!-- Модальное окно для новостей -->
     <div id="newsModal" class="modal">
         <div class="modal-content news-content">
             <div class="news-header">
@@ -269,6 +303,49 @@
             </div>
             <div class="news-footer">
                 <button id="newsCloseBtn" class="action-btn news-close-btn">Понятно, играть! 🎮</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Модальное окно для списка недвижимости -->
+    <div id="housingModal" class="modal">
+        <div class="modal-content housing-modal-content">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <h3 id="housingModalTitle" style="margin:0;">🏠 Недвижимость</h3>
+                <button class="close-modal-btn" style="background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="housingList" class="housing-list" style="max-height: 500px; overflow-y: auto;">
+                <!-- Список объектов будет заполняться динамически -->
+            </div>
+            <button class="close-modal housing-close-btn" style="margin-top:16px;">Закрыть</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно для агентства недвижимости "Авит0" -->
+    <div id="realEstateMarketModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px;">
+                <h3 style="margin:0;">📢 Агентство недвижимости "Авит0"</h3>
+                <button class="close-modal" style="background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="marketListings" class="market-grid" style="max-height: 500px; overflow-y: auto; padding: 8px;">
+                <!-- Список объявлений будет загружаться сюда -->
+            </div>
+            <div style="text-align: center; margin-top: 16px;">
+                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для смены ника -->
+    <div id="changeNickModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h3>✏️ Сменить игровой ник</h3>
+            <p style="margin-bottom: 10px; color: var(--text-secondary);">Текущий ник: <strong id="currentNickDisplay"></strong></p>
+            <input type="text" id="newNickInput" placeholder="Новый ник" maxlength="20" style="width: 100%; padding: 12px; border-radius: 40px; background: var(--card-bg); color: var(--text-primary); border: 1px solid var(--card-border); margin-bottom: 15px;">
+            <div style="display: flex; gap: 10px;">
+                <button id="confirmChangeNickBtn" class="action-btn" style="flex: 1;">✅ Сохранить</button>
+                <button class="close-modal reset-btn" style="flex: 1;">Отмена</button>
             </div>
         </div>
     </div>

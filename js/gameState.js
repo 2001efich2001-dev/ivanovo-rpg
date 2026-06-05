@@ -1,5 +1,7 @@
 // js/gameState.js
 import { showMessage } from './utils.js';
+import { saveGameData } from './firestore.js';
+import { shouldBlockRealtime, deactivateTradeGuard, getRemainingBlockTime, isTradeGuardActive } from './tradeGuard.js';
 
 export let health = 100;
 export let maxHealth = 100;
@@ -41,6 +43,25 @@ export let requiredExp = 100;
 // ========== ЕЖЕДНЕВНЫЙ БОНУС ==========
 export let dailyBonusLastClaim = null;
 export let dailyBonusStreak = 0;
+
+// ========== СИСТЕМА ЖИЛЬЯ ==========
+export let currentHome = null;           // ID текущего жилья
+export let ownedHomes = [];               // Массив ID купленных объектов (кеш)
+export let homeStorage = [];              // Предметы в хранилище
+export let homeStorageCapacity = 0;       // Вместимость хранилища
+export let housingDebt = 0;               // Долг по налогам
+export let lastTaxPaid = null;            // Дата последней оплаты налога
+
+// ========== НОВЫЕ ПОЛЯ ДЛЯ КОММУНАЛКИ/АРЕНДЫ ==========
+export let housingAccount = 20000;        // Счёт для оплаты (максимум 20000₽)
+export let housingDailyCost = 0;          // Ежедневная стоимость (зависит от типа жилья)
+export let lastHousingCheck = null;       // Дата последней проверки списания
+
+// ========== ГЛОБАЛЬНАЯ ПРОВЕРКА ВСЕХ ИГРОКОВ ==========
+export let lastGlobalHousingCheck = null;  // Дата последней глобальной проверки
+
+// ========== ПОСЛЕДНЕЕ ОБНОВЛЕНИЕ ДАННЫХ ==========
+export let lastUpdated = null;             // Время последнего обновления в Firestore
 
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
@@ -101,11 +122,9 @@ export function updateUI() {
     if (energyValueSpan) energyValueSpan.innerText = `${Math.floor(safeEnergy)} / ${maxEnergy}`;
     if (energyFill) energyFill.style.width = (safeEnergy / maxEnergy) * 100 + '%';
     
-    // Обновляем шкалу опьянения с изменением цвета
     if (intoxicationValueSpan) intoxicationValueSpan.innerText = `${Math.floor(safeIntoxication)} / ${maxIntoxication}`;
     if (intoxicationFill) {
         intoxicationFill.style.width = (safeIntoxication / maxIntoxication) * 100 + '%';
-        // Меняем цвет в зависимости от уровня
         if (safeIntoxication < 20) {
             intoxicationFill.style.background = '#2ecc71';
         } else if (safeIntoxication < 50) {
@@ -116,10 +135,18 @@ export function updateUI() {
             intoxicationFill.style.background = '#e74c3c';
         }
     }
+    
+    // Проверка смерти (если здоровье ≤ 0)
+    if (safeHealth <= 0 && !window._isDying) {
+        setTimeout(() => {
+            if (health <= 0 && !window._isDying) {
+                playerDeath();
+            }
+        }, 100);
+    }
 }
 
 export function setStats(h, hu, c, m) {
-    // Если параметр передан (не undefined и не null) — обновляем
     if (h !== undefined && h !== null) {
         health = isNaN(h) ? maxHealth : Math.min(maxHealth, Math.max(0, h));
     }
@@ -150,9 +177,14 @@ export function updateEnergy() {
         lastEnergyUpdate = now;
         updateUI();
         if (onEnergyUpdateCallback) onEnergyUpdateCallback();
-        import('./firestore.js').then(m => {
-            if (typeof m.saveGameData === 'function') m.saveGameData();
-        });
+        // Сохраняем только если не идёт обмен
+        if (!window._preventAutoSave && !isTradeGuardActive()) {
+            import('./firestore.js').then(m => {
+                if (typeof m.saveGameData === 'function') m.saveGameData();
+            });
+        } else {
+            console.log('⏳ updateEnergy: пропускаем сохранение (идет обмен)');
+        }
     }
 }
 
@@ -192,31 +224,32 @@ export function setIntoxicationUpdateCallback(callback) {
     onIntoxicationUpdateCallback = callback;
 }
 
-// Обновление опьянения (выветривание)
 export function updateIntoxication() {
     const now = Date.now();
     const secondsPassed = (now - lastIntoxicationUpdate) / 1000;
-    // -1 опьянения каждые 3 минуты (180 секунд)
     const intoxicationToRemove = Math.floor(secondsPassed / 180);
     if (intoxicationToRemove > 0 && intoxication > 0) {
         intoxication = Math.max(0, intoxication - intoxicationToRemove);
         lastIntoxicationUpdate = now;
         updateUI();
         if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
-        import('./firestore.js').then(m => {
-            if (typeof m.saveGameData === 'function') m.saveGameData();
-        });
+        // Сохраняем только если не идёт обмен
+        if (!window._preventAutoSave && !isTradeGuardActive()) {
+            import('./firestore.js').then(m => {
+                if (typeof m.saveGameData === 'function') m.saveGameData();
+            });
+        } else {
+            console.log('⏳ updateIntoxication: пропускаем сохранение (идет обмен)');
+        }
     }
 }
 
-// Добавление опьянения
 export function addIntoxication(amount) {
     const safeAmount = isNaN(amount) ? 0 : amount;
     intoxication = Math.min(maxIntoxication, intoxication + safeAmount);
     lastIntoxicationUpdate = Date.now();
     updateUI();
     
-    // Логируем достижения
     if (intoxication >= 80 && intoxication - safeAmount < 80) {
         addLogEntry(`🍺 Ты в стельку! Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
         showMessage(`🥴 Ты очень пьян! Осторожнее...`, '#e74c3c');
@@ -229,7 +262,6 @@ export function addIntoxication(amount) {
     if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
 }
 
-// Уменьшение опьянения (лечение, сон)
 export function reduceIntoxication(amount) {
     const safeAmount = isNaN(amount) ? 0 : amount;
     intoxication = Math.max(0, intoxication - safeAmount);
@@ -238,23 +270,20 @@ export function reduceIntoxication(amount) {
     if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
 }
 
-// Получить модификатор шанса для действий (чем выше опьянение, тем ниже шанс)
 export function getIntoxicationLuckModifier() {
-    if (intoxication < 20) return 1.0;      // норма
-    if (intoxication < 50) return 0.9;      // -10% к шансу
-    if (intoxication < 80) return 0.7;      // -30% к шансу
-    return 0.5;                              // -50% к шансу
+    if (intoxication < 20) return 1.0;
+    if (intoxication < 50) return 0.9;
+    if (intoxication < 80) return 0.7;
+    return 0.5;
 }
 
-// Получить модификатор урона для здоровья
 export function getIntoxicationDamageModifier() {
-    if (intoxication < 20) return 1.0;      // норма
-    if (intoxication < 50) return 1.2;      // +20% урона
-    if (intoxication < 80) return 1.5;      // +50% урона
-    return 2.0;                              // +100% урона
+    if (intoxication < 20) return 1.0;
+    if (intoxication < 50) return 1.2;
+    if (intoxication < 80) return 1.5;
+    return 2.0;
 }
 
-// Проверка, можно ли выполнить действие (при сильном опьянении)
 export function canPerformAction(actionName = 'действие') {
     updateIntoxication();
     if (intoxication >= 80) {
@@ -268,7 +297,6 @@ export function canPerformAction(actionName = 'действие') {
     return true;
 }
 
-// Принудительная установка опьянения (при загрузке)
 export function setIntoxication(newIntoxication) {
     const safeIntoxication = Number(newIntoxication);
     if (isNaN(safeIntoxication)) {
@@ -301,9 +329,14 @@ export function addExperience(amount) {
     updateUI();
     if (onExpUpdateCallback) onExpUpdateCallback();
     
-    import('./firestore.js').then(m => {
-        if (typeof m.saveGameData === 'function') m.saveGameData();
-    });
+    // Сохраняем только если не идёт обмен
+    if (!window._preventAutoSave && !isTradeGuardActive()) {
+        import('./firestore.js').then(m => {
+            if (typeof m.saveGameData === 'function') m.saveGameData();
+        });
+    } else {
+        console.log('⏳ addExperience: пропускаем сохранение (идет обмен)');
+    }
 }
 
 export function setExpUpdateCallback(callback) {
@@ -425,4 +458,739 @@ export function getDailyBonusData() {
 // ========== ФУНКЦИЯ ДЛЯ ОБНОВЛЕНИЯ ВРЕМЕНИ ОПЬЯНЕНИЯ ==========
 export function setLastIntoxicationUpdate(value) {
     lastIntoxicationUpdate = value;
+}
+
+// ========== ФУНКЦИИ ДЛЯ СИСТЕМЫ ЖИЛЬЯ ==========
+export function setHousingData(data) {
+    if (data) {
+        currentHome = data.current ?? null;
+        ownedHomes = data.owned ?? [];
+        homeStorage = data.storage ?? [];
+        homeStorageCapacity = data.storageCapacity ?? 0;
+        housingDebt = data.debt ?? 0;
+        lastTaxPaid = data.lastTaxPaid ?? null;
+        housingAccount = data.account ?? 20000;
+        housingDailyCost = data.dailyCost ?? 0;
+        lastHousingCheck = data.lastHousingCheck ?? null;
+        lastGlobalHousingCheck = data.lastGlobalHousingCheck ?? null;
+        lastUpdated = data.lastUpdated ?? null;
+    }
+    console.log('🏠 Загружены данные жилья:', { currentHome, ownedHomes, homeStorageCapacity, housingDebt, housingAccount, housingDailyCost, lastGlobalHousingCheck, lastUpdated });
+}
+
+export function initHousingData() {
+    currentHome = null;
+    ownedHomes = [];
+    homeStorage = [];
+    homeStorageCapacity = 0;
+    housingDebt = 0;
+    lastTaxPaid = null;
+    housingAccount = 20000;
+    housingDailyCost = 0;
+    lastHousingCheck = null;
+    lastGlobalHousingCheck = null;
+    lastUpdated = null;
+    console.log('🏠 Инициализированы данные жилья для нового игрока');
+}
+
+export function getHousingData() {
+    return {
+        current: currentHome,
+        owned: ownedHomes,
+        storage: homeStorage,
+        storageCapacity: homeStorageCapacity,
+        debt: housingDebt,
+        lastTaxPaid: lastTaxPaid,
+        account: housingAccount,
+        dailyCost: housingDailyCost,
+        lastHousingCheck: lastHousingCheck,
+        lastGlobalHousingCheck: lastGlobalHousingCheck,
+        lastUpdated: lastUpdated
+    };
+}
+
+// ===== ОБНОВЛЕНИЕ ЕЖЕДНЕВНОЙ СТОИМОСТИ =====
+export function updateHousingDailyCost(homeId = currentHome) {
+    if (!homeId) {
+        housingDailyCost = 0;
+        return;
+    }
+    
+    if (homeId.startsWith('dorm')) {
+        housingDailyCost = 250;
+    } else if (homeId.startsWith('apartment')) {
+        housingDailyCost = 500;
+    } else if (homeId.startsWith('house')) {
+        housingDailyCost = 1000;
+    } else {
+        housingDailyCost = 0;
+    }
+    
+    console.log(`🏠 Ежедневная стоимость для ${homeId}: ${housingDailyCost}₽`);
+    return housingDailyCost;
+}
+
+// ===== ПОПОЛНЕНИЕ СЧЁТА =====
+export async function depositToHousingAccount(amount) {
+    if (isNaN(amount) || amount <= 0) {
+        showMessage(`❌ Введите корректную сумму`, '#e74c3c');
+        return false;
+    }
+    
+    if (money < amount) {
+        showMessage(`❌ Не хватает денег! Нужно ${amount}₽, у вас ${money}₽`, '#e74c3c');
+        return false;
+    }
+    
+    const newAccount = Math.min(20000, housingAccount + amount);
+    const actualDeposit = newAccount - housingAccount;
+    
+    if (actualDeposit <= 0) {
+        showMessage(`❌ Счёт уже достиг максимума (20000₽)`, '#ffd966');
+        return false;
+    }
+    
+    setStats(health, hunger, cold, money - actualDeposit);
+    housingAccount = newAccount;
+    
+    if (housingDebt > 0) {
+        housingDebt = 0;
+        addLogEntry(`💰 Долг по жилью погашен!`, 'economy');
+    }
+    
+    updateUI();
+    await saveGameData();
+    
+    showMessage(`💰 Счёт пополнен на ${actualDeposit}₽. Баланс: ${housingAccount}₽`, '#4caf50');
+    addLogEntry(`🏠 Пополнение счёта жилья на ${actualDeposit}₽`, 'economy');
+    
+    return true;
+}
+
+// ===== СНЯТИЕ СО СЧЁТА =====
+export async function withdrawFromHousingAccount(amount) {
+    if (isNaN(amount) || amount <= 0) {
+        showMessage(`❌ Введите корректную сумму`, '#e74c3c');
+        return false;
+    }
+    
+    if (housingAccount < amount) {
+        showMessage(`❌ Недостаточно средств на счету жилья! Доступно: ${housingAccount}₽`, '#e74c3c');
+        return false;
+    }
+    
+    const newMoney = money + amount;
+    setStats(health, hunger, cold, newMoney);
+    housingAccount -= amount;
+    
+    updateUI();
+    await saveGameData();
+    
+    showMessage(`💸 Со счёта жилья снято ${amount}₽. Ваши деньги: ${newMoney}₽`, '#4caf50');
+    addLogEntry(`🏠 Снятие со счёта жилья: ${amount}₽`, 'economy');
+    
+    return true;
+}
+
+// ===== ЕЖЕДНЕВНАЯ ПРОВЕРКА СПИСАНИЯ =====
+export async function checkHousingPayment() {
+    if (!currentHome) return;
+    
+    const today = new Date().toDateString();
+    if (lastHousingCheck === today) {
+        console.log('🏠 Сегодня уже проверяли коммуналку');
+        return;
+    }
+    
+    console.log(`🏠 Проверка коммуналки для ${currentHome}...`);
+    updateHousingDailyCost(currentHome);
+    
+    if (housingDailyCost <= 0) return;
+    
+    let message = '';
+    let isEvicted = false;
+    
+    if (housingAccount >= housingDailyCost) {
+        housingAccount -= housingDailyCost;
+        message = `🏠 Снято ${housingDailyCost}₽ за ${currentHome.startsWith('dorm') ? 'аренду' : 'коммуналку'}. Остаток на счету: ${housingAccount}₽`;
+        showMessage(message, '#ffd966');
+        addLogEntry(message, 'economy');
+        
+        if (housingDebt > 0) {
+            housingDebt = 0;
+        }
+    } else {
+        const shortage = housingDailyCost - housingAccount;
+        housingDebt += shortage;
+        housingAccount = 0;
+        
+        message = `⚠️ Недостаточно средств на счету жилья! Долг: ${housingDebt}₽. Пополните счёт, иначе вас выселят!`;
+        showMessage(message, '#e74c3c');
+        addLogEntry(message, 'economy');
+        
+        if (housingDebt > housingDailyCost * 3) {
+            message = `💔 Вас выселили из ${currentHome} за неуплату ${housingDebt}₽!`;
+            showMessage(message, '#e74c3c');
+            addLogEntry(message, 'economy');
+            await evictFromHome();
+            isEvicted = true;
+        }
+    }
+    
+    lastHousingCheck = today;
+    await saveGameData();
+    
+    return { success: !isEvicted, debt: housingDebt, account: housingAccount };
+}
+
+// ===== ГЛОБАЛЬНАЯ ПРОВЕРКА ВСЕХ ВЛАДЕЛЬЦЕВ =====
+export async function checkAllHousingPayments() {
+    const { db } = await import('./firestore.js');
+    const { collection, getDocs, doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (lastGlobalHousingCheck) {
+        const lastCheck = new Date(lastGlobalHousingCheck);
+        lastCheck.setHours(0, 0, 0, 0);
+        if (lastCheck.getTime() === today.getTime()) {
+            console.log('🏠 Глобальная проверка уже проводилась сегодня');
+            return;
+        }
+    }
+    
+    console.log('🏠 ========== ЗАПУСК ГЛОБАЛЬНОЙ ПРОВЕРКИ НЕДВИЖИМОСТИ ==========');
+    
+    const usersSnapshot = await getDocs(collection(db, 'users'));
+    let processed = 0;
+    let evicted = 0;
+    let totalDebt = 0;
+    
+    for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const housing = userData.housing || {};
+        const ownedHomesList = housing.owned || [];
+        
+        if (ownedHomesList.length === 0) continue;
+        
+        const currentHomeId = housing.current;
+        const account = housing.account ?? 20000;
+        const debt = housing.debt || 0;
+        const lastCheckRaw = housing.lastHousingCheck;
+        const dailyCost = getDailyCostById(currentHomeId);
+        
+        if (!currentHomeId || dailyCost === 0) continue;
+        
+        let daysMissed = 1;
+        if (lastCheckRaw) {
+            const lastCheckDate = new Date(lastCheckRaw);
+            lastCheckDate.setHours(0, 0, 0, 0);
+            const diffTime = Math.abs(today.getTime() - lastCheckDate.getTime());
+            daysMissed = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            daysMissed = Math.min(daysMissed, 30);
+        }
+        
+        const totalCost = dailyCost * daysMissed;
+        let newAccount = account;
+        let newDebt = debt;
+        let isEvictedUser = false;
+        
+        console.log(`   👤 ${userDoc.id} (${userData.displayName || 'без имени'}) — ${currentHomeId}, пропущено дней: ${daysMissed}, долг: ${debt}₽`);
+        
+        if (newAccount >= totalCost) {
+            newAccount -= totalCost;
+            console.log(`      ✅ Списано ${totalCost}₽, баланс: ${newAccount}₽`);
+        } else {
+            const remaining = totalCost - newAccount;
+            newDebt += remaining;
+            newAccount = 0;
+            console.log(`      ⚠️ Не хватает! Долг: ${newDebt}₽`);
+            
+            if (newDebt > dailyCost * 3) {
+                console.log(`      💔 ВЫСЕЛЕНИЕ! Долг превысил лимит`);
+                isEvictedUser = true;
+                evicted++;
+                
+                const propertyRef = doc(db, 'real_estate', currentHomeId);
+                await updateDoc(propertyRef, {
+                    ownerId: deleteField(),
+                    ownerName: deleteField(),
+                    purchasedAt: deleteField(),
+                    debt: deleteField(),
+                    lastTaxPaid: deleteField()
+                }).catch(e => console.warn(`         Ошибка очистки ${currentHomeId}:`, e));
+                
+                const newOwned = ownedHomesList.filter(id => id !== currentHomeId);
+                const newCurrent = newOwned.length > 0 ? newOwned[0] : null;
+                let newCapacity = 0;
+                if (newCurrent) {
+                    if (newCurrent.startsWith('dorm')) newCapacity = 10;
+                    else if (newCurrent.startsWith('apartment')) newCapacity = 20;
+                    else if (newCurrent.startsWith('house')) newCapacity = 40;
+                }
+                
+                await userDoc.ref.update({
+                    'housing.owned': newOwned,
+                    'housing.current': newCurrent,
+                    'housing.storageCapacity': newCapacity,
+                    'housing.account': 20000,
+                    'housing.debt': 0,
+                    'housing.lastHousingCheck': new Date().toISOString()
+                });
+                continue;
+            }
+        }
+        
+        await userDoc.ref.update({
+            'housing.account': newAccount,
+            'housing.debt': newDebt,
+            'housing.lastHousingCheck': new Date().toISOString()
+        });
+        
+        processed++;
+        totalDebt += newDebt;
+    }
+    
+    lastGlobalHousingCheck = today.toISOString();
+    await saveGameData();
+    
+    console.log(`🏠 Глобальная проверка завершена: обработано ${processed}, выселено ${evicted}, общий долг ${totalDebt}₽`);
+}
+
+function getDailyCostById(homeId) {
+    if (!homeId) return 0;
+    if (homeId.startsWith('dorm')) return 250;
+    if (homeId.startsWith('apartment')) return 500;
+    if (homeId.startsWith('house')) return 1000;
+    return 0;
+}
+
+// ===== ВЫСЕЛЕНИЕ =====
+export async function evictFromHome() {
+    if (!currentHome) return false;
+    
+    const evictedHomeId = currentHome;
+    
+    const { db } = await import('./firestore.js');
+    const { doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+    const { auth } = await import('./auth.js');
+    
+    const user = auth.currentUser;
+    if (user) {
+        const propertyRef = doc(db, 'real_estate', evictedHomeId);
+        await updateDoc(propertyRef, {
+            ownerId: deleteField(),
+            ownerName: deleteField(),
+            purchasedAt: deleteField(),
+            debt: deleteField(),
+            lastTaxPaid: deleteField()
+        }).catch(e => console.warn('Не удалось очистить real_estate:', e));
+    }
+    
+    const index = ownedHomes.indexOf(evictedHomeId);
+    if (index !== -1) ownedHomes.splice(index, 1);
+    
+    housingAccount = 20000;
+    housingDebt = 0;
+    housingDailyCost = 0;
+    
+    if (ownedHomes.length > 0) {
+        await setPrimaryHome(ownedHomes[0]);
+        showMessage(`🏠 Ваше новое основное жильё: ${currentHome}`, '#ffd966');
+    } else {
+        currentHome = null;
+        homeStorageCapacity = 0;
+        setCurrentLocation('dump_home');
+        showMessage(`🗑️ У вас больше нет жилья! Телепорт отправит на помойку.`, '#e74c3c');
+    }
+    
+    await saveGameData();
+    updateUI();
+    
+    addLogEntry(`🏠 Выселен из ${evictedHomeId} за неуплату`, 'economy');
+    return true;
+}
+
+// Обновление вместимости хранилища
+export function updateStorageCapacity(homeType) {
+    switch (homeType) {
+        case 'dorm':
+            homeStorageCapacity = 10;
+            break;
+        case 'apartment':
+            homeStorageCapacity = 20;
+            break;
+        case 'house':
+            homeStorageCapacity = 40;
+            break;
+        default:
+            homeStorageCapacity = 0;
+    }
+    console.log(`🏠 Вместимость хранилища обновлена: ${homeStorageCapacity} слотов`);
+}
+
+// Добавление предмета в хранилище дома
+export function addToHomeStorage(itemId, count = 1) {
+    const existingItem = homeStorage.find(i => i.id === itemId);
+    if (existingItem) {
+        existingItem.count += count;
+    } else {
+        homeStorage.push({ id: itemId, count });
+    }
+    updateUI();
+}
+
+// Удаление предмета из хранилища дома
+export function removeFromHomeStorage(itemId, count = 1) {
+    const itemIndex = homeStorage.findIndex(i => i.id === itemId);
+    if (itemIndex === -1 || homeStorage[itemIndex].count < count) return false;
+    
+    if (homeStorage[itemIndex].count === count) {
+        homeStorage.splice(itemIndex, 1);
+    } else {
+        homeStorage[itemIndex].count -= count;
+    }
+    updateUI();
+    return true;
+}
+
+// ========== ФУНКЦИИ ДЛЯ СВЯЗИ ЖИЛЬЯ С ЛОКАЦИЯМИ ==========
+
+export function getHomeLocationId(homeId) {
+    if (!homeId) return 'dump_home';
+    if (homeId.startsWith('dorm')) return 'dorm_home';
+    if (homeId.startsWith('apartment')) return 'apartment_home';
+    if (homeId.startsWith('house')) return 'house_home';
+    return 'dump_home';
+}
+
+export async function setPrimaryHome(homeId) {
+    if (!ownedHomes.includes(homeId)) {
+        showMessage(`❌ У вас нет такого жилья!`, '#e74c3c');
+        return false;
+    }
+    
+    currentHome = homeId;
+    
+    if (homeId.startsWith('dorm')) {
+        updateStorageCapacity('dorm');
+    } else if (homeId.startsWith('apartment')) {
+        updateStorageCapacity('apartment');
+    } else if (homeId.startsWith('house')) {
+        updateStorageCapacity('house');
+    } else {
+        updateStorageCapacity('dump');
+    }
+    
+    updateHousingDailyCost(homeId);
+    
+    await saveGameData();
+    
+    showMessage(`🏠 Теперь ваше основное жильё: ${homeId}`, '#4caf50');
+    addLogEntry(`🏠 Основное жильё изменено на ${homeId}`, 'system');
+    
+    return true;
+}
+
+export async function teleportHome() {
+    const { setCurrentLocation } = await import('./gameState.js');
+    
+    let homeLocationId;
+    
+    if (currentHome) {
+        homeLocationId = getHomeLocationId(currentHome);
+        setCurrentLocation(homeLocationId);
+        showMessage(`🏠 Вы телепортировались домой!`, '#4caf50');
+        addLogEntry(`🏠 Телепорт домой (${currentHome})`, 'system');
+    } else if (ownedHomes.length > 0) {
+        const firstHome = ownedHomes[0];
+        await setPrimaryHome(firstHome);
+        homeLocationId = getHomeLocationId(firstHome);
+        setCurrentLocation(homeLocationId);
+        showMessage(`🏠 Вы телепортировались в ${firstHome} (основное жильё установлено автоматически)`, '#4caf50');
+    } else {
+        setCurrentLocation('dump_home');
+        showMessage(`🗑️ У вас нет жилья. Вы отправились на помойку.`, '#ffd966');
+        addLogEntry(`🗑️ Телепорт на помойку (нет жилья)`, 'system');
+    }
+}
+
+// ========== СМЕРТЬ ИГРОКА ==========
+export async function playerDeath() {
+    console.log('💀 ИГРОК УМЕР! Запуск механики смерти...');
+    
+    if (window._isDying) {
+        console.log('💀 Смерть уже обрабатывается, пропускаем');
+        return;
+    }
+    window._isDying = true;
+    
+    const lostMoney = Math.floor(money * 0.1);
+    const lostExp = Math.floor(experience * 0.05);
+    
+    let lostItemName = '';
+    
+    if (inventory.length > 0) {
+        const availableItems = inventory.filter(item => item.count > 0);
+        if (availableItems.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            const lostItem = availableItems[randomIndex];
+            const actualItemIndex = inventory.findIndex(i => i.id === lostItem.id);
+            
+            const { itemsDB } = await import('./inventory.js');
+            lostItemName = itemsDB[lostItem.id]?.name || lostItem.id;
+            
+            if (inventory[actualItemIndex].count === 1) {
+                inventory.splice(actualItemIndex, 1);
+            } else {
+                inventory[actualItemIndex].count--;
+            }
+        }
+    }
+    
+    const newMoney = Math.max(0, money - lostMoney);
+    const newExperience = Math.max(0, experience - lostExp);
+    
+    const deathOverlay = document.createElement('div');
+    deathOverlay.id = 'deathOverlay';
+    deathOverlay.style.position = 'fixed';
+    deathOverlay.style.top = '0';
+    deathOverlay.style.left = '0';
+    deathOverlay.style.width = '100%';
+    deathOverlay.style.height = '100%';
+    deathOverlay.style.backgroundColor = 'black';
+    deathOverlay.style.zIndex = '10050';
+    deathOverlay.style.opacity = '0';
+    deathOverlay.style.transition = 'opacity 1s ease, backdrop-filter 1s ease';
+    deathOverlay.style.backdropFilter = 'blur(0px)';
+    deathOverlay.style.pointerEvents = 'none';
+    document.body.appendChild(deathOverlay);
+    
+    setTimeout(() => { 
+        deathOverlay.style.opacity = '0.95';
+        deathOverlay.style.backdropFilter = 'blur(8px)';
+    }, 10);
+    
+    setStats(50, 50, 50, newMoney);
+    setExpData(newExperience, level);
+    
+    addLogEntry(`💀 Вы потеряли сознание! Потеряно ${lostMoney}₽, ${lostExp} опыта${lostItemName ? `, потерян предмет: ${lostItemName}` : ''}.`, 'combat');
+    
+    const deathMessageDiv = document.createElement('div');
+    deathMessageDiv.style.position = 'fixed';
+    deathMessageDiv.style.top = '50%';
+    deathMessageDiv.style.left = '50%';
+    deathMessageDiv.style.transform = 'translate(-50%, -50%)';
+    deathMessageDiv.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    deathMessageDiv.style.color = '#ffd966';
+    deathMessageDiv.style.padding = '25px 35px';
+    deathMessageDiv.style.borderRadius = '60px';
+    deathMessageDiv.style.fontSize = '1.2rem';
+    deathMessageDiv.style.fontWeight = 'bold';
+    deathMessageDiv.style.textAlign = 'center';
+    deathMessageDiv.style.zIndex = '10051';
+    deathMessageDiv.style.border = '2px solid #ffd966';
+    deathMessageDiv.style.boxShadow = '0 0 20px rgba(255, 217, 102, 0.5)';
+    deathMessageDiv.style.animation = 'deathMessagePulse 1s ease infinite';
+    deathMessageDiv.innerHTML = `
+        🚑 Кажется, вы потеряли сознание...<br>
+        Скорая дотащила вас до дома, но вы что-то потеряли по пути<br><br>
+        💰 Потеряно: ${lostMoney}₽<br>
+        ⭐ Потеряно: ${lostExp} опыта${lostItemName ? `<br>🎒 Потерян: ${lostItemName}` : ''}
+    `;
+    document.body.appendChild(deathMessageDiv);
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes deathMessagePulse {
+            0% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.03); text-shadow: 0 0 8px #ffd966; }
+            100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    await teleportHome();
+    await saveGameData();
+    updateUI();
+    
+    setTimeout(() => {
+        if (deathMessageDiv && deathMessageDiv.remove) deathMessageDiv.remove();
+    }, 6000);
+    
+    setTimeout(() => {
+        deathOverlay.style.opacity = '0';
+        deathOverlay.style.backdropFilter = 'blur(0px)';
+        setTimeout(() => {
+            if (deathOverlay && deathOverlay.remove) deathOverlay.remove();
+            if (style && style.remove) style.remove();
+        }, 1000);
+    }, 7000);
+    
+    console.log(`💀 Смерть обработана: потеряно денег ${lostMoney}, опыта ${lostExp}, предмет ${lostItemName || 'нет'}`);
+    
+    window._isDying = false;
+    
+    return { lostMoney, lostExp, lostItemName };
+}
+
+// ========== ЗАГРУЗКА НЕДВИЖИМОСТИ ИЗ REAL_ESTATE ==========
+export async function loadOwnedHomesFromRealEstate() {
+    const user = window.auth?.currentUser;
+    if (!user) {
+        console.log('🏠 Пользователь не авторизован');
+        return [];
+    }
+    
+    try {
+        const { db } = await import('./firestore.js');
+        const { collection, query, where, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        const q = query(collection(db, 'real_estate'), where('ownerId', '==', user.uid));
+        const snapshot = await getDocs(q);
+        
+        const owned = [];
+        snapshot.forEach(doc => {
+            owned.push(doc.id);
+        });
+        
+        ownedHomes.length = 0;
+        ownedHomes.push(...owned);
+        
+        console.log('🏠 Загружена недвижимость из real_estate:', owned);
+        return owned;
+    } catch (error) {
+        console.error('❌ Ошибка загрузки недвижимости из real_estate:', error);
+        return [];
+    }
+}
+
+// ========== ОБНОВЛЕНИЕ currentHome (если он стал невалидным) ==========
+export async function validateCurrentHome() {
+    await loadOwnedHomesFromRealEstate();
+    
+    if (currentHome && !ownedHomes.includes(currentHome)) {
+        console.log(`🏠 Текущее жильё ${currentHome} больше не принадлежит игроку, выбираем новое`);
+        if (ownedHomes.length > 0) {
+            await setPrimaryHome(ownedHomes[0]);
+        } else {
+            currentHome = null;
+            homeStorageCapacity = 0;
+            housingDailyCost = 0;
+            await saveGameData();
+        }
+    }
+}
+
+// ========== НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ИЗ FIRESTORE С ЗАЩИТОЙ ==========
+/**
+ * Обновить состояние из Firestore (с защитой от обмена)
+ * @param {Object} remoteData - Данные из Firestore
+ * @param {boolean} force - Принудительное обновление (игнорировать защиту)
+ * @returns {boolean} - Было ли обновление применено
+ */
+export function updateFromFirestoreWithGuard(remoteData, force = false) {
+    // Если защита активна и не форсируем — пропускаем обновление
+    if (!force && shouldBlockRealtime()) {
+        const remaining = getRemainingBlockTime();
+        console.log(`🛡️ updateFromFirestoreWithGuard: обновление отклонено (защита активна, осталось ${remaining}с)`);
+        
+        // Добавляем запись в лог для отладки (но не спамим)
+        if (Math.random() < 0.1) { // только 10% случаев, чтобы не заспамить лог
+            addLogEntry(`🛡️ Пропущено автоматическое обновление (обработка обмена ${remaining}с)`, 'system');
+        }
+        return false;
+    }
+    
+    // Применяем обновление
+    let updated = false;
+    
+    if (remoteData.health !== undefined) {
+        health = Math.min(maxHealth, Math.max(0, remoteData.health));
+        updated = true;
+    }
+    if (remoteData.hunger !== undefined) {
+        hunger = Math.min(maxHunger, Math.max(0, remoteData.hunger));
+        updated = true;
+    }
+    if (remoteData.cold !== undefined) {
+        cold = Math.min(maxCold, Math.max(0, remoteData.cold));
+        updated = true;
+    }
+    if (remoteData.money !== undefined) {
+        money = Math.max(0, remoteData.money);
+        updated = true;
+    }
+    if (remoteData.energy !== undefined) {
+        energy = Math.min(maxEnergy, Math.max(0, remoteData.energy));
+        lastEnergyUpdate = Date.now();
+        updated = true;
+    }
+    if (remoteData.intoxication !== undefined) {
+        intoxication = Math.min(maxIntoxication, Math.max(0, remoteData.intoxication));
+        lastIntoxicationUpdate = Date.now();
+        updated = true;
+    }
+    if (remoteData.experience !== undefined) {
+        experience = Math.max(0, remoteData.experience);
+        updated = true;
+    }
+    if (remoteData.level !== undefined) {
+        level = Math.max(1, remoteData.level);
+        requiredExp = calculateRequiredExp(level);
+        updated = true;
+    }
+    if (remoteData.inventory !== undefined && Array.isArray(remoteData.inventory)) {
+        inventory.length = 0;
+        inventory.push(...remoteData.inventory);
+        updated = true;
+    }
+    if (remoteData.equipped !== undefined) {
+        equipped = { ...equipped, ...remoteData.equipped };
+        updated = true;
+    }
+    if (remoteData.currentLocation !== undefined) {
+        currentLocation = remoteData.currentLocation;
+        updated = true;
+    }
+    if (remoteData.housing !== undefined) {
+        setHousingData(remoteData.housing);
+        updated = true;
+    }
+    if (remoteData.lastUpdated !== undefined) {
+        lastUpdated = remoteData.lastUpdated;
+        updated = true;
+    }
+    
+    if (updated) {
+        updateUI();
+        console.log('🔄 updateFromFirestoreWithGuard: данные обновлены из Firestore');
+        
+        // Если обновление пришло и защита была активна, но мы форсированно применили — снимаем защиту
+        if (force && shouldBlockRealtime()) {
+            deactivateTradeGuard();
+            console.log('🔄 Форсированное обновление применено, защита снята');
+            addLogEntry(`🔄 Принудительное обновление данных после обмена`, 'system');
+        }
+    }
+    
+    return updated;
+}
+
+// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ TRADE ==========
+/**
+ * Проверить, активна ли сейчас защита обмена
+ * @returns {boolean}
+ */
+export function isTradeBlocked() {
+    return isTradeGuardActive();
+}
+
+/**
+ * Получить время до снятия защиты (в секундах)
+ * @returns {number}
+ */
+export function getTradeBlockTimeRemaining() {
+    return getRemainingBlockTime();
 }
