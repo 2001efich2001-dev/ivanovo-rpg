@@ -147,11 +147,6 @@
         .zone-mid { color: #e67e22; }
         .zone-outer { color: #e74c3c; }
 
-        @keyframes wobble {
-            0% { transform: translateX(-5px); }
-            100% { transform: translateX(5px); }
-        }
-
         .result-modal {
             position: fixed;
             top: 0;
@@ -271,7 +266,7 @@
             maxRadius: 160
         };
         
-        // ========== НОВЫЕ ПАРАМЕТРЫ ПРИЦЕЛА ==========
+        // Параметры прицела
         let aimX = 400;
         let aimY = 250;
         let aimVelocityX = 1.2;
@@ -325,7 +320,6 @@
             return 25;
         }
         
-        // Случайное изменение направления (эффект "пьяного" дёрганья)
         function randomDirectionChange() {
             const changeChance = Math.min(0.3, playerIntoxication / 300);
             if (Math.random() < changeChance) {
@@ -341,12 +335,10 @@
             
             randomDirectionChange();
             
-            // Движение по горизонтали
             aimX += aimVelocityX * aimDirectionX;
             if (aimX > 700) { aimX = 700; aimDirectionX = -1; }
             if (aimX < 100) { aimX = 100; aimDirectionX = 1; }
             
-            // Движение по вертикали
             aimY += aimVelocityY * aimDirectionY;
             if (aimY > 400) { aimY = 400; aimDirectionY = -1; }
             if (aimY < 150) { aimY = 150; aimDirectionY = 1; }
@@ -597,13 +589,28 @@
             const throwBtn = document.getElementById('throwBtn');
             throwBtn.addEventListener('click', () => throwDart());
             
+            // ===== ИСПРАВЛЕННАЯ КНОПКА ВЫЙТИ =====
             const closeBtn = document.getElementById('closeGameBtn');
-            closeBtn.addEventListener('click', () => {
-                if (gameResultCallback) gameResultCallback(false, 0, 0);
-                window.parent.postMessage('closeDartsGame', '*');
-                const closeEvent = new CustomEvent('closeDartsGame');
-                window.dispatchEvent(closeEvent);
-            });
+            if (closeBtn) {
+                // Создаём новую кнопку, чтобы убрать старые обработчики
+                const newCloseBtn = closeBtn.cloneNode(true);
+                closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+                
+                newCloseBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    console.log('Кнопка ВЫЙТИ нажата');
+                    if (gameResultCallback) {
+                        gameResultCallback(false, 0, 0);
+                    }
+                    // Отправляем сообщение родительскому окну
+                    if (window.parent) {
+                        window.parent.postMessage('closeDartsGame', '*');
+                    }
+                    // Создаём событие для закрытия
+                    const closeEvent = new CustomEvent('closeDartsGame');
+                    window.dispatchEvent(closeEvent);
+                });
+            }
             
             window.addEventListener('keydown', (e) => {
                 if (e.code === 'Space') {
