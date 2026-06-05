@@ -152,10 +152,6 @@
             100% { transform: translateX(5px); }
         }
 
-        .drunk-effect {
-            animation: wobble 0.1s ease-in-out infinite alternate;
-        }
-
         .result-modal {
             position: fixed;
             top: 0;
@@ -224,7 +220,7 @@
             <button id="closeGameBtn" class="close-game-btn">🚪 ВЫЙТИ</button>
         </div>
         <div style="text-align: center; margin-top: 12px; font-size: 0.7rem; color: #ffd966;">
-            💡 Нажми ПРОБЕЛ → дротик летит в цель! Чем выше опьянение, тем сильнее трясётся прицел
+            💡 Нажми ПРОБЕЛ → дротик летит в цель! Прицел пьяно шатается по горизонтали и вертикали
         </div>
     </div>
 </div>
@@ -250,30 +246,48 @@
         canvas.width = 800;
         canvas.height = 500;
         
+        // Фон для дартса
+        const bgImage = new Image();
+        bgImage.src = 'images/darts_bg.jpg';
+        let bgLoaded = false;
+        bgImage.onload = () => {
+            bgLoaded = true;
+            drawTarget();
+        };
+        bgImage.onerror = () => {
+            console.warn('Фон для дротиков не загрузился, используем заливку');
+            bgLoaded = false;
+            drawTarget();
+        };
+        
         // Мишень
         const target = {
             x: 400,
             y: 250,
-            bullRadius: 20,    // 100 очков
-            innerRadius: 50,   // 50 очков
-            midRadius: 90,     // 25 очков
-            outerRadius: 130,  // 10 очков
+            bullRadius: 20,
+            innerRadius: 50,
+            midRadius: 90,
+            outerRadius: 130,
             maxRadius: 160
         };
         
-        // Прицел
+        // ========== НОВЫЕ ПАРАМЕТРЫ ПРИЦЕЛА ==========
         let aimX = 400;
         let aimY = 250;
-        let aimVelocity = 1.5;
-        let aimDirection = 1;
-        let wobbleOffset = 0;
+        let aimVelocityX = 1.2;
+        let aimDirectionX = 1;
+        let aimVelocityY = 0.8;
+        let aimDirectionY = 1;
+        let wobbleOffsetX = 0;
+        let wobbleOffsetY = 0;
+        let randomDrunkJitter = 0;
+        
         let animationFrame = null;
         
         // Игровое состояние
         let currentScore = 0;
         let throwsLeft = 3;
         let currentBet = 0;
-        let currentThrowResult = null;
         let gameActive = true;
         
         // Элементы UI
@@ -311,20 +325,48 @@
             return 25;
         }
         
+        // Случайное изменение направления (эффект "пьяного" дёрганья)
+        function randomDirectionChange() {
+            const changeChance = Math.min(0.3, playerIntoxication / 300);
+            if (Math.random() < changeChance) {
+                aimDirectionX = (Math.random() > 0.5) ? 1 : -1;
+                aimDirectionY = (Math.random() > 0.5) ? 1 : -1;
+                aimVelocityX = 0.8 + Math.random() * 1.2;
+                aimVelocityY = 0.6 + Math.random() * 1.0;
+            }
+        }
+        
         function updateAim() {
             if (!gameActive) return;
             
-            // Движение прицела
-            aimX += aimVelocity * aimDirection;
-            if (aimX > 700) { aimX = 700; aimDirection = -1; }
-            if (aimX < 100) { aimX = 100; aimDirection = 1; }
+            randomDirectionChange();
             
-            // Добавляем "пьяную" тряску
+            // Движение по горизонтали
+            aimX += aimVelocityX * aimDirectionX;
+            if (aimX > 700) { aimX = 700; aimDirectionX = -1; }
+            if (aimX < 100) { aimX = 100; aimDirectionX = 1; }
+            
+            // Движение по вертикали
+            aimY += aimVelocityY * aimDirectionY;
+            if (aimY > 400) { aimY = 400; aimDirectionY = -1; }
+            if (aimY < 150) { aimY = 150; aimDirectionY = 1; }
+            
             const wobbleStrength = getAimWobble();
             if (wobbleStrength > 0) {
-                wobbleOffset = (Math.sin(Date.now() * 0.015) * wobbleStrength);
-                aimX += wobbleOffset;
+                wobbleOffsetX = (Math.sin(Date.now() * 0.02) * wobbleStrength);
+                wobbleOffsetY = (Math.cos(Date.now() * 0.017) * wobbleStrength * 0.7);
+                aimX += wobbleOffsetX;
+                aimY += wobbleOffsetY;
                 aimX = Math.min(700, Math.max(100, aimX));
+                aimY = Math.min(400, Math.max(150, aimY));
+            }
+            
+            if (playerIntoxication > 60) {
+                randomDrunkJitter = (Math.random() - 0.5) * (playerIntoxication / 20);
+                aimX += randomDrunkJitter;
+                aimY += randomDrunkJitter * 0.5;
+                aimX = Math.min(700, Math.max(100, aimX));
+                aimY = Math.min(400, Math.max(150, aimY));
             }
         }
         
@@ -350,7 +392,6 @@
             const score = getScoreFromPosition(aimX, aimY);
             let finalScore = score;
             
-            // Бонус за сильное опьянение
             if (playerIntoxication >= 80) {
                 finalScore = Math.floor(score * 2);
             }
@@ -358,9 +399,7 @@
             currentScore += finalScore;
             throwsLeft--;
             
-            // Анимация попадания
             showHitEffect(aimX, aimY, finalScore);
-            
             updateUI();
             
             if (throwsLeft === 0) {
@@ -369,7 +408,6 @@
         }
         
         function showHitEffect(x, y, score) {
-            // Визуальный эффект
             const effect = document.createElement('div');
             effect.textContent = `+${score}`;
             effect.style.position = 'fixed';
@@ -392,7 +430,6 @@
                 }
             `;
             document.head.appendChild(style);
-            
             setTimeout(() => effect.remove(), 1000);
         }
         
@@ -405,7 +442,6 @@
             gameActive = false;
             if (animationFrame) cancelAnimationFrame(animationFrame);
             
-            // Расчёт награды
             let rewardMoney = 0;
             let rewardExp = 0;
             
@@ -422,13 +458,11 @@
                 rewardExp = 5;
             }
             
-            // Учитываем ставку
             if (currentBet > 0 && currentScore > 0) {
                 const betMultiplier = currentScore >= 200 ? 3 : (currentScore >= 100 ? 2 : 1);
                 rewardMoney += currentBet * betMultiplier;
             }
             
-            // Штраф за ноль очков
             if (currentScore === 0) {
                 rewardExp = -10;
                 showResultModal(`💀 ПОЗОР! 💀<br>🎯 Очков: ${currentScore}<br>💀 Опыта: ${rewardExp}`, false);
@@ -462,49 +496,65 @@
         }
         
         function drawTarget() {
-            // Мишень
-            ctx.fillStyle = '#1a0f0a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (!ctx) return;
             
-            // Внешнее кольцо
+            if (bgLoaded && bgImage.complete && bgImage.naturalWidth > 0) {
+                ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#2a1a0a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#3a2a1a';
+                for (let i = 0; i < 20; i++) {
+                    ctx.fillRect(0, i * 25, canvas.width, 2);
+                }
+            }
+            
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "black";
+            
             ctx.beginPath();
             ctx.arc(target.x, target.y, target.outerRadius, 0, Math.PI * 2);
-            ctx.fillStyle = '#c0392b';
+            ctx.fillStyle = '#8B0000';
             ctx.fill();
-            ctx.strokeStyle = '#8b0000';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#5a0000';
+            ctx.lineWidth = 3;
             ctx.stroke();
             
-            // Среднее кольцо
             ctx.beginPath();
             ctx.arc(target.x, target.y, target.midRadius, 0, Math.PI * 2);
-            ctx.fillStyle = '#e67e22';
+            ctx.fillStyle = '#E67E22';
             ctx.fill();
             ctx.stroke();
             
-            // Внутреннее кольцо
             ctx.beginPath();
             ctx.arc(target.x, target.y, target.innerRadius, 0, Math.PI * 2);
-            ctx.fillStyle = '#f1c40f';
+            ctx.fillStyle = '#F1C40F';
             ctx.fill();
             ctx.stroke();
             
-            // Центр
             ctx.beginPath();
             ctx.arc(target.x, target.y, target.bullRadius, 0, Math.PI * 2);
-            ctx.fillStyle = '#2ecc71';
+            ctx.fillStyle = '#2ECC71';
             ctx.fill();
             ctx.stroke();
             
-            // Текст очков
-            ctx.fillStyle = '#2c2b26';
-            ctx.font = 'bold 14px monospace';
-            ctx.fillText('10', target.x - 120, target.y - 130);
-            ctx.fillText('25', target.x - 70, target.y - 70);
-            ctx.fillText('50', target.x - 30, target.y - 25);
-            ctx.fillText('100', target.x - 10, target.y);
+            ctx.beginPath();
+            ctx.arc(target.x, target.y, 6, 0, Math.PI * 2);
+            ctx.fillStyle = '#E74C3C';
+            ctx.fill();
             
-            // Прицел
+            ctx.shadowBlur = 0;
+            
+            ctx.fillStyle = '#FFF8DC';
+            ctx.font = 'bold 16px "Segoe UI", system-ui';
+            ctx.shadowBlur = 2;
+            ctx.fillText('10', target.x - 130, target.y - 130);
+            ctx.fillText('25', target.x - 75, target.y - 70);
+            ctx.fillText('50', target.x - 35, target.y - 25);
+            ctx.fillText('100', target.x - 15, target.y + 5);
+            
             ctx.beginPath();
             ctx.arc(aimX, aimY, 12, 0, Math.PI * 2);
             ctx.strokeStyle = '#ffffff';
@@ -517,11 +567,12 @@
             ctx.lineTo(aimX, aimY + 20);
             ctx.stroke();
             
-            // Красный центр прицела
             ctx.beginPath();
             ctx.arc(aimX, aimY, 4, 0, Math.PI * 2);
             ctx.fillStyle = '#ff3333';
             ctx.fill();
+            
+            ctx.shadowBlur = 0;
         }
         
         function gameLoop() {
@@ -531,12 +582,10 @@
             animationFrame = requestAnimationFrame(gameLoop);
         }
         
-        // ========== ИНИЦИАЛИЗАЦИЯ ==========
         function init() {
             updateIntoxicationUI();
             updateUI();
             
-            // Обработчики ставок
             document.querySelectorAll('.bet-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('active'));
@@ -545,11 +594,9 @@
                 });
             });
             
-            // Кнопка броска
             const throwBtn = document.getElementById('throwBtn');
             throwBtn.addEventListener('click', () => throwDart());
             
-            // Кнопка закрытия
             const closeBtn = document.getElementById('closeGameBtn');
             closeBtn.addEventListener('click', () => {
                 if (gameResultCallback) gameResultCallback(false, 0, 0);
@@ -558,7 +605,6 @@
                 window.dispatchEvent(closeEvent);
             });
             
-            // Клавиша пробел
             window.addEventListener('keydown', (e) => {
                 if (e.code === 'Space') {
                     e.preventDefault();
