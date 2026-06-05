@@ -1,6 +1,6 @@
 // js/weatherEffects.js
 
-import { accumulatedMinutes, currentWeather, intoxication } from './gameState.js';
+import { accumulatedMinutes, currentWeather, intoxication, currentLocation } from './gameState.js';
 
 let darkOverlay = null;
 let particlesCanvas = null;
@@ -197,10 +197,27 @@ function startParticleAnimation(weather) {
     draw();
 }
 
-// Обновление эффектов при смене погоды
+// Обновление эффектов при смене погоды (с проверкой на жильё)
 export function updateWeatherEffects() {
     if (!particlesCanvas) return;
     
+    // ===== НОВАЯ ПРОВЕРКА: отключаем погоду в жилье (кроме помойки) =====
+    const isHouseLocation = currentLocation === 'dorm_home' || currentLocation === 'apartment_home' || currentLocation === 'house_home';
+    
+    if (isHouseLocation) {
+        // Если мы в доме/квартире/общаге — выключаем любые эффекты погоды
+        if (currentEffectType !== null) {
+            currentEffectType = null;
+            stopParticleAnimation();
+            if (particlesCanvas) {
+                const ctx = particlesCanvas.getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, particlesCanvas.width, particlesCanvas.height);
+            }
+        }
+        return;
+    }
+    
+    // Для всех остальных локаций (включая помойку и улицу) — погода работает
     if (currentWeather === 'rain' || currentWeather === 'snow') {
         if (currentEffectType !== currentWeather) {
             currentEffectType = currentWeather;
