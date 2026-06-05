@@ -212,7 +212,6 @@
         
         <div style="display: flex; gap: 12px; justify-content: center; margin-top: 12px;">
             <button id="throwBtn" class="throw-btn">🎯 БРОСОК (ПРОБЕЛ)</button>
-            <button id="closeGameBtn" class="close-game-btn">🚪 ВЫЙТИ</button>
         </div>
         <div style="text-align: center; margin-top: 12px; font-size: 0.7rem; color: #ffd966;">
             💡 Нажми ПРОБЕЛ → дротик летит в цель! Прицел пьяно шатается по горизонтали и вертикали
@@ -589,28 +588,7 @@
             const throwBtn = document.getElementById('throwBtn');
             throwBtn.addEventListener('click', () => throwDart());
             
-            // ===== ИСПРАВЛЕННАЯ КНОПКА ВЫЙТИ =====
-            const closeBtn = document.getElementById('closeGameBtn');
-            if (closeBtn) {
-                // Создаём новую кнопку, чтобы убрать старые обработчики
-                const newCloseBtn = closeBtn.cloneNode(true);
-                closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
-                
-                newCloseBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    console.log('Кнопка ВЫЙТИ нажата');
-                    if (gameResultCallback) {
-                        gameResultCallback(false, 0, 0);
-                    }
-                    // Отправляем сообщение родительскому окну
-                    if (window.parent) {
-                        window.parent.postMessage('closeDartsGame', '*');
-                    }
-                    // Создаём событие для закрытия
-                    const closeEvent = new CustomEvent('closeDartsGame');
-                    window.dispatchEvent(closeEvent);
-                });
-            }
+        
             
             window.addEventListener('keydown', (e) => {
                 if (e.code === 'Space') {
