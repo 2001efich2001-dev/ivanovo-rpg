@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -1375,6 +1375,230 @@ export function initInventoryTabs() {
     const activeTab = modal.querySelector('.tab-btn.active');
     if (activeTab) switchTab(activeTab);
     else if (tabs[0]) switchTab(tabs[0]);
+}
+
+// ========== НОВЫЕ ФУНКЦИИ ДЛЯ ХРАНИЛИЩА ==========
+
+// Открыть модальное окно хранилища
+export async function openStorageModal() {
+    const modal = document.getElementById('storageModal');
+    if (!modal) {
+        console.error('Модальное окно хранилища не найдено');
+        return;
+    }
+    
+    // Обновляем информацию о вместимости
+    updateStorageCapacityInfo();
+    
+    // Рендерим содержимое
+    await renderStorageInventory();
+    await renderStorageHomeItems();
+    
+    modal.style.display = 'flex';
+}
+
+// Обновить отображение вместимости в шапке
+function updateStorageCapacityInfo() {
+    const capacityInfo = document.getElementById('storageCapacityInfo');
+    if (capacityInfo) {
+        const usedSlots = homeStorage.length;
+        const maxSlots = homeStorageCapacity;
+        capacityInfo.textContent = `📦 ${usedSlots} / ${maxSlots} слотов`;
+    }
+}
+
+// Рендер инвентаря игрока в хранилище
+async function renderStorageInventory() {
+    const container = document.getElementById('storageInventoryItems');
+    if (!container) return;
+    
+    if (inventory.length === 0) {
+        container.innerHTML = '<div class="empty-inventory">📦 Инвентарь пуст</div>';
+        return;
+    }
+    
+    let html = '<div class="inventory-grid">';
+    
+    for (const item of inventory) {
+        const itemData = itemsDB[item.id];
+        if (!itemData) continue;
+        
+        // Проверяем, можно ли переместить (есть ли место в хранилище)
+        const canMove = homeStorage.length < homeStorageCapacity;
+        
+        html += `
+            <div class="inventory-slot ${itemData.type === 'junk' ? 'junk' : 'usable'}" data-id="${item.id}">
+                <img src="${itemData.image}" alt="${itemData.name}" class="item-image" loading="lazy"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${itemData.icon}%3C/text%3E%3C/svg%3E'">
+                <span class="item-name">${itemData.name}</span>
+                <span class="item-count">×${item.count}</span>
+                <div class="item-actions">
+                    <button class="storage-move-to-home-btn" data-id="${item.id}" ${!canMove ? 'disabled style="opacity:0.5;"' : ''}>📦 В хранилище</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // Обработчики для кнопок перемещения в хранилище
+    document.querySelectorAll('.storage-move-to-home-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const itemId = btn.dataset.id;
+            await moveToStorage(itemId);
+        });
+    });
+    
+    // Тултипы
+    document.querySelectorAll('#storageInventoryItems .inventory-slot').forEach(slot => {
+        const itemId = slot.dataset.id;
+        const itemData = itemsDB[itemId];
+        const count = parseInt(slot.querySelector('.item-count')?.textContent?.replace('×', '') || '1');
+        
+        slot.addEventListener('mouseenter', (e) => {
+            if (itemData) showTooltip(itemData, e, count);
+        });
+        slot.addEventListener('mouseleave', hideTooltip);
+        slot.addEventListener('mousemove', (e) => {
+            if (activeTooltip) {
+                activeTooltip.style.left = (e.clientX + 15) + 'px';
+                activeTooltip.style.top = (e.clientY + 15) + 'px';
+            }
+        });
+    });
+}
+
+// Рендер предметов в хранилище дома
+async function renderStorageHomeItems() {
+    const container = document.getElementById('storageHomeItems');
+    if (!container) return;
+    
+    if (homeStorage.length === 0) {
+        container.innerHTML = '<div class="empty-inventory">🏠 Хранилище пусто</div>';
+        return;
+    }
+    
+    let html = '<div class="inventory-grid">';
+    
+    for (const item of homeStorage) {
+        const itemData = itemsDB[item.id];
+        if (!itemData) continue;
+        
+        html += `
+            <div class="inventory-slot ${itemData.type === 'junk' ? 'junk' : 'usable'}" data-id="${item.id}">
+                <img src="${itemData.image}" alt="${itemData.name}" class="item-image" loading="lazy"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${itemData.icon}%3C/text%3E%3C/svg%3E'">
+                <span class="item-name">${itemData.name}</span>
+                <span class="item-count">×${item.count}</span>
+                <div class="item-actions">
+                    <button class="storage-move-to-inventory-btn" data-id="${item.id}">🎒 В инвентарь</button>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // Обработчики для кнопок перемещения в инвентарь
+    document.querySelectorAll('.storage-move-to-inventory-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const itemId = btn.dataset.id;
+            await moveToInventory(itemId);
+        });
+    });
+    
+    // Тултипы
+    document.querySelectorAll('#storageHomeItems .inventory-slot').forEach(slot => {
+        const itemId = slot.dataset.id;
+        const itemData = itemsDB[itemId];
+        const count = parseInt(slot.querySelector('.item-count')?.textContent?.replace('×', '') || '1');
+        
+        slot.addEventListener('mouseenter', (e) => {
+            if (itemData) showTooltip(itemData, e, count);
+        });
+        slot.addEventListener('mouseleave', hideTooltip);
+        slot.addEventListener('mousemove', (e) => {
+            if (activeTooltip) {
+                activeTooltip.style.left = (e.clientX + 15) + 'px';
+                activeTooltip.style.top = (e.clientY + 15) + 'px';
+            }
+        });
+    });
+}
+
+// Переместить предмет из инвентаря в хранилище
+async function moveToStorage(itemId) {
+    // Находим предмет в инвентаре
+    const itemIndex = inventory.findIndex(i => i.id === itemId);
+    if (itemIndex === -1) {
+        showMessage("❌ Предмет не найден", "#e74c3c");
+        return;
+    }
+    
+    // Проверяем место в хранилище
+    if (homeStorage.length >= homeStorageCapacity) {
+        showMessage(`❌ В хранилище нет места! (${homeStorage.length}/${homeStorageCapacity})`, "#e74c3c");
+        return;
+    }
+    
+    const item = inventory[itemIndex];
+    const itemData = itemsDB[itemId];
+    
+    // Добавляем в хранилище
+    addToHomeStorage(itemId, item.count);
+    
+    // Удаляем из инвентаря
+    inventory.splice(itemIndex, 1);
+    
+    updateUI();
+    await saveGameData();
+    
+    // Обновляем UI хранилища
+    updateStorageCapacityInfo();
+    await renderStorageInventory();
+    await renderStorageHomeItems();
+    
+    showMessage(`📦 ${itemData.name} ×${item.count} перемещён в хранилище`, "#4caf50");
+    logAction(`Перемещён предмет в хранилище: ${itemData.name} ×${item.count}`, 'item');
+}
+
+// Переместить предмет из хранилища в инвентарь
+async function moveToInventory(itemId) {
+    // Находим предмет в хранилище
+    const itemIndex = homeStorage.findIndex(i => i.id === itemId);
+    if (itemIndex === -1) {
+        showMessage("❌ Предмет не найден в хранилище", "#e74c3c");
+        return;
+    }
+    
+    const item = homeStorage[itemIndex];
+    const itemData = itemsDB[itemId];
+    
+    // Добавляем в инвентарь
+    const existingItem = inventory.find(i => i.id === itemId);
+    if (existingItem) {
+        existingItem.count += item.count;
+    } else {
+        inventory.push({ id: itemId, count: item.count });
+    }
+    
+    // Удаляем из хранилища
+    homeStorage.splice(itemIndex, 1);
+    
+    updateUI();
+    await saveGameData();
+    
+    // Обновляем UI хранилища
+    updateStorageCapacityInfo();
+    await renderStorageInventory();
+    await renderStorageHomeItems();
+    
+    showMessage(`🎒 ${itemData.name} ×${item.count} перемещён в инвентарь`, "#4caf50");
+    logAction(`Перемещён предмет из хранилища: ${itemData.name} ×${item.count}`, 'item');
 }
 
 // Функция escapeHtml для безопасности
