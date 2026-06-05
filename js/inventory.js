@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -20,6 +20,10 @@ export const itemsDB = {
     // Еда
     bread: { id: "bread", name: "Буханка хлеба", type: "food", icon: "🍞", image: "images/items/bread.png", effect: { hunger: 20, health: 0, cold: 0, intoxication: 0 }, price: 25, slot: null, description: "Восстанавливает 20 голода" },
     water: { id: "water", name: "Бутылка воды", type: "drink", icon: "💧", image: "images/items/water.png", effect: { hunger: 10, health: 0, cold: 0, intoxication: 0 }, price: 15, slot: null, description: "Восстанавливает 10 голода" },
+    
+    // Энергетики
+    energetic: { id: "energetic", name: "Энергетик", type: "drink", icon: "⚡", image: "images/items/energetic.png", effect: { hunger: 0, health: -5, cold: 0, intoxication: 0, energy: 25 }, price: 100, slot: null, description: "+25 энергии, -5 здоровья" },
+    coffee: { id: "coffee", name: "Кофе", type: "drink", icon: "☕", image: "images/items/coffee.png", effect: { hunger: 0, health: 0, cold: 0, intoxication: 0, energy: 15 }, price: 60, slot: null, description: "+15 энергии" },
     
     // Алкоголь
     vodka: { id: "vodka", name: "Водка", type: "alcohol", icon: "🍾", image: "images/items/vodka.png", effect: { hunger: -10, health: 15, cold: 0, intoxication: 30 }, price: 40, slot: null, description: "+15 здоровья, -10 голода, +30 опьянения" },
@@ -95,6 +99,7 @@ function showTooltip(item, event, count) {
             ${item.effect.hunger ? `<div>🍗 Голод: ${item.effect.hunger > 0 ? '+' : ''}${item.effect.hunger}</div>` : ''}
             ${item.effect.health ? `<div>❤️ Здоровье: ${item.effect.health > 0 ? '+' : ''}${item.effect.health}</div>` : ''}
             ${item.effect.cold ? `<div>🔥 Тепло: ${item.effect.cold > 0 ? '+' : ''}${item.effect.cold}</div>` : ''}
+            ${item.effect.energy ? `<div>⚡ Энергия: ${item.effect.energy > 0 ? '+' : ''}${item.effect.energy}</div>` : ''}
             ${intoxicationText}
             <div class="tooltip-divider"></div>
             <div>💰 Покупка: ${item.price}₽</div>
@@ -818,6 +823,12 @@ async function useItem(itemId) {
         setStats(health, hunger, Math.min(maxCold, Math.max(0, newCold)), money);
         effText += `Тепло ${itemData.effect.cold>0?'+':''}${itemData.effect.cold}. `;
     }
+    // ===== НОВЫЙ БЛОК ДЛЯ ЭНЕРГИИ =====
+    if (itemData.effect.energy) {
+        const newEnergy = Math.min(maxEnergy, energy + itemData.effect.energy);
+        setEnergy(newEnergy);
+        effText += `Энергия ${itemData.effect.energy > 0 ? '+' : ''}${itemData.effect.energy}. `;
+    }
     if (itemData.effect.intoxication) {
         if (itemData.effect.intoxication > 0) {
             const oldIntoxication = intoxication;
@@ -1244,6 +1255,7 @@ function showTradeTooltip(item, event, count = 1) {
             ${item.effect?.hunger ? `<div>🍗 Голод: ${item.effect.hunger > 0 ? '+' : ''}${item.effect.hunger}</div>` : ''}
             ${item.effect?.health ? `<div>❤️ Здоровье: ${item.effect.health > 0 ? '+' : ''}${item.effect.health}</div>` : ''}
             ${item.effect?.cold ? `<div>🔥 Тепло: ${item.effect.cold > 0 ? '+' : ''}${item.effect.cold}</div>` : ''}
+            ${item.effect?.energy ? `<div>⚡ Энергия: ${item.effect.energy > 0 ? '+' : ''}${item.effect.energy}</div>` : ''}
             <div class="tooltip-divider"></div>
             <div>💰 Покупка: ${item.price || 0}₽</div>
             <div>💸 Продажа: ${sellPrice}₽</div>
