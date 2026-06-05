@@ -18,6 +18,17 @@ export async function listPropertyForSale(propertyId, price) {
         return false;
     }
     
+    // ===== НОВАЯ ПРОВЕРКА: хранилище должно быть пустым =====
+    const gameState = await import('./gameState.js');
+    
+    // Проверяем, есть ли вещи в хранилище
+    if (gameState.homeStorage && gameState.homeStorage.length > 0) {
+        const itemsCount = gameState.homeStorage.length;
+        showMessage(`❌ Нельзя продать жильё с вещами в хранилище! Заберите ${itemsCount} предмет(ов) из хранилища.`, '#e74c3c');
+        return false;
+    }
+    // =====================================================
+    
     // Проверяем, что недвижимость принадлежит игроку
     const propertyRef = doc(db, 'real_estate', propertyId);
     const propertySnap = await getDoc(propertyRef);
@@ -133,8 +144,6 @@ export async function isPropertyOnMarket(propertyId) {
 }
 
 // ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ ==========
-// ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ (С ОБНОВЛЕНИЕМ ПРОДАВЦА) ==========
-// ========== КУПИТЬ НЕДВИЖИМОСТЬ С ДОСКИ (ПО АНАЛОГИИ С acceptTradeOffer) ==========
 export async function buyProperty(listingId, buyerId) {
     const user = window.auth?.currentUser;
     if (!user || user.uid !== buyerId) {
