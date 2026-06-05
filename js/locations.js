@@ -25,7 +25,8 @@ const energyCosts = {
     sleep: 0,     // сон (восстанавливает энергию, не тратит)
     fishing: 15,  // рыбалка
     relax: 0,     // отдых
-    collect_water: 5 // набор воды
+    collect_water: 5, // набор воды
+    darts: 10     // дротики
 };
 
 // Модификация риска в зависимости от опьянения (чем выше опьянение, тем выше шанс неудачи)
@@ -117,15 +118,17 @@ export const locationsDB = {
     bar: {
         id: "bar",
         name: "Бар",
-        description: "Можно выпить, подраться или найти работу.",
+        description: "Можно выпить, подраться или сыграть в дротики.",
         bgImage: "images/bar_bg.jpg",
         zones: [
             { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
-            { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" }
+            { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" },
+            { id: "darts_zone", name: "🎯 Дартс", description: "Сыграть в пьяный дротик (тратит 10 энергии, нужно 20% опьянения)", cx: 600, cy: 200, r: 50, actionId: "darts" }
         ],
         actions: [
             { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, стоит 40₽", effect: { health: 10, hunger: -5 }, cost: 40, risk: 0 },
-            { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } }
+            { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } },
+            { id: "darts", name: "🎯 Пьяный дротик", desc: "Сыграть в дартс (10 энергии, нужно 20% опьянения)", effect: {}, cost: 0, risk: 0 }
         ]
     },
 
@@ -355,6 +358,46 @@ function hideTooltip() {
 // Функции для действий
 async function executeAction(locationId, action) {
     playClick();
+    
+    // Особый случай: дротики
+    if (action.id === 'darts') {
+        // Проверка энергии
+        const energyCost = energyCosts.darts || 10;
+        if (!hasEnoughEnergy(energyCost)) {
+            showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+            return;
+        }
+        
+        // Проверка опьянения (нельзя играть трезвым)
+        if (intoxication < 20) {
+            showMessage(`🍺 Бармен не даёт дротики трезвым! Выпей сначала! (нужно 20% опьянения)`, '#e74c3c');
+            return;
+        }
+        
+        // Проверка возможности выполнения действия
+        if (!canPerformAction(action.name)) {
+            return;
+        }
+        
+        // Тратим энергию
+        spendEnergy(energyCost);
+        
+        // Открываем мини-игру дротиков
+        try {
+            const { openDartsGame } = await import('./minigameDarts.js');
+            await openDartsGame();
+            
+            logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - начало игры в дротики`, 'location');
+        } catch (error) {
+            console.error('Ошибка открытия дротиков:', error);
+            showMessage("❌ Ошибка запуска игры. Попробуйте позже.", "#e74c3c");
+            // Возвращаем энергию при ошибке
+            setEnergy(Math.min(100, energy + energyCost));
+        }
+        
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
     
     // Особый случай: рыбалка
     if (action.id === 'fishing') {
