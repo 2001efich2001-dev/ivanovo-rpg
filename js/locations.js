@@ -26,7 +26,8 @@ const energyCosts = {
     fishing: 15,  // рыбалка
     relax: 0,     // отдых
     collect_water: 5, // набор воды
-    darts: 10     // дротики
+    darts: 10,    // дротики
+    rest_dump: 0  // отдых на помойке
 };
 
 // Модификация риска в зависимости от опьянения (чем выше опьянение, тем выше шанс неудачи)
@@ -441,7 +442,7 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Особый случай: отдых
+    // Особый случай: отдых у реки
     if (action.id === 'relax') {
         const newHealth = Math.min(maxHealth, health + 5);
         const newHunger = Math.min(maxHunger, hunger + 5);
@@ -451,6 +452,20 @@ async function executeAction(locationId, action) {
         await saveGameData();
         showMessage("🌿 Вы отдохнули у реки! +5 здоровья, +5 голода, +5 тепла", "#4caf50");
         logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - +5 здоровья, +5 голода, +5 тепла`, 'location');
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
+    
+    // Особый случай: отдых на помойке
+    if (action.id === 'rest_dump') {
+        const newHealth = Math.min(maxHealth, health + (action.effect?.health || 10));
+        const newEnergy = Math.min(100, energy + (action.effect?.energy || 5));
+        setStats(newHealth, hunger, cold, money);
+        setEnergy(newEnergy);
+        updateUI();
+        await saveGameData();
+        showMessage("🛌 Вы отдохнули на картонке! +10 здоровья, +5 энергии", "#4caf50");
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - +10 здоровья, +5 энергии`, 'location');
         document.getElementById('locationModal').style.display = 'none';
         return;
     }
@@ -499,9 +514,9 @@ async function executeAction(locationId, action) {
     let actionLogMessage = '';
     let gainedExp = 0;
     
-    // Обработка сна (затемнение и пропуск времени)
-    if (action.id === 'sleep') {
-        // Проверяем деньги
+    // ========== ОБРАБОТКА СНА (НОЧЛЕЖКА + ЖИЛЬЁ) ==========
+    if (action.id === 'sleep' || action.id === 'sleep_dorm' || action.id === 'sleep_apartment' || action.id === 'sleep_house') {
+        // Проверяем деньги (только для ночлежки)
         if (action.cost && action.cost > 0) {
             if (money < action.cost) { 
                 showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); 
@@ -513,55 +528,58 @@ async function executeAction(locationId, action) {
         
         // Восстанавливаем здоровье
         if (action.effect && action.effect.health) {
-            const add = Array.isArray(action.effect.health) ? Math.floor(Math.random()*(action.effect.health[1]-action.effect.health[0]+1)+action.effect.health[0]) : action.effect.health;
+            const add = action.effect.health;
             const newHealth = Math.min(maxHealth, Math.max(0, health + add));
             setStats(newHealth, hunger, cold, money);
             msg += `Здоровье +${add}. `;
             actionLogMessage += `Здоровье +${add}. `;
         }
         
-        // Восстанавливаем энергию (50)
-        setEnergy(Math.min(100, energy + 50));
-        actionLogMessage += `+50⚡. `;
+        // Восстанавливаем энергию
+        if (action.effect && action.effect.energy) {
+            const add = action.effect.energy;
+            setEnergy(Math.min(100, energy + add));
+            actionLogMessage += `+${add}⚡. `;
+            msg += `Энергия +${add}. `;
+        }
         
-        // Восстанавливаем опьянение (проспался)
-        const { reduceIntoxication } = await import('./gameState.js');
-        reduceIntoxication(30);
-        actionLogMessage += `🍺 Опьянение -30. `;
-        
-        // Затемняем экран
-        const overlay = document.createElement('div');
-        overlay.id = 'sleepOverlay';
-        overlay.style.position = 'fixed';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.backgroundColor = 'black';
-        overlay.style.zIndex = '10002';
-        overlay.style.transition = 'opacity 0.5s ease';
-        overlay.style.opacity = '0';
-        document.body.appendChild(overlay);
-        
-        // Плавное затемнение
-        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
-        
-        // Через 0.5 секунды добавляем 8 часов к игровому времени
-        setTimeout(async () => {
-            const { addGameHours } = await import('./timeWeather.js');
-            addGameHours(8);
-            updateUI();
-        }, 500);
-        
-        // Через 3.5 секунды убираем затемнение
-        setTimeout(() => {
+        // Для ночлежки ещё и опьянение снимаем + анимация
+        if (action.id === 'sleep') {
+            const { reduceIntoxication } = await import('./gameState.js');
+            reduceIntoxication(30);
+            actionLogMessage += `🍺 Опьянение -30. `;
+            
+            // Затемняем экран
+            const overlay = document.createElement('div');
+            overlay.id = 'sleepOverlay';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'black';
+            overlay.style.zIndex = '10002';
+            overlay.style.transition = 'opacity 0.5s ease';
             overlay.style.opacity = '0';
-            setTimeout(() => overlay.remove(), 500);
-        }, 3500);
+            document.body.appendChild(overlay);
+            
+            setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+            
+            setTimeout(async () => {
+                const { addGameHours } = await import('./timeWeather.js');
+                addGameHours(8);
+                updateUI();
+            }, 500);
+            
+            setTimeout(() => {
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.remove(), 500);
+            }, 3500);
+        }
         
         updateUI();
         await saveGameData();
-        showMessage(msg || "Вы крепко выспались! +50 энергии", "#4caf50");
+        showMessage(msg || "Вы хорошо отдохнули!", "#4caf50");
         logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - ${actionLogMessage}`, 'location');
         document.getElementById('locationModal').style.display = 'none';
         if (document.getElementById('inventoryModal').style.display === 'flex') {
