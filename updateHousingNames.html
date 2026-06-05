@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Обновление названий недвижимости</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #4caf50; color: white; border: none; border-radius: 8px; }
+        pre { background: #2d2d2d; padding: 15px; border-radius: 8px; overflow-x: auto; max-height: 400px; }
+        .log { margin-top: 20px; }
+        .success { color: #4caf50; }
+        .error { color: #f44336; }
+        .info { color: #2196f3; }
+    </style>
+</head>
+<body>
+    <h2>🏠 Обновление названий недвижимости</h2>
+    <p>⚠️ Внимание! Скрипт обновит поля <code>name</code> во всех документах коллекции <code>real_estate</code>.</p>
+    <button id="updateBtn">🚀 Запустить обновление</button>
+    <div id="log" class="log"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCB2rBhMavOvxrd2Wox967_Xm23_oSMX8Y",
+            authDomain: "ivanovo-a6770.firebaseapp.com",
+            projectId: "ivanovo-a6770",
+            storageBucket: "ivanovo-a6770.firebasestorage.app",
+            messagingSenderId: "5386313391",
+            appId: "1:5386313391:web:8ee5528233044dd1603e5a"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        const logDiv = document.getElementById('log');
+        
+        function addLog(message, type = 'info') {
+            const p = document.createElement('div');
+            p.textContent = message;
+            if (type === 'error') p.style.color = '#f44336';
+            else if (type === 'success') p.style.color = '#4caf50';
+            else p.style.color = '#2196f3';
+            logDiv.appendChild(p);
+            console.log(message);
+        }
+        
+        function getDisplayName(propertyId, type) {
+            // Извлекаем номер из ID (например, dorm_1 → 1)
+            const match = propertyId.match(/\d+$/);
+            const number = match ? parseInt(match[0]) : 0;
+            
+            if (type === 'dorm') {
+                return `Комната №${number}`;
+            } else if (type === 'apartment') {
+                return `Квартира №${number}`;
+            } else if (type === 'house') {
+                return `Коттедж №${number}`;
+            }
+            return propertyId;
+        }
+        
+        function getPropertyType(propertyId, existingType) {
+            if (existingType) return existingType;
+            if (propertyId.startsWith('dorm')) return 'dorm';
+            if (propertyId.startsWith('apartment')) return 'apartment';
+            if (propertyId.startsWith('house')) return 'house';
+            return 'unknown';
+        }
+        
+        document.getElementById('updateBtn').addEventListener('click', async () => {
+            logDiv.innerHTML = '';
+            addLog('🔐 Проверка авторизации...');
+            
+            // Ждём авторизацию
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    addLog('❌ Авторизуйтесь в игре сначала! Откройте игру и войдите, затем обновите эту страницу.', 'error');
+                    return;
+                }
+                
+                addLog(`✅ Авторизован как: ${user.email}`, 'success');
+                addLog('📦 Загрузка документов из коллекции real_estate...');
+                
+                try {
+                    const housingRef = collection(db, 'real_estate');
+                    const snapshot = await getDocs(housingRef);
+                    
+                    if (snapshot.empty) {
+                        addLog('❌ Нет документов в коллекции real_estate', 'error');
+                        return;
+                    }
+                    
+                    addLog(`📊 Найдено документов: ${snapshot.size}`);
+                    
+                    let updated = 0;
+                    let skipped = 0;
+                    
+                    for (const docSnap of snapshot.docs) {
+                        const propertyId = docSnap.id;
+                        const data = docSnap.data();
+                        const type = getPropertyType(propertyId, data.type);
+                        const newName = getDisplayName(propertyId, type);
+                        const oldName = data.name || '—';
+                        
+                        if (oldName === newName) {
+                            addLog(`⏭️ ${propertyId}: имя уже "${newName}", пропускаем`);
+                            skipped++;
+                            continue;
+                        }
+                        
+                        await updateDoc(doc(db, 'real_estate', propertyId), {
+                            name: newName
+                        });
+                        
+                        addLog(`✅ ${propertyId}: "${oldName}" → "${newName}"`, 'success');
+                        updated++;
+                        
+                        // Небольшая задержка, чтобы не перегружать Firestore
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                    
+                    addLog(`\n🎉 ГОТОВО! Обновлено: ${updated}, пропущено: ${skipped}`, 'success');
+                    addLog(`📝 Примеры новых названий:`, 'info');
+                    addLog(`   - dorm_1 → Комната №1`, 'info');
+                    addLog(`   - apartment_1 → Квартира №1`, 'info');
+                    addLog(`   - house_1 → Коттедж №1`, 'info');
+                    
+                } catch (error) {
+                    addLog(`❌ Ошибка: ${error.message}`, 'error');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
