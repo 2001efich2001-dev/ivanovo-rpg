@@ -27,7 +27,8 @@ const energyCosts = {
     relax: 0,     // отдых
     collect_water: 5, // набор воды
     darts: 10,    // дротики
-    rest_dump: 0  // отдых на помойке
+    rest_dump: 0, // отдых на помойке
+    storage: 0    // открытие хранилища (не тратит энергию)
 };
 
 // Модификация риска в зависимости от опьянения (чем выше опьянение, тем выше шанс неудачи)
@@ -159,7 +160,7 @@ export const locationsDB = {
         ],
         actions: [
             { id: "sleep_dorm", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 20, energy: 20 }, cost: 0, risk: 0 },
-            { id: "storage_open", name: "Открыть хранилище", desc: "Здесь будет хранилище вещей", effect: {}, cost: 0, risk: 0 }
+            { id: "storage_open", name: "Открыть хранилище", desc: "Достать вещи из хранилища", effect: {}, cost: 0, risk: 0 }
         ]
     },
     apartment_home: {
@@ -359,6 +360,20 @@ function hideTooltip() {
 // Функции для действий
 async function executeAction(locationId, action) {
     playClick();
+    
+    // ===== НОВЫЙ ОСОБЫЙ СЛУЧАЙ: ОТКРЫТЬ ХРАНИЛИЩЕ =====
+    if (action.id === 'storage_open' || action.id === 'garage_storage') {
+        try {
+            const { openStorageModal } = await import('./inventory.js');
+            await openStorageModal();
+            logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - открыто хранилище`, 'location');
+        } catch (error) {
+            console.error('Ошибка открытия хранилища:', error);
+            showMessage("❌ Ошибка открытия хранилища. Попробуйте позже.", "#e74c3c");
+        }
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
     
     // Особый случай: дротики
     if (action.id === 'darts') {
