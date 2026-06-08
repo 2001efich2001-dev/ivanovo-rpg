@@ -971,6 +971,18 @@ async function changeNickname(newNick) {
     }
 }
 
+// ========== ОТКРЫТИЕ МОДАЛЬНОГО ОКНА КВЕСТОВ ==========
+async function openQuestsModal() {
+    playClick();
+    try {
+        const { openQuestsModal: openQuestsUI } = await import('./questUI.js');
+        await openQuestsUI();
+    } catch (error) {
+        console.error('Ошибка открытия квестов:', error);
+        showMessage('❌ Система квестов временно недоступна', '#e74c3c');
+    }
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
@@ -1095,6 +1107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
     const shopBtn = document.getElementById('shopBtn');
+    const questsBtn = document.getElementById('questsBtn');
     const realEstateMarketBtn = document.getElementById('realEstateMarketBtn');
     const topPlayersBtn = document.getElementById('topPlayersBtn');
     const myOffersBtn = document.getElementById('myOffersBtn');
@@ -1125,63 +1138,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-if (shopBtn) {
-    shopBtn.addEventListener('click', async () => {
-        playClick();
-        const shop = await import('./shop.js');
-        shop.renderShopBuyTab();
-        shop.renderShopSellTab();
-        const modal = document.getElementById('shopModal');
-        const tabs = modal.querySelectorAll('.tab-btn');
-        const buyTab = document.getElementById('shopBuyTab');
-        const sellTab = document.getElementById('shopSellTab');
-        const switchShopTab = (tab) => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            if (tab.dataset.shopTab === 'buy') {
-                buyTab.style.display = 'flex';
-                sellTab.style.display = 'none';
-                shop.renderShopBuyTab();
-            } else {
-                buyTab.style.display = 'none';
-                sellTab.style.display = 'flex';
-                shop.renderShopSellTab();
-            }
-        };
-        const newTabs = modal.querySelectorAll('.tab-btn');
-        newTabs.forEach(tab => {
-            tab.removeEventListener('click', tab._shopListener);
-            const handler = () => switchShopTab(tab);
-            tab.addEventListener('click', handler);
-            tab._shopListener = handler;
-        });
-        modal.style.display = 'flex';
-        
-        // ===== КОСТЫЛЬ: принудительный перерендер активной вкладки =====
-        setTimeout(() => {
-            const activeTab = modal.querySelector('.tab-btn.active');
-            if (activeTab) {
-                // Принудительно вызываем переключение на ту же вкладку
-                if (activeTab.dataset.shopTab === 'buy') {
+    if (shopBtn) {
+        shopBtn.addEventListener('click', async () => {
+            playClick();
+            const shop = await import('./shop.js');
+            shop.renderShopBuyTab();
+            shop.renderShopSellTab();
+            const modal = document.getElementById('shopModal');
+            const tabs = modal.querySelectorAll('.tab-btn');
+            const buyTab = document.getElementById('shopBuyTab');
+            const sellTab = document.getElementById('shopSellTab');
+            const switchShopTab = (tab) => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                if (tab.dataset.shopTab === 'buy') {
                     buyTab.style.display = 'flex';
                     sellTab.style.display = 'none';
                     shop.renderShopBuyTab();
-                } else if (activeTab.dataset.shopTab === 'sell') {
+                } else {
                     buyTab.style.display = 'none';
                     sellTab.style.display = 'flex';
                     shop.renderShopSellTab();
                 }
-            }
-            // Обновляем отображение денег (без await)
-            const moneySpan = document.getElementById('shopMoneyValue');
-            if (moneySpan) {
-                import('./gameState.js').then(gameState => {
-                    moneySpan.textContent = Math.floor(gameState.money);
-                });
-            }
-        }, 50);
-    });
-}
+            };
+            const newTabs = modal.querySelectorAll('.tab-btn');
+            newTabs.forEach(tab => {
+                tab.removeEventListener('click', tab._shopListener);
+                const handler = () => switchShopTab(tab);
+                tab.addEventListener('click', handler);
+                tab._shopListener = handler;
+            });
+            modal.style.display = 'flex';
+            
+            setTimeout(() => {
+                const activeTab = modal.querySelector('.tab-btn.active');
+                if (activeTab) {
+                    if (activeTab.dataset.shopTab === 'buy') {
+                        buyTab.style.display = 'flex';
+                        sellTab.style.display = 'none';
+                        shop.renderShopBuyTab();
+                    } else if (activeTab.dataset.shopTab === 'sell') {
+                        buyTab.style.display = 'none';
+                        sellTab.style.display = 'flex';
+                        shop.renderShopSellTab();
+                    }
+                }
+                const moneySpan = document.getElementById('shopMoneyValue');
+                if (moneySpan) {
+                    import('./gameState.js').then(gameState => {
+                        moneySpan.textContent = Math.floor(gameState.money);
+                    });
+                }
+            }, 50);
+        });
+    }
+    
+    // ===== КНОПКА: КВЕСТЫ =====
+    if (questsBtn) {
+        questsBtn.addEventListener('click', openQuestsModal);
+    }
     
     // ===== КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
     if (realEstateMarketBtn) {
