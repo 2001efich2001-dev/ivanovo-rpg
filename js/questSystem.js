@@ -47,8 +47,9 @@ export async function loadPlayerQuests(userId) {
             race: {}
         };
         
-        // Сохраняем в Firestore
-        await updateDoc(userRef, { quests: emptyQuests });
+        // Сохраняем в Firestore (используем setDoc с merge, чтобы не перезаписать другие поля)
+        const userRef = doc(db, 'users', userId);
+        await setDoc(userRef, { quests: emptyQuests }, { merge: true });
         
         return emptyQuests;
         
@@ -122,12 +123,17 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
     
     let updated = false;
     
+    // Безопасное получение массивов
+    const completedList = quests.completed || [];
+    const dailyProgress = quests.daily || {};
+    const raceProgress = quests.race || {};
+    
     // Проверяем статические квесты
     const staticQuests = Object.values(questsDB).filter(q => q.type === 'static');
     
     for (const quest of staticQuests) {
         // Пропускаем уже выполненные
-        if (quests.completed.includes(quest.id)) continue;
+        if (completedList.includes(quest.id)) continue;
         
         const requirement = quest.requirements;
         let isCompleted = false;
@@ -135,10 +141,7 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
         // Проверяем условие квеста
         switch (requirement.type) {
             case 'fishing':
-                // Считаем пойманную рыбу (любую)
                 if (statType === 'fishing') {
-                    // Нужно накопить прогресс, но статические квесты не хранят прогресс
-                    // Поэтому нужно считать по-другому — через отдельный счётчик
                     isCompleted = await checkStaticQuestProgress(quest, statType, value);
                 }
                 break;
@@ -213,7 +216,7 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
     
     for (const quest of dailyQuests) {
         // Пропускаем уже выполненные сегодня
-        if (quests.daily[quest.id]?.completed) continue;
+        if (dailyProgress[quest.id]?.completed) continue;
         
         const requirement = quest.requirements;
         let progressNeeded = false;
@@ -242,7 +245,7 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
         }
         
         if (progressNeeded) {
-            const currentProgress = quests.daily[quest.id]?.progress || 0;
+            const currentProgress = dailyProgress[quest.id]?.progress || 0;
             const newProgress = Math.min(requirement.count, currentProgress + value);
             
             quests.daily[quest.id] = {
@@ -407,27 +410,32 @@ export async function getAvailableQuests() {
     
     const quests = await loadPlayerQuests(user.uid);
     
+    // Безопасная проверка (защита от undefined)
+    const completedList = quests.completed || [];
+    const dailyProgress = quests.daily || {};
+    const raceProgress = quests.race || {};
+    
     // Статические (невыполненные)
     const staticQuests = Object.values(questsDB).filter(q => 
-        q.type === 'static' && !quests.completed.includes(q.id)
+        q.type === 'static' && !completedList.includes(q.id)
     );
     
     // Ежедневные (невыполненные сегодня)
     const dailyQuests = Object.values(questsDB).filter(q => 
-        q.type === 'daily' && !quests.daily[q.id]?.completed
+        q.type === 'daily' && !dailyProgress[q.id]?.completed
     );
     
     // Расовые (ещё никто не выполнил)
     const raceQuests = Object.values(questsDB).filter(q => 
-        q.type === 'race' && !quests.race[q.id]?.completed
+        q.type === 'race' && !raceProgress[q.id]?.completed
     );
     
     return {
         static: staticQuests,
         daily: dailyQuests,
         race: raceQuests,
-        completed: quests.completed,
-        dailyProgress: quests.daily
+        completed: completedList,
+        dailyProgress: dailyProgress
     };
 }
 
@@ -439,13 +447,18 @@ export async function getCompletedQuests() {
     const quests = await loadPlayerQuests(user.uid);
     const completedQuests = [];
     
-    for (const questId of quests.completed) {
+    // Безопасная проверка
+    const completedList = quests.completed || [];
+    const dailyProgress = quests.daily || {};
+    
+    // Статические выполненные
+    for (const questId of completedList) {
         const quest = getQuestById(questId);
         if (quest) completedQuests.push(quest);
     }
     
     // Добавляем выполненные дейлики (сегодняшние)
-    for (const [questId, progress] of Object.entries(quests.daily)) {
+    for (const [questId, progress] of Object.entries(dailyProgress)) {
         if (progress.completed) {
             const quest = getQuestById(questId);
             if (quest) completedQuests.push({ ...quest, dailyProgress: progress.progress });
