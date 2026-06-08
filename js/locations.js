@@ -444,7 +444,12 @@ async function executeAction(locationId, action) {
             const { openFishingGame } = await import('./minigameFishing.js');
             await openFishingGame();
             
-            // Логируем действие
+            // ===== КВЕСТЫ: обновляем прогресс рыбалки =====
+            try {
+                const { updateQuestProgress } = await import('./questSystem.js');
+                updateQuestProgress('fishing', 1);
+            } catch (err) { console.warn('Квесты не загружены', err); }
+            
             logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - начало рыбалки`, 'location');
         } catch (error) {
             console.error('Ошибка открытия рыбалки:', error);
@@ -674,6 +679,14 @@ async function executeAction(locationId, action) {
                     msg += `+1 ${itemsDB[it]?.name}. `;
                     actionLogMessage += `+1 ${itemsDB[it]?.name}. `;
                     gainedExp += 10;
+                    
+                    // ===== КВЕСТЫ: обновляем прогресс нахождения мусора =====
+                    if (it === 'old_boot' || it === 'rusty_can' || it === 'torn_net' || it === 'plastic_bottle' || it === 'dirty_rag') {
+                        try {
+                            const { updateQuestProgress } = await import('./questSystem.js');
+                            updateQuestProgress('trash_found', 1);
+                        } catch (err) { console.warn('Квесты не загружены', err); }
+                    }
                 });
             }
         }
@@ -687,9 +700,30 @@ async function executeAction(locationId, action) {
             }
         }
         
-        if (action.id === 'fight') gainedExp += 20;
-        if (action.id === 'steal') gainedExp += 15;
-        if (action.id === 'pray') gainedExp += 5;
+        if (action.id === 'fight') {
+            gainedExp += 20;
+            // ===== КВЕСТЫ: обновляем прогресс выигранных драк =====
+            try {
+                const { updateQuestProgress } = await import('./questSystem.js');
+                updateQuestProgress('fights_won', 1);
+            } catch (err) { console.warn('Квесты не загружены', err); }
+        }
+        if (action.id === 'steal') {
+            gainedExp += 15;
+            // ===== КВЕСТЫ: успешная кража =====
+            try {
+                const { updateQuestProgress } = await import('./questSystem.js');
+                updateQuestProgress('steal_success', 1);
+            } catch (err) { console.warn('Квесты не загружены', err); }
+        }
+        if (action.id === 'pray') {
+            gainedExp += 5;
+            // ===== КВЕСТЫ: молитва =====
+            try {
+                const { updateQuestProgress } = await import('./questSystem.js');
+                updateQuestProgress('pray_count', 1);
+            } catch (err) { console.warn('Квесты не загружены', err); }
+        }
         if (action.id === 'eat' && locationId === 'shelter') gainedExp += 5;
         if (action.id === 'get_food') gainedExp += 10;
         
@@ -713,6 +747,14 @@ async function executeAction(locationId, action) {
         if (action.id === 'fight' && success) {
             updateAchievementStats('fightsWon');
         }
+    }
+    
+    // ===== КВЕСТЫ: обновляем посещение локации =====
+    if (action.id && locationId) {
+        try {
+            const { updateQuestProgress } = await import('./questSystem.js');
+            updateQuestProgress('visit_location', 1, { locationId });
+        } catch (err) { console.warn('Квесты не загружены', err); }
     }
     
     updateUI();
