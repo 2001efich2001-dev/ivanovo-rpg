@@ -233,14 +233,17 @@ async function loadHousingList(type) {
             const ownerId = data?.ownerId;
             const isCurrentOwner = isOwned && ownerId === currentUser?.uid;
             
+            // 👇 ПОЛУЧАЕМ КРАСИВОЕ НАЗВАНИЕ ИЗ FIRESTORE
+            const displayName = data?.name || id.replace(/_/g, ' ').toUpperCase();
+            
             if (isOwned && !isCurrentOwner) {
                 const ownerName = data?.ownerName || 'Неизвестный';
                 html += `
                     <div class="housing-item sold">
                         <div class="housing-item-info">
-                            <div class="housing-item-name">${id.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="housing-item-name">${escapeHtml(displayName)}</div>
                             <div class="housing-item-price">💰 ${price.toLocaleString()}₽</div>
-                            <div class="housing-item-owner">👤 Владелец: ${ownerName}</div>
+                            <div class="housing-item-owner">👤 Владелец: ${escapeHtml(ownerName)}</div>
                         </div>
                         <div class="housing-item-status">🔒 Продано</div>
                     </div>
@@ -249,7 +252,7 @@ async function loadHousingList(type) {
                 html += `
                     <div class="housing-item owned">
                         <div class="housing-item-info">
-                            <div class="housing-item-name">${id.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="housing-item-name">${escapeHtml(displayName)}</div>
                             <div class="housing-item-price">💰 ${price.toLocaleString()}₽</div>
                             <div class="housing-item-owner">🏠 Ваше жильё</div>
                         </div>
@@ -260,11 +263,11 @@ async function loadHousingList(type) {
                 html += `
                     <div class="housing-item">
                         <div class="housing-item-info">
-                            <div class="housing-item-name">${id.replace(/_/g, ' ').toUpperCase()}</div>
+                            <div class="housing-item-name">${escapeHtml(displayName)}</div>
                             <div class="housing-item-price">💰 ${price.toLocaleString()}₽</div>
                             <div class="housing-item-status">✅ Свободно</div>
                         </div>
-                        <button class="housing-buy-btn" data-id="${id}" data-price="${price}" data-type="${type}">Купить</button>
+                        <button class="housing-buy-btn" data-id="${id}" data-price="${price}" data-type="${type}" data-name="${displayName}">Купить</button>
                     </div>
                 `;
             }
@@ -279,7 +282,8 @@ async function loadHousingList(type) {
                 const propertyId = btn.dataset.id;
                 const priceNum = parseInt(btn.dataset.price);
                 const propertyType = btn.dataset.type;
-                await buyProperty(propertyId, priceNum, propertyType);
+                const propertyName = btn.dataset.name;
+                await buyProperty(propertyId, priceNum, propertyType, propertyName);
             });
         });
         
@@ -290,7 +294,7 @@ async function loadHousingList(type) {
 }
 
 // ========== ПОКУПКА НЕДВИЖИМОСТИ ==========
-async function buyProperty(propertyId, price, type) {
+async function buyProperty(propertyId, price, type, propertyName) {
     console.log(`🏠 Покупка ${propertyId} за ${price}₽`);
     
     try {
@@ -378,7 +382,9 @@ async function buyProperty(propertyId, price, type) {
         
         updateUI();
         
-        showMsg(`✅ Поздравляем! Вы купили ${propertyId}! Теперь у вас ${ownedHomes.length} объектов недвижимости`, '#4caf50');
+        // Используем красивое название
+        const finalName = propertyName || propertyId.replace(/_/g, ' ').toUpperCase();
+        showMsg(`✅ Поздравляем! Вы купили ${finalName}! Теперь у вас ${ownedHomes.length} объектов недвижимости`, '#4caf50');
         
         const modal = document.getElementById('housingModal');
         if (modal) modal.style.display = 'none';
@@ -392,4 +398,15 @@ async function buyProperty(propertyId, price, type) {
         const { showMessage: showMsg } = await import('./utils.js');
         showMsg(`❌ Ошибка при покупке: ${error.message}`, '#e74c3c');
     }
+}
+
+// Функция escapeHtml для безопасности
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
 }
