@@ -313,6 +313,27 @@ export async function renderHousingTab() {
         return;
     }
     
+    // ===== ЗАГРУЖАЕМ НАЗВАНИЯ ИЗ FIRESTORE =====
+    const { db } = await import('./firestore.js');
+    const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+    
+    const housingNames = {};
+    for (const homeId of ownedHomes) {
+        try {
+            const propDoc = await getDoc(doc(db, 'real_estate', homeId));
+            if (propDoc.exists()) {
+                const data = propDoc.data();
+                housingNames[homeId] = data.name || homeId.toUpperCase().replace(/_/g, ' ');
+            } else {
+                housingNames[homeId] = homeId.toUpperCase().replace(/_/g, ' ');
+            }
+        } catch(e) { 
+            console.warn(`Не удалось загрузить имя для ${homeId}`, e);
+            housingNames[homeId] = homeId.toUpperCase().replace(/_/g, ' ');
+        }
+    }
+    // ==========================================
+    
     let html = '<div class="housing-list" style="display: flex; flex-direction: column; gap: 12px;">';
     
     for (const homeId of ownedHomes) {
@@ -340,7 +361,8 @@ export async function renderHousingTab() {
             daysLeft = `${days} дн.`;
         }
         
-        let displayName = homeId.toUpperCase().replace(/_/g, ' ');
+        // 👇 ИСПРАВЛЕНО: используем название из Firestore
+        let displayName = housingNames[homeId];
         
         html += `
             <div class="housing-item ${isCurrent ? 'current-home' : ''}" style="
@@ -356,7 +378,7 @@ export async function renderHousingTab() {
             ">
                 <div class="housing-item-info" style="flex: 2;">
                     <div class="housing-item-name" style="font-weight: bold; font-size: 1rem; color: var(--accent-gold);">
-                        ${displayName}
+                        ${escapeHtml(displayName)}
                     </div>
                     <div class="housing-item-type" style="font-size: 0.85rem; color: var(--text-secondary);">
                         ${typeName} • 📦 Вместимость: ${capacity}
@@ -447,14 +469,16 @@ export async function renderHousingTab() {
             const success = await setPrimaryHome(homeId);
             if (success) {
                 renderHousingTab();
-                showMessage(`🏠 Основным жильём выбрано: ${homeId.toUpperCase().replace(/_/g, ' ')}`, '#4caf50');
+                // Показываем красивое имя
+                const newName = housingNames[homeId] || homeId.toUpperCase().replace(/_/g, ' ');
+                showMessage(`🏠 Основным жильём выбрано: ${newName}`, '#4caf50');
             }
         };
         btn.addEventListener('click', handler);
         btn._handler = handler;
     });
     
-    // ===== НОВЫЙ ОБРАБОТЧИК: Продажа игроку =====
+    // ===== ОБРАБОТЧИК: Продажа игроку =====
     document.querySelectorAll('.housing-sell-to-player-btn').forEach(btn => {
         btn.removeEventListener('click', btn._sellToPlayerHandler);
         const handler = async () => {
@@ -490,7 +514,7 @@ export async function renderHousingTab() {
             const sellPriceVal = parseInt(btn.dataset.price);
             playClick();
             
-            const confirm = window.confirm(`💰 Продать ${homeId.toUpperCase().replace(/_/g, ' ')} городу за ${sellPriceVal.toLocaleString()}₽?\n\nВернуть будет нельзя!`);
+            const confirm = window.confirm(`💰 Продать "${housingNames[homeId] || homeId}" городу за ${sellPriceVal.toLocaleString()}₽?\n\nВернуть будет нельзя!`);
             if (confirm) {
                 await sellPropertyToCity(homeId, sellPriceVal);
                 renderHousingTab();
