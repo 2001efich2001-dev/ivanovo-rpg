@@ -53,7 +53,6 @@ export async function loadPlayerQuests(userId) {
         };
         
         // Сохраняем в Firestore
-        const userRef = doc(db, 'users', userId);
         await setDoc(userRef, { quests: emptyQuests }, { merge: true });
         
         return emptyQuests;
@@ -197,7 +196,6 @@ async function giveQuestReward(quest) {
     
     if (quest.rewards.title) {
         showMessage(`🏷️ Вы получили титул "${quest.rewards.title}"!`, '#ffd966');
-        // Титул можно сохранить в отдельное поле пользователя
     }
     
     gameState.updateUI();
@@ -258,7 +256,6 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
     const user = window.auth?.currentUser;
     if (!user) return;
     
-    // Загружаем текущие квесты
     let quests = await loadPlayerQuests(user.uid);
     if (!quests) return;
     
@@ -268,57 +265,48 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
     const staticQuests = Object.values(questsDB).filter(q => q.type === 'static');
     
     for (const quest of staticQuests) {
-        // Пропускаем уже выполненные
         if (quests.completed.includes(quest.id)) continue;
         
         const requirement = quest.requirements;
         let isCompleted = false;
         
-        // Проверяем условие квеста
         switch (requirement.type) {
             case 'fishing':
                 if (statType === 'fishing') {
                     isCompleted = await checkStaticQuestProgress(quest, statType, value);
                 }
                 break;
-                
             case 'fights_won':
                 if (statType === 'fights_won') {
                     isCompleted = await checkStaticQuestProgress(quest, statType, value);
                 }
                 break;
-                
             case 'trash_found':
                 if (statType === 'trash_found') {
                     isCompleted = await checkStaticQuestProgress(quest, statType, value);
                 }
                 break;
-                
             case 'buy_property':
                 if (statType === 'buy_property') {
                     isCompleted = await checkStaticQuestProgress(quest, statType, value);
                 }
                 break;
-                
             case 'money_reach':
                 if (statType === 'money_reach') {
                     const { money } = await import('./gameState.js');
                     isCompleted = money >= requirement.targetMoney;
                 }
                 break;
-                
             case 'pray_count':
                 if (statType === 'pray_count') {
                     isCompleted = await checkStaticQuestProgress(quest, statType, value);
                 }
                 break;
-                
             case 'steal_success':
                 if (statType === 'steal_success') {
                     isCompleted = await checkStaticQuestProgress(quest, statType, value);
                 }
                 break;
-                
             case 'darts_win_with_intoxication':
                 if (statType === 'darts_win') {
                     const { intoxication } = await import('./gameState.js');
@@ -327,13 +315,11 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
                     }
                 }
                 break;
-                
             case 'darts_score':
                 if (statType === 'darts_score' && context.score >= requirement.targetScore) {
                     isCompleted = true;
                 }
                 break;
-                
             case 'catch_fish':
                 if (statType === 'catch_fish' && context.fishId === requirement.fishId) {
                     isCompleted = true;
@@ -351,7 +337,6 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
     const dailyQuests = Object.values(questsDB).filter(q => q.type === 'daily');
     
     for (const quest of dailyQuests) {
-        // Пропускаем уже выполненные сегодня
         if (quests.daily[quest.id]?.completed) continue;
         
         const requirement = quest.requirements;
@@ -397,7 +382,6 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
         }
     }
     
-    // Сохраняем изменения
     if (updated) {
         await savePlayerQuests(user.uid, quests);
     }
@@ -410,30 +394,21 @@ export async function getAvailableQuests() {
     
     const quests = await loadPlayerQuests(user.uid);
     
-    // МАКСИМАЛЬНАЯ ЗАЩИТА от undefined
     const completedList = Array.isArray(quests?.completed) ? quests.completed : [];
     const dailyProgress = quests?.daily && typeof quests.daily === 'object' ? quests.daily : {};
     const raceProgress = quests?.race && typeof quests.race === 'object' ? quests.race : {};
     
-    // Статические (невыполненные)
-    const staticQuests = Object.values(questsDB).filter(q => {
-        if (q.type !== 'static') return false;
-        return !completedList.includes(q.id);
-    });
+    const staticQuests = Object.values(questsDB).filter(q => 
+        q.type === 'static' && !completedList.includes(q.id)
+    );
     
-    // Ежедневные (невыполненные сегодня)
-    const dailyQuests = Object.values(questsDB).filter(q => {
-        if (q.type !== 'daily') return false;
-        const questDaily = dailyProgress[q.id];
-        return !(questDaily && questDaily.completed === true);
-    });
+    const dailyQuests = Object.values(questsDB).filter(q => 
+        q.type === 'daily' && !(dailyProgress[q.id] && dailyProgress[q.id].completed === true)
+    );
     
-    // Расовые (ещё никто не выполнил)
-    const raceQuests = Object.values(questsDB).filter(q => {
-        if (q.type !== 'race') return false;
-        const questRace = raceProgress[q.id];
-        return !(questRace && questRace.completed === true);
-    });
+    const raceQuests = Object.values(questsDB).filter(q => 
+        q.type === 'race' && !(raceProgress[q.id] && raceProgress[q.id].completed === true)
+    );
     
     console.log('📊 Загружены квесты:', {
         static: staticQuests.length,
@@ -459,19 +434,14 @@ export async function getCompletedQuests() {
     const quests = await loadPlayerQuests(user.uid);
     const completedQuests = [];
     
-    // Безопасная проверка
     const completedList = Array.isArray(quests?.completed) ? quests.completed : [];
     const dailyProgress = quests?.daily && typeof quests.daily === 'object' ? quests.daily : {};
     
-    // Статические выполненные
     for (const questId of completedList) {
         const quest = getQuestById(questId);
-        if (quest) {
-            completedQuests.push({ ...quest, type: 'static' });
-        }
+        if (quest) completedQuests.push({ ...quest, type: 'static' });
     }
     
-    // Добавляем выполненные дейлики (сегодняшние)
     for (const [questId, progress] of Object.entries(dailyProgress)) {
         if (progress && progress.completed === true) {
             const quest = getQuestById(questId);
