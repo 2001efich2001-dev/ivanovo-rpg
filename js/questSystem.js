@@ -162,6 +162,110 @@ async function completeDailyQuest(quest, userId, quests) {
     await savePlayerQuests(userId, quests);
 }
 
+// ========== ПРОВЕРКА, ВЫПОЛНЕН ЛИ РАСОВЫЙ КВЕСТ ГЛОБАЛЬНО ==========
+async function isRaceQuestCompletedGlobally(questId) {
+    try {
+        const { db } = await import('./firestore.js');
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        const usersRef = collection(db, 'users');
+        const snapshot = await getDocs(usersRef);
+        
+        for (const userDoc of snapshot.docs) {
+            const userData = userDoc.data();
+            const raceProgress = userData.quests?.race || {};
+            if (raceProgress[questId]?.completed === true) {
+                return true;
+            }
+        }
+        return false;
+    } catch (error) {
+        console.error('Ошибка проверки расового квеста:', error);
+        return false;
+    }
+}
+
+// ========== ВЫПОЛНИТЬ РАСОВЫЙ КВЕСТ ==========
+async function completeRaceQuest(quest, userId, quests) {
+    // Дополнительная проверка — не выполнил ли кто-то раньше
+    const alreadyCompleted = await isRaceQuestCompletedGlobally(quest.id);
+    if (alreadyCompleted) {
+        console.log(`⚠️ Расовый квест "${quest.name}" уже выполнен другим игроком`);
+        showMessage(`⚠️ К сожалению, "${quest.name}" уже выполнил другой игрок!`, '#e74c3c');
+        return;
+    }
+    
+    console.log(`🏆 ВЫПОЛНЕН РАСОВЫЙ КВЕСТ: ${quest.name} (первый в мире!)`);
+    
+    // Отмечаем как выполненный для этого игрока
+    quests.race[quest.id] = {
+        completed: true,
+        completedAt: new Date().toISOString()
+    };
+    
+    // Выдаём награду (титулы сохранятся внутри)
+    await giveQuestReward(quest, userId);
+    
+    // Показываем особое уведомление для расового квеста
+    showRaceQuestCompleteNotification(quest);
+    
+    // Сохраняем
+    await savePlayerQuests(userId, quests);
+}
+
+// ========== ПОКАЗАТЬ УВЕДОМЛЕНИЕ ДЛЯ РАСОВОГО КВЕСТА ==========
+function showRaceQuestCompleteNotification(quest) {
+    const notification = document.createElement('div');
+    notification.className = 'quest-notification race-notification';
+    notification.innerHTML = `
+        <div class="quest-notification-icon">🏆👑🏆</div>
+        <div class="quest-notification-text">
+            <div class="quest-notification-title">⭐ РАСОВЫЙ КВЕСТ ВЫПОЛНЕН! ⭐</div>
+            <div class="quest-notification-name">${quest.name}</div>
+            <div class="quest-notification-desc">Вы первый в мире, кто выполнил этот квест!</div>
+        </div>
+    `;
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #2c3e50, #1a2634);
+        color: #ffd966;
+        padding: 15px 25px;
+        border-radius: 16px;
+        z-index: 10002;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        border-left: 4px solid #ffd700;
+        border-right: 4px solid #ffd700;
+        animation: slideInRight 0.3s ease, racePulse 1s ease 3, fadeOut 0.5s ease 5s forwards;
+        font-family: inherit;
+    `;
+    
+    // Добавляем стиль, если ещё нет
+    if (!document.querySelector('#raceQuestStyle')) {
+        const style = document.createElement('style');
+        style.id = 'raceQuestStyle';
+        style.textContent = `
+            @keyframes racePulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(255,215,0,0.5); }
+                100% { transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification && notification.remove) notification.remove();
+    }, 5000);
+}
+
 // ========== ВЫДАТЬ НАГРАДУ ЗА КВЕСТ (С СОХРАНЕНИЕМ ТИТУЛОВ) ==========
 async function giveQuestReward(quest, userId) {
     const gameState = await import('./gameState.js');
@@ -418,6 +522,48 @@ export async function updateQuestProgress(statType, value = 1, context = {}) {
         }
     }
     
+    // ========== ПРОВЕРЯЕМ РАСОВЫЕ КВЕСТЫ ==========
+    const raceQuests = Object.values(questsDB).filter(q => q.type === 'race');
+    
+    for (const quest of raceQuests) {
+        // Проверяем, не выполнен ли уже этот расовый квест (кем-то)
+        const isRaceCompleted = await isRaceQuestCompletedGlobally(quest.id);
+        if (isRaceCompleted) {
+            // Если уже есть победитель — пропускаем
+            continue;
+        }
+        
+        // Проверяем, не выполнил ли уже этот игрок этот расовый квест
+        if (quests.race[quest.id]?.completed) continue;
+        
+        const requirement = quest.requirements;
+        let isCompleted = false;
+        
+        switch (requirement.type) {
+            case 'catch_fish':
+                if (statType === 'catch_fish' && context.fishId === requirement.fishId) {
+                    isCompleted = true;
+                }
+                break;
+            case 'darts_score':
+                if (statType === 'darts_score' && context.score >= requirement.targetScore) {
+                    isCompleted = true;
+                }
+                break;
+            case 'money_reach':
+                if (statType === 'money_reach') {
+                    const { money } = await import('./gameState.js');
+                    isCompleted = money >= requirement.targetMoney;
+                }
+                break;
+        }
+        
+        if (isCompleted) {
+            await completeRaceQuest(quest, user.uid, quests);
+            updated = true;
+        }
+    }
+    
     if (updated) {
         await savePlayerQuests(user.uid, quests);
     }
@@ -472,6 +618,7 @@ export async function getCompletedQuests() {
     
     const completedList = Array.isArray(quests?.completed) ? quests.completed : [];
     const dailyProgress = quests?.daily && typeof quests.daily === 'object' ? quests.daily : {};
+    const raceProgress = quests?.race && typeof quests.race === 'object' ? quests.race : {};
     
     for (const questId of completedList) {
         const quest = getQuestById(questId);
@@ -486,6 +633,19 @@ export async function getCompletedQuests() {
                     ...quest, 
                     type: 'daily',
                     dailyProgress: progress.progress || 0 
+                });
+            }
+        }
+    }
+    
+    for (const [questId, progress] of Object.entries(raceProgress)) {
+        if (progress && progress.completed === true) {
+            const quest = getQuestById(questId);
+            if (quest) {
+                completedQuests.push({ 
+                    ...quest, 
+                    type: 'race',
+                    completedAt: progress.completedAt
                 });
             }
         }
