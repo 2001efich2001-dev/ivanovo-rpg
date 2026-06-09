@@ -580,6 +580,9 @@ export async function getAvailableQuests() {
     const dailyProgress = quests?.daily && typeof quests.daily === 'object' ? quests.daily : {};
     const raceProgress = quests?.race && typeof quests.race === 'object' ? quests.race : {};
     
+    // 👇 НОВАЯ ФУНКЦИЯ: проверяем, выполнены ли расовые квесты глобально
+    const globalRaceCompleted = await getGlobalRaceCompletedQuests();
+    
     const staticQuests = Object.values(questsDB).filter(q => 
         q.type === 'static' && !completedList.includes(q.id)
     );
@@ -588,15 +591,22 @@ export async function getAvailableQuests() {
         q.type === 'daily' && !(dailyProgress[q.id] && dailyProgress[q.id].completed === true)
     );
     
-    const raceQuests = Object.values(questsDB).filter(q => 
-        q.type === 'race' && !(raceProgress[q.id] && raceProgress[q.id].completed === true)
-    );
+    // 👇 ИСПРАВЛЕНО: расовые квесты скрываем, если глобально выполнены ИЛИ выполнены игроком
+    const raceQuests = Object.values(questsDB).filter(q => {
+        if (q.type !== 'race') return false;
+        // Если глобально выполнен — не показываем никому
+        if (globalRaceCompleted.has(q.id)) return false;
+        // Если игрок уже выполнил — не показываем
+        if (raceProgress[q.id]?.completed === true) return false;
+        return true;
+    });
     
     console.log('📊 Загружены квесты:', {
         static: staticQuests.length,
         daily: dailyQuests.length,
         race: raceQuests.length,
-        completedStatic: completedList.length
+        completedStatic: completedList.length,
+        globalRaceCompleted: Array.from(globalRaceCompleted)
     });
     
     return {
@@ -606,6 +616,34 @@ export async function getAvailableQuests() {
         completed: completedList,
         dailyProgress: dailyProgress
     };
+}
+
+// ========== ПОЛУЧИТЬ ГЛОБАЛЬНО ВЫПОЛНЕННЫЕ РАСОВЫЕ КВЕСТЫ ==========
+async function getGlobalRaceCompletedQuests() {
+    const completedQuests = new Set();
+    
+    try {
+        const { db } = await import('./firestore.js');
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        const usersRef = collection(db, 'users');
+        const snapshot = await getDocs(usersRef);
+        
+        for (const userDoc of snapshot.docs) {
+            const userData = userDoc.data();
+            const raceProgress = userData.quests?.race || {};
+            
+            for (const [questId, progress] of Object.entries(raceProgress)) {
+                if (progress && progress.completed === true) {
+                    completedQuests.add(questId);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка получения глобальных расовых квестов:', error);
+    }
+    
+    return completedQuests;
 }
 
 // ========== ПОЛУЧИТЬ ВЫПОЛНЕННЫЕ КВЕСТЫ ==========
