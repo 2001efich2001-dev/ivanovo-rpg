@@ -172,7 +172,15 @@ export function setStats(h, hu, c, m) {
         cold = isNaN(c) ? maxCold : Math.min(maxCold, Math.max(0, c));
     }
     if (m !== undefined && m !== null) {
+        const oldMoney = money;
         money = isNaN(m) ? 500 : Math.max(0, m);
+        
+        // 👇 ПРОВЕРКА КВЕСТА НА НАКОПЛЕНИЕ ДЕНЕГ 👇
+        if (oldMoney < 1000000 && money >= 1000000) {
+            import('./questSystem.js').then(qs => {
+                qs.updateQuestProgress('money_reach', money, { targetMoney: 1000000 });
+            });
+        }
     }
     updateUI();
 }
