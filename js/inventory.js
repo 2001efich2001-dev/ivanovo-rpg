@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -1414,25 +1414,25 @@ async function equipTitle(title) {
     const gameState = await import('./gameState.js');
     const { saveGameData } = await import('./firestore.js');
     
+    // Проверяем, есть ли такой титул у игрока
     if (!gameState.ownedTitles.includes(title)) {
         showMessage('❌ У вас нет такого титула!', '#e74c3c');
         return;
     }
     
+    // Если уже надет этот титул — ничего не делаем
     if (gameState.currentTitle === title) {
         showMessage(`🏷️ Титул "${title}" уже активен!`, '#ffd966');
         return;
     }
     
-    gameState.currentTitle = title;
-    gameState.updateUI();
-    await saveGameData();
-    
-    // Обновляем отображение в интерфейсе
-    const titleSpan = document.getElementById('playerTitle');
-    if (titleSpan) {
-        titleSpan.textContent = title;
-        titleSpan.style.display = 'inline-block';
+    // 👇 ИСПОЛЬЗУЕМ ФУНКЦИЮ setCurrentTitle, а не прямое присвоение
+    if (typeof gameState.setCurrentTitle === 'function') {
+        await gameState.setCurrentTitle(title);
+    } else {
+        // fallback если функции нет
+        showMessage('❌ Система титулов временно недоступна', '#e74c3c');
+        return;
     }
     
     // Обновляем вкладку титулов
