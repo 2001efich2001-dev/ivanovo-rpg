@@ -1,7 +1,7 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining, currentTitle, ownedTitles, setCurrentTitle } from './gameState.js';
 import { initAuth, auth } from './auth.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal } from './inventory.js';
+import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal, renderTitlesTab } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
@@ -141,6 +141,19 @@ function escapeHtml(str) {
         if (m === '>') return '&gt;';
         return m;
     });
+}
+
+// ========== ОТОБРАЖЕНИЕ ТИТУЛА (БЕЙДЖИКА) ==========
+function updatePlayerTitle() {
+    const titleSpan = document.getElementById('playerTitle');
+    if (!titleSpan) return;
+    
+    if (currentTitle) {
+        titleSpan.textContent = currentTitle;
+        titleSpan.style.display = 'inline-block';
+    } else {
+        titleSpan.style.display = 'none';
+    }
 }
 
 // ========== ТОП ИГРОКОВ ==========
@@ -343,7 +356,7 @@ async function renderTradeInventorySelector(side) {
         for (const item of allItems) {
             html += `
                 <div class="inventory-slot trade-slot" data-id="${item.id}" data-side="to">
-                    <img src="${item.image}" alt="${item.name}" class="item-image" loading="lazy"
+                    <img src="${itemData.image}" alt="${item.name}" class="item-image" loading="lazy"
                          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${item.icon}%3C/text%3E%3C/svg%3E'">
                     <span class="item-name">${item.name}</span>
                     <button class="trade-add-btn" data-id="${item.id}" data-side="to">➕</button>
@@ -597,15 +610,19 @@ function setupRealTimeUpdates(userId) {
         if (updated) {
             localLastUpdated = newLastUpdated;
             
+            // Обновляем отображение титула
+            updatePlayerTitle();
+            
             // Обновляем UI компоненты
             try {
-                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab, renderTitlesTab } = await import('./inventory.js');
                 const { renderLocation } = await import('./locations.js');
                 
                 renderItemsTab();
                 renderEquipmentTab();
                 initInventoryTabs();
                 renderHousingTab?.();
+                renderTitlesTab?.();
                 renderLocation(currentLocation);
                 
                 showMessage('🔄 Данные синхронизированы', '#4caf50');
@@ -1031,6 +1048,9 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
+        
+        // 👉 ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ ТИТУЛА ПОСЛЕ ЗАГРУЗКИ ДАННЫХ
+        updatePlayerTitle();
         
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
