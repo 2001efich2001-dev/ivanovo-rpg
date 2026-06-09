@@ -1627,3 +1627,85 @@ body {
         font-size: 0.9rem;
     }
 }
+
+/* Титул над ником */
+.player-title {
+    display: none;
+    font-size: 0.7rem;
+    background: linear-gradient(135deg, rgba(255,217,102,0.2), rgba(255,217,102,0.05));
+    border: 1px solid #ffd966;
+    border-radius: 40px;
+    padding: 2px 12px;
+    margin-bottom: 6px;
+    color: #ffd966;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(2px);
+}
+
+/* Сетка титулов */
+.titles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+
+.title-slot {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--card-border);
+}
+
+.title-slot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.title-slot.active-title {
+    border: 2px solid #ffd966;
+    background: linear-gradient(135deg, rgba(255,217,102,0.15), rgba(255,217,102,0.05));
+}
+
+.title-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.title-name {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: var(--accent-gold);
+}
+
+.title-desc {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.title-equip-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.title-equip-btn.active {
+    background: #4caf50;
+    cursor: default;
+}
+
+.title-equip-btn:not(.active):hover {
+    background: #ffd966;
+    color: #1a1a2e;
+}
