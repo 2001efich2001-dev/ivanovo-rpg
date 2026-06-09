@@ -140,6 +140,17 @@ export function updateUI() {
         }
     }
     
+    // Обновляем отображение титула
+    const titleSpan = document.getElementById('playerTitle');
+    if (titleSpan) {
+        if (currentTitle) {
+            titleSpan.textContent = currentTitle;
+            titleSpan.style.display = 'inline-block';
+        } else {
+            titleSpan.style.display = 'none';
+        }
+    }
+    
     // Проверка смерти (если здоровье ≤ 0)
     if (safeHealth <= 0 && !window._isDying) {
         setTimeout(() => {
@@ -519,6 +530,16 @@ export function setTitlesData(data) {
         currentTitle = data.current || null;
         ownedTitles = Array.isArray(data.owned) ? data.owned : [];
     }
+    // Обновляем отображение в интерфейсе
+    const titleSpan = document.getElementById('playerTitle');
+    if (titleSpan) {
+        if (currentTitle) {
+            titleSpan.textContent = currentTitle;
+            titleSpan.style.display = 'inline-block';
+        } else {
+            titleSpan.style.display = 'none';
+        }
+    }
 }
 
 export function initTitlesData() {
@@ -532,6 +553,28 @@ export function getTitlesData() {
         current: currentTitle,
         owned: ownedTitles
     };
+}
+
+// ===== НОВАЯ ФУНКЦИЯ ДЛЯ СМЕНЫ ТИТУЛА =====
+export async function setCurrentTitle(title) {
+    currentTitle = title;
+    updateUI();
+    
+    // Сохраняем в Firestore
+    await saveGameData();
+    
+    // Обновляем отображение в интерфейсе
+    const titleSpan = document.getElementById('playerTitle');
+    if (titleSpan) {
+        if (title) {
+            titleSpan.textContent = title;
+            titleSpan.style.display = 'inline-block';
+        } else {
+            titleSpan.style.display = 'none';
+        }
+    }
+    
+    console.log(`🏷️ Титул изменён на: ${title || 'нет'}`);
 }
 
 // ===== ОБНОВЛЕНИЕ ЕЖЕДНЕВНОЙ СТОИМОСТИ =====
