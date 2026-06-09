@@ -619,7 +619,7 @@ export async function getAvailableQuests() {
 }
 
 // ========== ПОЛУЧИТЬ ГЛОБАЛЬНО ВЫПОЛНЕННЫЕ РАСОВЫЕ КВЕСТЫ ==========
-async function getGlobalRaceCompletedQuests() {
+export async function getGlobalRaceCompletedQuests() {
     const completedQuests = new Set();
     
     try {
@@ -693,12 +693,3 @@ export async function getCompletedQuests() {
 }
 
 
-// ========== ЭКСПОРТ ФУНКЦИЙ ==========
-export { 
-    loadPlayerQuests, 
-    savePlayerQuests, 
-    updateQuestProgress, 
-    getAvailableQuests, 
-    getCompletedQuests,
-    getGlobalRaceCompletedQuests
-};
