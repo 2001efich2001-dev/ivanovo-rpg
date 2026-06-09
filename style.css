@@ -1709,3 +1709,133 @@ body {
     background: #ffd966;
     color: #1a1a2e;
 }
+/* Стили для топ игроков с бейджиками */
+.players-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.player-item {
+    background: var(--stat-bg);
+    border-radius: 20px;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.player-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.player-item.top-player-1 {
+    background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05));
+    border-left: 4px solid #ffd700;
+}
+
+.player-item.top-player-2 {
+    background: linear-gradient(135deg, rgba(192,192,192,0.15), rgba(192,192,192,0.05));
+    border-left: 4px solid #c0c0c0;
+}
+
+.player-item.top-player-3 {
+    background: linear-gradient(135deg, rgba(205,127,50,0.15), rgba(205,127,50,0.05));
+    border-left: 4px solid #cd7f32;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.player-rank-rank {
+    min-width: 50px;
+}
+
+.player-rank {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--accent-gold);
+}
+
+.top-player-1 .player-rank {
+    color: #ffd700;
+    text-shadow: 0 0 5px rgba(255,215,0,0.5);
+}
+
+.top-player-2 .player-rank {
+    color: #c0c0c0;
+}
+
+.top-player-3 .player-rank {
+    color: #cd7f32;
+}
+
+.player-details {
+    flex: 1;
+}
+
+.player-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.player-nick {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.player-title-badge {
+    font-size: 0.7rem;
+    background: linear-gradient(135deg, rgba(255,217,102,0.25), rgba(255,217,102,0.1));
+    border: 1px solid #ffd966;
+    border-radius: 40px;
+    padding: 2px 10px;
+    color: #ffd966;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.player-stats-row {
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.player-level {
+    color: var(--accent-gold);
+}
+
+.player-exp {
+    color: var(--text-secondary);
+}
+
+.trade-offer-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.trade-offer-btn:hover {
+    background: #ffd966;
+    color: #1a1a2e;
+    transform: scale(1.02);
+}
