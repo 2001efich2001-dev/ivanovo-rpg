@@ -691,3 +691,14 @@ export async function getCompletedQuests() {
     
     return completedQuests;
 }
+
+
+// ========== ЭКСПОРТ ФУНКЦИЙ ==========
+export { 
+    loadPlayerQuests, 
+    savePlayerQuests, 
+    updateQuestProgress, 
+    getAvailableQuests, 
+    getCompletedQuests,
+    getGlobalRaceCompletedQuests
+};
