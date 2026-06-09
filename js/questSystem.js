@@ -138,8 +138,8 @@ async function completeStaticQuest(quest, userId, quests) {
     // Добавляем в список выполненных
     quests.completed.push(quest.id);
     
-    // Выдаём награду
-    await giveQuestReward(quest);
+    // Выдаём награду (титулы сохранятся внутри)
+    await giveQuestReward(quest, userId);
     
     // Показываем уведомление
     showQuestCompleteNotification(quest);
@@ -152,8 +152,8 @@ async function completeStaticQuest(quest, userId, quests) {
 async function completeDailyQuest(quest, userId, quests) {
     console.log(`🏆 Выполнен ежедневный квест: ${quest.name}`);
     
-    // Выдаём награду
-    await giveQuestReward(quest);
+    // Выдаём награду (титулы сохранятся внутри)
+    await giveQuestReward(quest, userId);
     
     // Показываем уведомление
     showQuestCompleteNotification(quest);
@@ -162,8 +162,8 @@ async function completeDailyQuest(quest, userId, quests) {
     await savePlayerQuests(userId, quests);
 }
 
-// ========== ВЫДАТЬ НАГРАДУ ЗА КВЕСТ ==========
-async function giveQuestReward(quest) {
+// ========== ВЫДАТЬ НАГРАДУ ЗА КВЕСТ (С СОХРАНЕНИЕМ ТИТУЛОВ) ==========
+async function giveQuestReward(quest, userId) {
     const gameState = await import('./gameState.js');
     
     if (quest.rewards.money) {
@@ -194,8 +194,44 @@ async function giveQuestReward(quest) {
         showMessage(`🎁 +1 ${itemName} за квест "${quest.name}"`, '#ffd966');
     }
     
+    // ===== ОБРАБОТКА ТИТУЛА С СОХРАНЕНИЕМ В FIRESTORE =====
     if (quest.rewards.title) {
-        showMessage(`🏷️ Вы получили титул "${quest.rewards.title}"!`, '#ffd966');
+        const title = quest.rewards.title;
+        
+        // Проверяем, есть ли уже такой титул
+        if (!gameState.ownedTitles.includes(title)) {
+            gameState.ownedTitles.push(title);
+            
+            // Если это первый титул — делаем его активным
+            if (!gameState.currentTitle) {
+                gameState.currentTitle = title;
+            }
+            
+            showMessage(`🏷️ Вы получили титул "${title}"!`, '#ffd966');
+            
+            // Сохраняем титулы в Firestore
+            if (userId) {
+                try {
+                    const userRef = doc(db, 'users', userId);
+                    await updateDoc(userRef, {
+                        'titles.current': gameState.currentTitle,
+                        'titles.owned': gameState.ownedTitles
+                    });
+                    console.log('🏷️ Титулы сохранены в Firestore:', gameState.ownedTitles);
+                } catch (error) {
+                    console.error('Ошибка сохранения титулов:', error);
+                }
+            }
+            
+            // Обновляем отображение титула в интерфейсе
+            const titleSpan = document.getElementById('playerTitle');
+            if (titleSpan) {
+                titleSpan.textContent = gameState.currentTitle;
+                titleSpan.style.display = 'inline-block';
+            }
+        } else {
+            showMessage(`🏷️ Титул "${title}" уже есть в коллекции!`, '#ffd966');
+        }
     }
     
     gameState.updateUI();
