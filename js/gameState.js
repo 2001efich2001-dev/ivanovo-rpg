@@ -63,6 +63,10 @@ export let lastGlobalHousingCheck = null;  // Дата последней гло
 // ========== ПОСЛЕДНЕЕ ОБНОВЛЕНИЕ ДАННЫХ ==========
 export let lastUpdated = null;             // Время последнего обновления в Firestore
 
+// ========== ТИТУЛЫ (БЕЙДЖИКИ) ==========
+export let currentTitle = null;            // Текущий активный титул
+export let ownedTitles = [];               // Массив полученных титулов
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -506,6 +510,27 @@ export function getHousingData() {
         lastHousingCheck: lastHousingCheck,
         lastGlobalHousingCheck: lastGlobalHousingCheck,
         lastUpdated: lastUpdated
+    };
+}
+
+// ========== ФУНКЦИИ ДЛЯ ТИТУЛОВ ==========
+export function setTitlesData(data) {
+    if (data) {
+        currentTitle = data.current || null;
+        ownedTitles = Array.isArray(data.owned) ? data.owned : [];
+    }
+}
+
+export function initTitlesData() {
+    currentTitle = null;
+    ownedTitles = [];
+    console.log('🏷️ Инициализированы данные титулов');
+}
+
+export function getTitlesData() {
+    return {
+        current: currentTitle,
+        owned: ownedTitles
     };
 }
 
@@ -1156,6 +1181,10 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
     }
     if (remoteData.housing !== undefined) {
         setHousingData(remoteData.housing);
+        updated = true;
+    }
+    if (remoteData.titles !== undefined) {
+        setTitlesData(remoteData.titles);
         updated = true;
     }
     if (remoteData.lastUpdated !== undefined) {
