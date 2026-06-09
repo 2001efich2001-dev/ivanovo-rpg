@@ -267,6 +267,20 @@ function giveReward(isSuccess, caughtFish = null) {
     
     addExperience(expGain);
     
+    // ===== ПРОВЕРКА КВЕСТОВ =====
+    // Обновляем прогресс рыбалки для статических и ежедневных квестов
+    import('./questSystem.js').then(qs => {
+        qs.updateQuestProgress('fishing', 1);
+    });
+    
+    // ===== СПЕЦИАЛЬНАЯ ПРОВЕРКА: поймана рыба-меч (расовый квест) =====
+    if (reward.id === "fish_sword") {
+        import('./questSystem.js').then(qs => {
+            qs.updateQuestProgress('catch_fish', 1, { fishId: "fish_sword" });
+            console.log('🎣 ВЫЗОВ КВЕСТА: поймана рыба-меч!');
+        });
+    }
+    
     updateUI();
     saveGameData();
     
