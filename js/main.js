@@ -184,25 +184,54 @@ async function loadTopPlayers(forceRefresh = false) {
             container.innerHTML = '<div style="text-align:center;">Пока нет игроков</div>';
             return;
         }
-        let html = '';
+        
+        let html = '<div class="players-list">';
         let rank = 1;
+        
         for (const docSnap of querySnapshot.docs) {
             const data = docSnap.data();
             const nick = data.displayName || 'Аноним';
             const level = data.level ?? 1;
             const exp = data.experience ?? 0;
+            const titles = data.titles || {};
+            const currentTitle = titles.current || null;
+            
             let rankClass = '';
-            if (rank === 1) rankClass = 'top-player-1';
-            else if (rank === 2) rankClass = 'top-player-2';
-            else if (rank === 3) rankClass = 'top-player-3';
+            let rankIcon = '';
+            if (rank === 1) {
+                rankClass = 'top-player-1';
+                rankIcon = '👑';
+            } else if (rank === 2) {
+                rankClass = 'top-player-2';
+                rankIcon = '🥈';
+            } else if (rank === 3) {
+                rankClass = 'top-player-3';
+                rankIcon = '🥉';
+            } else {
+                rankIcon = `${rank}.`;
+            }
+            
             const requiredExp = Math.floor(100 * Math.pow(1.2, level - 1));
+            
+            // Формируем отображение бейджика, если он есть
+            const titleBadge = currentTitle ? `<span class="player-title-badge" title="${currentTitle}">${currentTitle}</span>` : '';
+            
             html += `
                 <div class="player-item ${rankClass}" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">
                     <div class="player-info">
-                        <span class="player-rank">${rank}.</span>
-                        <span class="player-nick">${escapeHtml(nick)}</span>
-                        <span class="player-level">⭐ ${level}</span>
-                        <span class="player-exp">${Math.floor(exp)}/${requiredExp} опыта</span>
+                        <div class="player-rank-rank">
+                            <span class="player-rank">${rankIcon}</span>
+                        </div>
+                        <div class="player-details">
+                            <div class="player-name-row">
+                                <span class="player-nick">${escapeHtml(nick)}</span>
+                                ${titleBadge}
+                            </div>
+                            <div class="player-stats-row">
+                                <span class="player-level">⭐ Уровень ${level}</span>
+                                <span class="player-exp">📊 ${Math.floor(exp)}/${requiredExp} опыта</span>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <button class="trade-offer-btn" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">💼 Предложить обмен</button>
@@ -211,6 +240,8 @@ async function loadTopPlayers(forceRefresh = false) {
             `;
             rank++;
         }
+        
+        html += '</div>';
         container.innerHTML = html;
         topPlayersCache = html;
         topPlayersCacheTime = now;
