@@ -14,7 +14,7 @@ function playClick() {
 function playPurchase() {
     if (typeof window.playPurchaseSound === 'function') window.playPurchaseSound();
 }
-
+ф
 // Добавляем поле image для каждого предмета
 export const itemsDB = {
     // Еда
@@ -853,22 +853,27 @@ async function useItem(itemId) {
         setEnergy(newEnergy);
         effText += `Энергия ${itemData.effect.energy > 0 ? '+' : ''}${itemData.effect.energy}. `;
     }
-    if (itemData.effect.intoxication) {
-        if (itemData.effect.intoxication > 0) {
-            const oldIntoxication = intoxication;
-            addIntoxication(itemData.effect.intoxication);
-            effText += `Опьянение +${itemData.effect.intoxication}. `;
-            
-            updateAchievementStats('totalAlcoholConsumed', 1);
-            
-            if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
-                updateAchievementStats('maxIntoxication', 100);
-            }
-        } else if (itemData.effect.intoxication < 0) {
-            reduceIntoxication(Math.abs(itemData.effect.intoxication));
-            effText += `Опьянение ${itemData.effect.intoxication}. `;
+ if (itemData.effect.intoxication) {
+    if (itemData.effect.intoxication > 0) {
+        const oldIntoxication = intoxication;
+        addIntoxication(itemData.effect.intoxication);
+        effText += `Опьянение +${itemData.effect.intoxication}. `;
+        
+        updateAchievementStats('totalAlcoholConsumed', 1);
+        
+        // 👇 ВЫЗОВ КВЕСТА ДЛЯ "ПОХМЕЛЬЕ" 👇
+        import('./questSystem.js').then(qs => {
+            qs.updateQuestProgress('alcohol_consumed', 1);
+        });
+        
+        if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
+            updateAchievementStats('maxIntoxication', 100);
         }
+    } else if (itemData.effect.intoxication < 0) {
+        reduceIntoxication(Math.abs(itemData.effect.intoxication));
+        effText += `Опьянение ${itemData.effect.intoxication}. `;
     }
+}
     
     if (inventory[itemIndex].count === 1) inventory.splice(itemIndex,1);
     else inventory[itemIndex].count--;
