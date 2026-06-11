@@ -2,7 +2,7 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
-import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction } from './gameState.js';
+import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction, addIntoxication, reduceIntoxication } from './gameState.js';
 import { updateAchievementStats } from './achievements.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
@@ -136,12 +136,12 @@ export const locationsDB = {
         description: "Можно выпить, подраться или сыграть в дротики.",
         bgImage: "images/bar_bg.jpg",
         zones: [
-            { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
+            { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, +30 опьянения, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
             { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" },
             { id: "darts_zone", name: "🎯 Дартс", description: "Сыграть в пьяный дротик (тратит 10 энергии, нужно 20% опьянения)", cx: 600, cy: 200, r: 50, actionId: "darts" }
         ],
         actions: [
-            { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, стоит 40₽", effect: { health: 10, hunger: -5 }, cost: 40, risk: 0 },
+            { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, опьянение +30, стоит 40₽", effect: { health: 10, hunger: -5, intoxication: 30 }, cost: 40, risk: 0 },
             { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } },
             { id: "darts", name: "🎯 Пьяный дротик", desc: "Сыграть в дартс (10 энергии, нужно 20% опьянения)", effect: {}, cost: 0, risk: 0 }
         ]
@@ -575,7 +575,6 @@ async function executeAction(locationId, action) {
         
         // Для ночлежки ещё и опьянение снимаем + анимация
         if (action.id === 'sleep') {
-            const { reduceIntoxication } = await import('./gameState.js');
             reduceIntoxication(30);
             actionLogMessage += `🍺 Опьянение -30. `;
             
@@ -679,6 +678,20 @@ async function executeAction(locationId, action) {
                 setStats(health, Math.min(maxHunger, Math.max(0, newHunger)), cold, money);
                 msg += `Голод ${add>0?'+':''}${add}. `;
                 actionLogMessage += `Голод ${add>0?'+':''}${add}. `;
+            }
+            // 👇 ДОБАВЛЕНА ОБРАБОТКА ОПЬЯНЕНИЯ ДЛЯ ДЕЙСТВИЙ (например, выпить водку в баре)
+            if (action.effect.intoxication) {
+                const oldIntoxication = intoxication;
+                addIntoxication(action.effect.intoxication);
+                msg += `Опьянение +${action.effect.intoxication}. `;
+                actionLogMessage += `Опьянение +${action.effect.intoxication}. `;
+                
+                // КВЕСТ: обновляем прогресс алкоголя
+                await updateQuest('alcohol_consumed', 1);
+                
+                if (oldIntoxication < 100 && oldIntoxication + action.effect.intoxication >= 100) {
+                    updateAchievementStats('maxIntoxication', 100);
+                }
             }
             if (action.effect.items) {
                 let items = Array.isArray(action.effect.items) ? action.effect.items : [action.effect.items];
