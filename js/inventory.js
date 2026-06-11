@@ -14,7 +14,7 @@ function playClick() {
 function playPurchase() {
     if (typeof window.playPurchaseSound === 'function') window.playPurchaseSound();
 }
-ф
+
 // Добавляем поле image для каждого предмета
 export const itemsDB = {
     // Еда
