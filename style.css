@@ -1839,3 +1839,57 @@ body {
     color: #1a1a2e;
     transform: scale(1.02);
 }
+
+/* ========== ВЫЕЗЖАЮЩЕЕ УВЕДОМЛЕНИЕ ========== */
+.popup-notification {
+    position: fixed;
+    bottom: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10050;
+    transition: bottom 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: none;
+}
+
+.popup-notification.show {
+    bottom: 20px;
+}
+
+.popup-notification-content {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 24px;
+    padding: 16px 32px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border: 2px solid #ffd966;
+    animation: popupGlow 0.5s ease;
+}
+
+.popup-notification-image {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.popup-notification-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffd966;
+    margin-bottom: 8px;
+}
+
+.popup-notification-text {
+    font-size: 0.9rem;
+    color: #fff;
+    opacity: 0.9;
+}
+
+@keyframes popupGlow {
+    0% { box-shadow: 0 0 0 0 rgba(255, 217, 102, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(255, 217, 102, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 217, 102, 0); }
+}
