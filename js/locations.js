@@ -2,7 +2,7 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
-import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction } from './gameState.js';
+import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction, addIntoxication, reduceIntoxication } from './gameState.js';
 import { updateAchievementStats } from './achievements.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
@@ -30,6 +30,19 @@ const energyCosts = {
     rest_dump: 0, // отдых на помойке
     storage: 0    // открытие хранилища (не тратит энергию)
 };
+
+// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ КВЕСТОВ ==========
+async function updateQuest(statType, value = 1, context = {}) {
+    try {
+        const { updateQuestProgress } = await import('./questSystem.js');
+        await updateQuestProgress(statType, value, context);
+    } catch (err) {
+        // тихо игнорируем, если квесты ещё не загружены
+        if (!err.message?.includes('Failed to fetch')) {
+            console.warn('Ошибка обновления квеста:', err);
+        }
+    }
+}
 
 // Модификация риска в зависимости от опьянения (чем выше опьянение, тем выше шанс неудачи)
 function applyIntoxicationToRisk(originalRisk, intoxicationLevel) {
@@ -123,12 +136,12 @@ export const locationsDB = {
         description: "Можно выпить, подраться или сыграть в дротики.",
         bgImage: "images/bar_bg.jpg",
         zones: [
-            { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
+            { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, +30 опьянения, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
             { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" },
             { id: "darts_zone", name: "🎯 Дартс", description: "Сыграть в пьяный дротик (тратит 10 энергии, нужно 20% опьянения)", cx: 600, cy: 200, r: 50, actionId: "darts" }
         ],
         actions: [
-            { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, стоит 40₽", effect: { health: 10, hunger: -5 }, cost: 40, risk: 0 },
+            { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, опьянение +30, стоит 40₽", effect: { health: 10, hunger: -5, intoxication: 30 }, cost: 40, risk: 0 },
             { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } },
             { id: "darts", name: "🎯 Пьяный дротик", desc: "Сыграть в дартс (10 энергии, нужно 20% опьянения)", effect: {}, cost: 0, risk: 0 }
         ]
@@ -444,7 +457,9 @@ async function executeAction(locationId, action) {
             const { openFishingGame } = await import('./minigameFishing.js');
             await openFishingGame();
             
-            // Логируем действие
+            // КВЕСТЫ: обновляем прогресс рыбалки
+            await updateQuest('fishing', 1);
+            
             logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - начало рыбалки`, 'location');
         } catch (error) {
             console.error('Ошибка открытия рыбалки:', error);
@@ -560,7 +575,6 @@ async function executeAction(locationId, action) {
         
         // Для ночлежки ещё и опьянение снимаем + анимация
         if (action.id === 'sleep') {
-            const { reduceIntoxication } = await import('./gameState.js');
             reduceIntoxication(30);
             actionLogMessage += `🍺 Опьянение -30. `;
             
@@ -665,16 +679,35 @@ async function executeAction(locationId, action) {
                 msg += `Голод ${add>0?'+':''}${add}. `;
                 actionLogMessage += `Голод ${add>0?'+':''}${add}. `;
             }
+            // 👇 ДОБАВЛЕНА ОБРАБОТКА ОПЬЯНЕНИЯ ДЛЯ ДЕЙСТВИЙ (например, выпить водку в баре)
+            if (action.effect.intoxication) {
+                const oldIntoxication = intoxication;
+                addIntoxication(action.effect.intoxication);
+                msg += `Опьянение +${action.effect.intoxication}. `;
+                actionLogMessage += `Опьянение +${action.effect.intoxication}. `;
+                
+                // КВЕСТ: обновляем прогресс алкоголя
+                await updateQuest('alcohol_consumed', 1);
+                
+                if (oldIntoxication < 100 && oldIntoxication + action.effect.intoxication >= 100) {
+                    updateAchievementStats('maxIntoxication', 100);
+                }
+            }
             if (action.effect.items) {
                 let items = Array.isArray(action.effect.items) ? action.effect.items : [action.effect.items];
-                items.forEach(it => {
+                for (const it of items) {
                     const idx = inventory.findIndex(i => i.id === it);
                     if (idx !== -1) inventory[idx].count++;
                     else inventory.push({ id: it, count: 1 });
                     msg += `+1 ${itemsDB[it]?.name}. `;
                     actionLogMessage += `+1 ${itemsDB[it]?.name}. `;
                     gainedExp += 10;
-                });
+                    
+                    // КВЕСТЫ: обновляем прогресс нахождения мусора
+                    if (it === 'old_boot' || it === 'rusty_can' || it === 'torn_net' || it === 'plastic_bottle' || it === 'dirty_rag') {
+                        await updateQuest('trash_found', 1);
+                    }
+                }
             }
         }
         if (action.needsItem) {
@@ -687,9 +720,21 @@ async function executeAction(locationId, action) {
             }
         }
         
-        if (action.id === 'fight') gainedExp += 20;
-        if (action.id === 'steal') gainedExp += 15;
-        if (action.id === 'pray') gainedExp += 5;
+        if (action.id === 'fight') {
+            gainedExp += 20;
+            // КВЕСТЫ: обновляем прогресс выигранных драк
+            await updateQuest('fights_won', 1);
+        }
+        if (action.id === 'steal') {
+            gainedExp += 15;
+            // КВЕСТЫ: успешная кража
+            await updateQuest('steal_success', 1);
+        }
+        if (action.id === 'pray') {
+            gainedExp += 5;
+            // КВЕСТЫ: молитва
+            await updateQuest('pray_count', 1);
+        }
         if (action.id === 'eat' && locationId === 'shelter') gainedExp += 5;
         if (action.id === 'get_food') gainedExp += 10;
         
@@ -713,6 +758,11 @@ async function executeAction(locationId, action) {
         if (action.id === 'fight' && success) {
             updateAchievementStats('fightsWon');
         }
+    }
+    
+    // КВЕСТЫ: обновляем посещение локации
+    if (action.id && locationId) {
+        await updateQuest('visit_location', 1, { locationId });
     }
     
     updateUI();

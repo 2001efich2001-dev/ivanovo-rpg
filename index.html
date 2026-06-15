@@ -49,7 +49,13 @@
         <!-- Правая колонка -->
         <div class="game-right">
             <img class="avatar-gif" id="avatarGif" src="images/hero2.png" alt="Персонаж"> 
-            <div id="playerNick" class="player-nick">Игрок</div>
+            
+            <!-- Контейнер для титула и ника -->
+            <div class="player-nick-container">
+                <div id="playerTitle" class="player-title"></div>
+                <div id="playerNick" class="player-nick">Игрок</div>
+            </div>
+            
             <div id="timeWeatherPanel" class="time-weather">--:-- | --° | ☀️</div>
 
             <div class="stats-panel">
@@ -102,6 +108,7 @@
                 <button class="action-btn" id="inventoryBtn">🎒 Инвентарь</button>
                 <button class="action-btn" id="mapBtn">🗺️ Карта</button>
                 <button class="action-btn" id="shopBtn">🏪 Магазин</button>
+                <button class="action-btn" id="questsBtn">📜 Квесты</button>
                 <button class="action-btn" id="realEstateMarketBtn">📢 Агентство недвижимости "Авит0"</button>
                 <button class="action-btn" id="myOffersBtn">
                     💼 Мои предложения
@@ -209,6 +216,7 @@
                     <button class="tab-btn" data-tab="equipment">👕 Экипировка</button>
                     <button class="tab-btn" data-tab="achievements">🏆 Достижения</button>
                     <button class="tab-btn" data-tab="housing">🏠 Моё жильё</button>
+                    <button class="tab-btn" data-tab="titles">🏷️ Титулы</button>
                 </div>
                 <div style="display:flex; gap:16px; align-items: center;">
                     <div id="equipmentTotalBonus" class="equipment-total-bonus-inline" style="font-size:0.8rem; color: var(--accent-gold);">🔥 +0</div>
@@ -219,6 +227,7 @@
             <div id="equipmentTab" class="equipment-slots" style="display: none;"></div>
             <div id="achievementsTab" class="achievements-grid" style="display: none;"></div>
             <div id="housingTab" class="housing-list" style="display: none;"></div>
+            <div id="titlesTab" class="titles-grid" style="display: none;"></div>
             <button class="close-modal">Закрыть</button>
         </div>
     </div>
@@ -284,7 +293,7 @@
     
     <div class="global-footer">
         <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
-        <p>RPG-Иваново · Альфа 0.1.24 · Глобоальное обновление: обмен, недвижимость, мини-игры </p>
+        <p>RPG-Иваново · Альфа 0.2.26 · Глобоальное обновление: квесты, уникальные титулы </p>
     </div>
 
     <script type="module" src="js/main.js"></script>
@@ -346,6 +355,22 @@
             <div style="display: flex; gap: 10px;">
                 <button id="confirmChangeNickBtn" class="action-btn" style="flex: 1;">✅ Сохранить</button>
                 <button class="close-modal reset-btn" style="flex: 1;">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== МОДАЛЬНОЕ ОКНО ДЛЯ КВЕСТОВ ===== -->
+    <div id="questsModal" class="modal">
+        <div class="modal-content" style="max-width: 900px; width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="display:flex; justify-content: space-between; align-items: center; border-bottom:1px solid var(--card-border); padding-bottom:12px; margin-bottom:16px; flex-shrink: 0;">
+                <h3 style="margin:0;">📜 КВЕСТЫ</h3>
+                <button class="close-modal" style="background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <div id="questsList" style="flex: 1; overflow-y: auto; min-height: 0; padding: 8px;">
+                <!-- Список квестов будет загружаться сюда -->
+            </div>
+            <div style="text-align: center; margin-top: 16px; flex-shrink: 0;">
+                <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text);">Закрыть</button>
             </div>
         </div>
     </div>

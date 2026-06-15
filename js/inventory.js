@@ -1,4 +1,4 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -853,22 +853,27 @@ async function useItem(itemId) {
         setEnergy(newEnergy);
         effText += `Энергия ${itemData.effect.energy > 0 ? '+' : ''}${itemData.effect.energy}. `;
     }
-    if (itemData.effect.intoxication) {
-        if (itemData.effect.intoxication > 0) {
-            const oldIntoxication = intoxication;
-            addIntoxication(itemData.effect.intoxication);
-            effText += `Опьянение +${itemData.effect.intoxication}. `;
-            
-            updateAchievementStats('totalAlcoholConsumed', 1);
-            
-            if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
-                updateAchievementStats('maxIntoxication', 100);
-            }
-        } else if (itemData.effect.intoxication < 0) {
-            reduceIntoxication(Math.abs(itemData.effect.intoxication));
-            effText += `Опьянение ${itemData.effect.intoxication}. `;
+ if (itemData.effect.intoxication) {
+    if (itemData.effect.intoxication > 0) {
+        const oldIntoxication = intoxication;
+        addIntoxication(itemData.effect.intoxication);
+        effText += `Опьянение +${itemData.effect.intoxication}. `;
+        
+        updateAchievementStats('totalAlcoholConsumed', 1);
+        
+        // 👇 ВЫЗОВ КВЕСТА ДЛЯ "ПОХМЕЛЬЕ" 👇
+        import('./questSystem.js').then(qs => {
+            qs.updateQuestProgress('alcohol_consumed', 1);
+        });
+        
+        if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
+            updateAchievementStats('maxIntoxication', 100);
         }
+    } else if (itemData.effect.intoxication < 0) {
+        reduceIntoxication(Math.abs(itemData.effect.intoxication));
+        effText += `Опьянение ${itemData.effect.intoxication}. `;
     }
+}
     
     if (inventory[itemIndex].count === 1) inventory.splice(itemIndex,1);
     else inventory[itemIndex].count--;
@@ -1349,7 +1354,99 @@ export async function openTradeOfferModal(targetUserId, targetUserNick) {
     });
 }
 
-// ОБНОВЛЁННАЯ initInventoryTabs с поддержкой вкладки housing
+// ========== ВКЛАДКА ТИТУЛОВ (БЕЙДЖИКОВ) ==========
+export async function renderTitlesTab() {
+    const container = document.getElementById('titlesTab');
+    if (!container) return;
+    
+    const gameState = await import('./gameState.js');
+    const owned = gameState.ownedTitles || [];
+    const current = gameState.currentTitle;
+    
+    if (owned.length === 0) {
+        container.innerHTML = '<div class="empty-inventory">🏷️ У вас пока нет титулов. Выполняйте квесты, чтобы получать их!</div>';
+        return;
+    }
+    
+    let html = '<div class="inventory-grid titles-grid">';
+    
+    // Список всех возможных титулов с их иконками и описаниями
+    const titlesInfo = {
+        "🌟 Миллионер": { icon: "💰", desc: "Накопить 1,000,000₽" },
+        "🏆 Легенда дартса": { icon: "🎯", desc: "Первым набрать 300 очков в дротики" },
+        "🗡️ Повелитель рыб": { icon: "🐟", desc: "Первым поймать рыбу-меч" },
+        "💎 Миллионер": { icon: "💎", desc: "Первым накопить 1,000,000₽" }
+    };
+    
+    for (const title of owned) {
+        const info = titlesInfo[title] || { icon: "🏷️", desc: "Получен за выполнение специального квеста" };
+        const isActive = current === title;
+        
+        html += `
+            <div class="inventory-slot title-slot ${isActive ? 'active-title' : ''}" data-title="${escapeHtml(title)}">
+                <div class="title-icon">${info.icon}</div>
+                <div class="title-name">${escapeHtml(title)}</div>
+                <div class="title-desc">${info.desc}</div>
+                <button class="title-equip-btn ${isActive ? 'active' : ''}" data-title="${escapeHtml(title)}">
+                    ${isActive ? '✅ Надет' : '👕 Надеть'}
+                </button>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // Обработчики для кнопок
+    document.querySelectorAll('.title-equip-btn').forEach(btn => {
+        if (btn._equipHandler) {
+            btn.removeEventListener('click', btn._equipHandler);
+        }
+        
+        const handler = async (e) => {
+            e.stopPropagation();
+            const title = btn.dataset.title;
+            await equipTitle(title);
+        };
+        
+        btn.addEventListener('click', handler);
+        btn._equipHandler = handler;
+    });
+}
+
+// Функция для экипировки титула
+async function equipTitle(title) {
+    const gameState = await import('./gameState.js');
+    const { saveGameData } = await import('./firestore.js');
+    
+    // Проверяем, есть ли такой титул у игрока
+    if (!gameState.ownedTitles.includes(title)) {
+        showMessage('❌ У вас нет такого титула!', '#e74c3c');
+        return;
+    }
+    
+    // Если уже надет этот титул — ничего не делаем
+    if (gameState.currentTitle === title) {
+        showMessage(`🏷️ Титул "${title}" уже активен!`, '#ffd966');
+        return;
+    }
+    
+    // 👇 ИСПОЛЬЗУЕМ ФУНКЦИЮ setCurrentTitle, а не прямое присвоение
+    if (typeof gameState.setCurrentTitle === 'function') {
+        await gameState.setCurrentTitle(title);
+    } else {
+        // fallback если функции нет
+        showMessage('❌ Система титулов временно недоступна', '#e74c3c');
+        return;
+    }
+    
+    // Обновляем вкладку титулов
+    await renderTitlesTab();
+    
+    showMessage(`🏷️ Титул "${title}" активирован!`, '#4caf50');
+}
+
+// ========== ОБНОВЛЁННАЯ initInventoryTabs с поддержкой вкладки housing И titles ==========
 export function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
     if (!modal) return;
@@ -1358,8 +1455,9 @@ export function initInventoryTabs() {
     const equipmentTab = document.getElementById('equipmentTab');
     const achievementsTab = document.getElementById('achievementsTab');
     const housingTab = document.getElementById('housingTab');
+    const titlesTab = document.getElementById('titlesTab');
     
-    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab || !housingTab) return;
+    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab || !housingTab || !titlesTab) return;
     
     tabs.forEach(tab => { tab.removeEventListener('click', tab._listener); });
     
@@ -1373,6 +1471,7 @@ export function initInventoryTabs() {
         equipmentTab.style.display = 'none';
         achievementsTab.style.display = 'none';
         housingTab.style.display = 'none';
+        titlesTab.style.display = 'none';
         
         // Показываем нужную
         if (tab.dataset.tab === 'items') {
@@ -1387,6 +1486,9 @@ export function initInventoryTabs() {
         } else if (tab.dataset.tab === 'housing') {
             housingTab.style.display = 'flex';
             renderHousingTab();
+        } else if (tab.dataset.tab === 'titles') {
+            titlesTab.style.display = 'flex';
+            renderTitlesTab();
         }
     };
     

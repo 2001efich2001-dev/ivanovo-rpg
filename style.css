@@ -1347,3 +1347,549 @@ body {
 #shopModal .modal-content > div:first-of-type::-webkit-scrollbar-thumb:hover {
     background: #e67e22;
 }
+
+
+/* ========== СТИЛИ ДЛЯ КВЕСТОВ ========== */
+
+/* Модальное окно квестов */
+#questsModal .modal-content {
+    max-width: 900px;
+    width: 90%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border-radius: 48px;
+}
+
+/* Вкладки квестов */
+.quests-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px 0 16px;
+    border-bottom: 1px solid var(--card-border);
+    flex-wrap: wrap;
+}
+
+.quest-tab-btn {
+    background: transparent;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 40px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    box-shadow: none;
+}
+
+.quest-tab-btn:hover {
+    background: var(--stat-bg);
+    color: var(--accent-gold);
+    transform: none;
+    box-shadow: none;
+}
+
+.quest-tab-btn.active {
+    background: var(--accent-gold);
+    color: #1e2a32;
+}
+
+.quests-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    min-height: 300px;
+}
+
+/* Сетка квестов */
+.quests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+/* Карточка квеста */
+.quest-card {
+    background: var(--stat-bg);
+    border-radius: 24px;
+    padding: 16px;
+    position: relative;
+    border: 1px solid var(--card-border);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.quest-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+.quest-card.daily {
+    border-left: 4px solid #3498db;
+}
+
+.quest-card.static {
+    border-left: 4px solid #2ecc71;
+}
+
+.quest-card.race {
+    border-left: 4px solid #e74c3c;
+}
+
+.quest-card.completed {
+    border-left: 4px solid #95a5a6;
+    opacity: 0.8;
+}
+
+/* Бейдж типа квеста */
+.quest-type-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+.quest-type-badge.daily {
+    background: #3498db;
+    color: white;
+}
+
+.quest-type-badge.static {
+    background: #2ecc71;
+    color: #1e2a32;
+}
+
+.quest-type-badge.race {
+    background: #e74c3c;
+    color: white;
+}
+
+/* Иконка квеста */
+.quest-card-icon {
+    font-size: 2.2rem;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+/* Информация о квесте */
+.quest-card-info {
+    flex: 1;
+}
+
+.quest-card-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: var(--accent-gold);
+    margin-bottom: 4px;
+}
+
+.quest-card-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+/* Прогресс-бар */
+.quest-progress-bar {
+    background: var(--card-bg);
+    border-radius: 20px;
+    height: 8px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.quest-progress-fill {
+    background: var(--accent-gold);
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.3s ease;
+}
+
+.quest-progress-text {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+/* Награды */
+.quest-card-rewards {
+    margin-top: 12px;
+}
+
+.rewards-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.reward-item {
+    font-size: 0.7rem;
+    background: var(--card-bg);
+    padding: 4px 10px;
+    border-radius: 20px;
+    color: var(--accent-gold);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Статус выполнения */
+.quest-card-status {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--card-border);
+    text-align: right;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.completed-status {
+    color: #2ecc71;
+}
+
+/* Пустое состояние */
+.empty-quests {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+/* Анимация уведомления о квесте */
+.quest-notification {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    background: linear-gradient(135deg, #2c3e50, #1a2634);
+    color: #ffd966;
+    padding: 12px 20px;
+    border-radius: 16px;
+    z-index: 10002;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    border-left: 4px solid #ffd966;
+    animation: slideInRight 0.3s ease, fadeOut 0.5s ease 3s forwards;
+    font-family: inherit;
+}
+
+.quest-notification-icon {
+    font-size: 1.8rem;
+}
+
+.quest-notification-text {
+    flex: 1;
+}
+
+.quest-notification-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.8;
+}
+
+.quest-notification-name {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    to { opacity: 0; visibility: hidden; }
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .quests-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .quest-tab-btn {
+        padding: 6px 14px;
+        font-size: 0.8rem;
+    }
+    
+    .quest-card-icon {
+        font-size: 1.8rem;
+    }
+    
+    .quest-card-name {
+        font-size: 0.9rem;
+    }
+}
+
+/* Титул над ником */
+.player-title {
+    display: none;
+    font-size: 0.7rem;
+    background: linear-gradient(135deg, rgba(255,217,102,0.2), rgba(255,217,102,0.05));
+    border: 1px solid #ffd966;
+    border-radius: 40px;
+    padding: 2px 12px;
+    margin-bottom: 6px;
+    color: #ffd966;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(2px);
+}
+
+/* Сетка титулов */
+.titles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+
+.title-slot {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid var(--card-border);
+}
+
+.title-slot:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.title-slot.active-title {
+    border: 2px solid #ffd966;
+    background: linear-gradient(135deg, rgba(255,217,102,0.15), rgba(255,217,102,0.05));
+}
+
+.title-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.title-name {
+    font-weight: bold;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+    color: var(--accent-gold);
+}
+
+.title-desc {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.title-equip-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.title-equip-btn.active {
+    background: #4caf50;
+    cursor: default;
+}
+
+.title-equip-btn:not(.active):hover {
+    background: #ffd966;
+    color: #1a1a2e;
+}
+/* Стили для топ игроков с бейджиками */
+.players-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.player-item {
+    background: var(--stat-bg);
+    border-radius: 20px;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.player-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.player-item.top-player-1 {
+    background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,215,0,0.05));
+    border-left: 4px solid #ffd700;
+}
+
+.player-item.top-player-2 {
+    background: linear-gradient(135deg, rgba(192,192,192,0.15), rgba(192,192,192,0.05));
+    border-left: 4px solid #c0c0c0;
+}
+
+.player-item.top-player-3 {
+    background: linear-gradient(135deg, rgba(205,127,50,0.15), rgba(205,127,50,0.05));
+    border-left: 4px solid #cd7f32;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.player-rank-rank {
+    min-width: 50px;
+}
+
+.player-rank {
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: var(--accent-gold);
+}
+
+.top-player-1 .player-rank {
+    color: #ffd700;
+    text-shadow: 0 0 5px rgba(255,215,0,0.5);
+}
+
+.top-player-2 .player-rank {
+    color: #c0c0c0;
+}
+
+.top-player-3 .player-rank {
+    color: #cd7f32;
+}
+
+.player-details {
+    flex: 1;
+}
+
+.player-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.player-nick {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.player-title-badge {
+    font-size: 0.7rem;
+    background: linear-gradient(135deg, rgba(255,217,102,0.25), rgba(255,217,102,0.1));
+    border: 1px solid #ffd966;
+    border-radius: 40px;
+    padding: 2px 10px;
+    color: #ffd966;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.player-stats-row {
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.player-level {
+    color: var(--accent-gold);
+}
+
+.player-exp {
+    color: var(--text-secondary);
+}
+
+.trade-offer-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.trade-offer-btn:hover {
+    background: #ffd966;
+    color: #1a1a2e;
+    transform: scale(1.02);
+}
+
+/* ========== ВЫЕЗЖАЮЩЕЕ УВЕДОМЛЕНИЕ ========== */
+.popup-notification {
+    position: fixed;
+    bottom: -200px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10050;
+    transition: bottom 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: none;
+}
+
+.popup-notification.show {
+    bottom: 20px;
+}
+
+.popup-notification-content {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 24px;
+    padding: 16px 32px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border: 2px solid #ffd966;
+    animation: popupGlow 0.5s ease;
+}
+
+.popup-notification-image {
+    max-width: 600px;
+    max-height: 600px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.popup-notification-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffd966;
+    margin-bottom: 8px;
+}
+
+.popup-notification-text {
+    font-size: 0.9rem;
+    color: #fff;
+    opacity: 0.9;
+}
+
+@keyframes popupGlow {
+    0% { box-shadow: 0 0 0 0 rgba(255, 217, 102, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(255, 217, 102, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 217, 102, 0); }
+}

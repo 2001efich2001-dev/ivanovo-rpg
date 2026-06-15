@@ -63,6 +63,10 @@ export let lastGlobalHousingCheck = null;  // Дата последней гло
 // ========== ПОСЛЕДНЕЕ ОБНОВЛЕНИЕ ДАННЫХ ==========
 export let lastUpdated = null;             // Время последнего обновления в Firestore
 
+// ========== ТИТУЛЫ (БЕЙДЖИКИ) ==========
+export let currentTitle = null;            // Текущий активный титул
+export let ownedTitles = [];               // Массив полученных титулов
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -136,6 +140,17 @@ export function updateUI() {
         }
     }
     
+    // Обновляем отображение титула
+    const titleSpan = document.getElementById('playerTitle');
+    if (titleSpan) {
+        if (currentTitle) {
+            titleSpan.textContent = currentTitle;
+            titleSpan.style.display = 'inline-block';
+        } else {
+            titleSpan.style.display = 'none';
+        }
+    }
+    
     // Проверка смерти (если здоровье ≤ 0)
     if (safeHealth <= 0 && !window._isDying) {
         setTimeout(() => {
@@ -157,7 +172,15 @@ export function setStats(h, hu, c, m) {
         cold = isNaN(c) ? maxCold : Math.min(maxCold, Math.max(0, c));
     }
     if (m !== undefined && m !== null) {
+        const oldMoney = money;
         money = isNaN(m) ? 500 : Math.max(0, m);
+        
+        // 👇 ПРОВЕРКА КВЕСТА НА НАКОПЛЕНИЕ ДЕНЕГ 👇
+        if (oldMoney < 1000000 && money >= 1000000) {
+            import('./questSystem.js').then(qs => {
+                qs.updateQuestProgress('money_reach', money, { targetMoney: 1000000 });
+            });
+        }
     }
     updateUI();
 }
@@ -246,17 +269,32 @@ export function updateIntoxication() {
 
 export function addIntoxication(amount) {
     const safeAmount = isNaN(amount) ? 0 : amount;
+    const oldIntoxication = intoxication;
     intoxication = Math.min(maxIntoxication, intoxication + safeAmount);
     lastIntoxicationUpdate = Date.now();
     updateUI();
     
-    if (intoxication >= 80 && intoxication - safeAmount < 80) {
+    if (intoxication >= 80 && oldIntoxication < 80) {
         addLogEntry(`🍺 Ты в стельку! Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
         showMessage(`🥴 Ты очень пьян! Осторожнее...`, '#e74c3c');
-    } else if (intoxication >= 50 && intoxication - safeAmount < 50) {
+    } else if (intoxication >= 50 && oldIntoxication < 50) {
         addLogEntry(`🥴 Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
-    } else if (intoxication >= 100) {
+    }
+    
+    // 👇 ВЫЕЗЖАЮЩЕЕ УВЕДОМЛЕНИЕ ПРИ ДОСТИЖЕНИИ 100% ОПЬЯНЕНИЯ 👇
+    if (intoxication >= 100 && oldIntoxication < 100) {
         addLogEntry(`💀 Отключка! Опьянение 100%`, 'system');
+        
+        // Показываем красивое уведомление
+        import('./utils.js').then(utils => {
+            utils.showPopupNotification(
+                'images/events/drunk_100.png',   // путь к картинке (создайте её или используйте существующую)
+                '🍺 АЛКОГОЛЬНОЕ ОТКЛЮЧЕНИЕ! 🍺',
+                'Вы достигли 100% опьянения! Пора в ноктюрн...',
+                'sounds/drunk_alarm.mp3',        // звук (опционально)
+                5000
+            );
+        });
     }
     
     if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
@@ -507,6 +545,59 @@ export function getHousingData() {
         lastGlobalHousingCheck: lastGlobalHousingCheck,
         lastUpdated: lastUpdated
     };
+}
+
+// ========== ФУНКЦИИ ДЛЯ ТИТУЛОВ ==========
+export function setTitlesData(data) {
+    if (data) {
+        currentTitle = data.current || null;
+        ownedTitles = Array.isArray(data.owned) ? data.owned : [];
+    }
+    // Обновляем отображение в интерфейсе
+    const titleSpan = document.getElementById('playerTitle');
+    if (titleSpan) {
+        if (currentTitle) {
+            titleSpan.textContent = currentTitle;
+            titleSpan.style.display = 'inline-block';
+        } else {
+            titleSpan.style.display = 'none';
+        }
+    }
+}
+
+export function initTitlesData() {
+    currentTitle = null;
+    ownedTitles = [];
+    console.log('🏷️ Инициализированы данные титулов');
+}
+
+export function getTitlesData() {
+    return {
+        current: currentTitle,
+        owned: ownedTitles
+    };
+}
+
+// ===== НОВАЯ ФУНКЦИЯ ДЛЯ СМЕНЫ ТИТУЛА =====
+export async function setCurrentTitle(title) {
+    currentTitle = title;
+    updateUI();
+    
+    // Сохраняем в Firestore
+    await saveGameData();
+    
+    // Обновляем отображение в интерфейсе
+    const titleSpan = document.getElementById('playerTitle');
+    if (titleSpan) {
+        if (title) {
+            titleSpan.textContent = title;
+            titleSpan.style.display = 'inline-block';
+        } else {
+            titleSpan.style.display = 'none';
+        }
+    }
+    
+    console.log(`🏷️ Титул изменён на: ${title || 'нет'}`);
 }
 
 // ===== ОБНОВЛЕНИЕ ЕЖЕДНЕВНОЙ СТОИМОСТИ =====
@@ -1156,6 +1247,10 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
     }
     if (remoteData.housing !== undefined) {
         setHousingData(remoteData.housing);
+        updated = true;
+    }
+    if (remoteData.titles !== undefined) {
+        setTitlesData(remoteData.titles);
         updated = true;
     }
     if (remoteData.lastUpdated !== undefined) {

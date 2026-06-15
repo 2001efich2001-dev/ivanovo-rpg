@@ -1,7 +1,7 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining, currentTitle, ownedTitles, setCurrentTitle } from './gameState.js';
 import { initAuth, auth } from './auth.js';
-import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal } from './inventory.js';
+import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal, renderTitlesTab } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
@@ -143,6 +143,19 @@ function escapeHtml(str) {
     });
 }
 
+// ========== ОТОБРАЖЕНИЕ ТИТУЛА (БЕЙДЖИКА) ==========
+function updatePlayerTitle() {
+    const titleSpan = document.getElementById('playerTitle');
+    if (!titleSpan) return;
+    
+    if (currentTitle) {
+        titleSpan.textContent = currentTitle;
+        titleSpan.style.display = 'inline-block';
+    } else {
+        titleSpan.style.display = 'none';
+    }
+}
+
 // ========== ТОП ИГРОКОВ ==========
 let topPlayersCache = null;
 let topPlayersCacheTime = 0;
@@ -171,25 +184,54 @@ async function loadTopPlayers(forceRefresh = false) {
             container.innerHTML = '<div style="text-align:center;">Пока нет игроков</div>';
             return;
         }
-        let html = '';
+        
+        let html = '<div class="players-list">';
         let rank = 1;
+        
         for (const docSnap of querySnapshot.docs) {
             const data = docSnap.data();
             const nick = data.displayName || 'Аноним';
             const level = data.level ?? 1;
             const exp = data.experience ?? 0;
+            const titles = data.titles || {};
+            const currentTitle = titles.current || null;
+            
             let rankClass = '';
-            if (rank === 1) rankClass = 'top-player-1';
-            else if (rank === 2) rankClass = 'top-player-2';
-            else if (rank === 3) rankClass = 'top-player-3';
+            let rankIcon = '';
+            if (rank === 1) {
+                rankClass = 'top-player-1';
+                rankIcon = '👑';
+            } else if (rank === 2) {
+                rankClass = 'top-player-2';
+                rankIcon = '🥈';
+            } else if (rank === 3) {
+                rankClass = 'top-player-3';
+                rankIcon = '🥉';
+            } else {
+                rankIcon = `${rank}.`;
+            }
+            
             const requiredExp = Math.floor(100 * Math.pow(1.2, level - 1));
+            
+            // Формируем отображение бейджика, если он есть
+            const titleBadge = currentTitle ? `<span class="player-title-badge" title="${currentTitle}">${currentTitle}</span>` : '';
+            
             html += `
                 <div class="player-item ${rankClass}" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">
                     <div class="player-info">
-                        <span class="player-rank">${rank}.</span>
-                        <span class="player-nick">${escapeHtml(nick)}</span>
-                        <span class="player-level">⭐ ${level}</span>
-                        <span class="player-exp">${Math.floor(exp)}/${requiredExp} опыта</span>
+                        <div class="player-rank-rank">
+                            <span class="player-rank">${rankIcon}</span>
+                        </div>
+                        <div class="player-details">
+                            <div class="player-name-row">
+                                <span class="player-nick">${escapeHtml(nick)}</span>
+                                ${titleBadge}
+                            </div>
+                            <div class="player-stats-row">
+                                <span class="player-level">⭐ Уровень ${level}</span>
+                                <span class="player-exp">📊 ${Math.floor(exp)}/${requiredExp} опыта</span>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <button class="trade-offer-btn" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">💼 Предложить обмен</button>
@@ -198,6 +240,8 @@ async function loadTopPlayers(forceRefresh = false) {
             `;
             rank++;
         }
+        
+        html += '</div>';
         container.innerHTML = html;
         topPlayersCache = html;
         topPlayersCacheTime = now;
@@ -343,7 +387,7 @@ async function renderTradeInventorySelector(side) {
         for (const item of allItems) {
             html += `
                 <div class="inventory-slot trade-slot" data-id="${item.id}" data-side="to">
-                    <img src="${item.image}" alt="${item.name}" class="item-image" loading="lazy"
+                    <img src="${itemData.image}" alt="${item.name}" class="item-image" loading="lazy"
                          onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${item.icon}%3C/text%3E%3C/svg%3E'">
                     <span class="item-name">${item.name}</span>
                     <button class="trade-add-btn" data-id="${item.id}" data-side="to">➕</button>
@@ -597,15 +641,19 @@ function setupRealTimeUpdates(userId) {
         if (updated) {
             localLastUpdated = newLastUpdated;
             
+            // Обновляем отображение титула
+            updatePlayerTitle();
+            
             // Обновляем UI компоненты
             try {
-                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab } = await import('./inventory.js');
+                const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab, renderTitlesTab } = await import('./inventory.js');
                 const { renderLocation } = await import('./locations.js');
                 
                 renderItemsTab();
                 renderEquipmentTab();
                 initInventoryTabs();
                 renderHousingTab?.();
+                renderTitlesTab?.();
                 renderLocation(currentLocation);
                 
                 showMessage('🔄 Данные синхронизированы', '#4caf50');
@@ -971,6 +1019,18 @@ async function changeNickname(newNick) {
     }
 }
 
+// ========== ОТКРЫТИЕ МОДАЛЬНОГО ОКНА КВЕСТОВ ==========
+async function openQuestsModal() {
+    playClick();
+    try {
+        const { openQuestsModal: openQuestsUI } = await import('./questUI.js');
+        await openQuestsUI();
+    } catch (error) {
+        console.error('Ошибка открытия квестов:', error);
+        showMessage('❌ Система квестов временно недоступна', '#e74c3c');
+    }
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
@@ -1019,6 +1079,9 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
+        
+        // 👉 ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ ТИТУЛА ПОСЛЕ ЗАГРУЗКИ ДАННЫХ
+        updatePlayerTitle();
         
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
@@ -1095,6 +1158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inventoryBtn = document.getElementById('inventoryBtn');
     const mapBtn = document.getElementById('mapBtn');
     const shopBtn = document.getElementById('shopBtn');
+    const questsBtn = document.getElementById('questsBtn');
     const realEstateMarketBtn = document.getElementById('realEstateMarketBtn');
     const topPlayersBtn = document.getElementById('topPlayersBtn');
     const myOffersBtn = document.getElementById('myOffersBtn');
@@ -1125,63 +1189,65 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-if (shopBtn) {
-    shopBtn.addEventListener('click', async () => {
-        playClick();
-        const shop = await import('./shop.js');
-        shop.renderShopBuyTab();
-        shop.renderShopSellTab();
-        const modal = document.getElementById('shopModal');
-        const tabs = modal.querySelectorAll('.tab-btn');
-        const buyTab = document.getElementById('shopBuyTab');
-        const sellTab = document.getElementById('shopSellTab');
-        const switchShopTab = (tab) => {
-            tabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            if (tab.dataset.shopTab === 'buy') {
-                buyTab.style.display = 'flex';
-                sellTab.style.display = 'none';
-                shop.renderShopBuyTab();
-            } else {
-                buyTab.style.display = 'none';
-                sellTab.style.display = 'flex';
-                shop.renderShopSellTab();
-            }
-        };
-        const newTabs = modal.querySelectorAll('.tab-btn');
-        newTabs.forEach(tab => {
-            tab.removeEventListener('click', tab._shopListener);
-            const handler = () => switchShopTab(tab);
-            tab.addEventListener('click', handler);
-            tab._shopListener = handler;
-        });
-        modal.style.display = 'flex';
-        
-        // ===== КОСТЫЛЬ: принудительный перерендер активной вкладки =====
-        setTimeout(() => {
-            const activeTab = modal.querySelector('.tab-btn.active');
-            if (activeTab) {
-                // Принудительно вызываем переключение на ту же вкладку
-                if (activeTab.dataset.shopTab === 'buy') {
+    if (shopBtn) {
+        shopBtn.addEventListener('click', async () => {
+            playClick();
+            const shop = await import('./shop.js');
+            shop.renderShopBuyTab();
+            shop.renderShopSellTab();
+            const modal = document.getElementById('shopModal');
+            const tabs = modal.querySelectorAll('.tab-btn');
+            const buyTab = document.getElementById('shopBuyTab');
+            const sellTab = document.getElementById('shopSellTab');
+            const switchShopTab = (tab) => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                if (tab.dataset.shopTab === 'buy') {
                     buyTab.style.display = 'flex';
                     sellTab.style.display = 'none';
                     shop.renderShopBuyTab();
-                } else if (activeTab.dataset.shopTab === 'sell') {
+                } else {
                     buyTab.style.display = 'none';
                     sellTab.style.display = 'flex';
                     shop.renderShopSellTab();
                 }
-            }
-            // Обновляем отображение денег (без await)
-            const moneySpan = document.getElementById('shopMoneyValue');
-            if (moneySpan) {
-                import('./gameState.js').then(gameState => {
-                    moneySpan.textContent = Math.floor(gameState.money);
-                });
-            }
-        }, 50);
-    });
-}
+            };
+            const newTabs = modal.querySelectorAll('.tab-btn');
+            newTabs.forEach(tab => {
+                tab.removeEventListener('click', tab._shopListener);
+                const handler = () => switchShopTab(tab);
+                tab.addEventListener('click', handler);
+                tab._shopListener = handler;
+            });
+            modal.style.display = 'flex';
+            
+            setTimeout(() => {
+                const activeTab = modal.querySelector('.tab-btn.active');
+                if (activeTab) {
+                    if (activeTab.dataset.shopTab === 'buy') {
+                        buyTab.style.display = 'flex';
+                        sellTab.style.display = 'none';
+                        shop.renderShopBuyTab();
+                    } else if (activeTab.dataset.shopTab === 'sell') {
+                        buyTab.style.display = 'none';
+                        sellTab.style.display = 'flex';
+                        shop.renderShopSellTab();
+                    }
+                }
+                const moneySpan = document.getElementById('shopMoneyValue');
+                if (moneySpan) {
+                    import('./gameState.js').then(gameState => {
+                        moneySpan.textContent = Math.floor(gameState.money);
+                    });
+                }
+            }, 50);
+        });
+    }
+    
+    // ===== КНОПКА: КВЕСТЫ =====
+    if (questsBtn) {
+        questsBtn.addEventListener('click', openQuestsModal);
+    }
     
     // ===== КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
     if (realEstateMarketBtn) {

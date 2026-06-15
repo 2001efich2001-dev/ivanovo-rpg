@@ -60,6 +60,12 @@ export async function saveGameData() {
         lastGlobalHousingCheck: gameState.lastGlobalHousingCheck ?? null
     };
     
+    // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ: собираем данные титулов
+    const titlesData = {
+        current: gameState.currentTitle ?? null,
+        owned: gameState.ownedTitles ?? []
+    };
+    
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
         health: healthVal,
@@ -83,9 +89,10 @@ export async function saveGameData() {
         dailyBonusLastClaim: dailyBonusLastClaimVal,
         dailyBonusStreak: dailyBonusStreakVal,
         achievements: achievementsData,
-        housing: housingData
+        housing: housingData,
+        titles: titlesData  // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ
     }, { merge: true });
-    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData });
+    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData, titles: titlesData });
 }
 
 export async function loadGameData(userId) {
@@ -133,6 +140,16 @@ export async function loadGameData(userId) {
             initHousingData();
         }
         
+        // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ: загружаем титулы
+        if (data.titles) {
+            const { setTitlesData } = await import('./gameState.js');
+            setTitlesData(data.titles);
+            console.log('🏷️ Загружены данные титулов:', data.titles);
+        } else {
+            const { initTitlesData } = await import('./gameState.js');
+            initTitlesData();
+        }
+        
         updateUI();
         console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication });
     } else {
@@ -165,6 +182,10 @@ export async function loadGameData(userId) {
         
         const { initHousingData } = await import('./gameState.js');
         initHousingData();
+        
+        // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ: инициализируем данные титулов для нового игрока
+        const { initTitlesData } = await import('./gameState.js');
+        initTitlesData();
         
         gameState.updateUI();
         
