@@ -27,6 +27,7 @@ const energyCosts = {
     relax: 0,     // отдых
     collect_water: 5, // набор воды
     darts: 10,    // дротики
+    slot_machine: 0, // однорукий бандит (не тратит энергию)
     rest_dump: 0, // отдых на помойке
     storage: 0    // открытие хранилища (не тратит энергию)
 };
@@ -133,17 +134,19 @@ export const locationsDB = {
     bar: {
         id: "bar",
         name: "Бар",
-        description: "Можно выпить, подраться или сыграть в дротики.",
+        description: "Можно выпить, подраться, сыграть в дротики или в однорукого бандита.",
         bgImage: "images/bar_bg.jpg",
         zones: [
             { id: "drink_zone", name: "Стойка", description: "Выпить водку: +10 здоровья, -5 голода, +30 опьянения, 40₽", cx: 150, cy: 200, r: 50, actionId: "drink" },
             { id: "fight_zone", name: "Танцпол", description: "Подраться: получить 20-100₽ (риск 50%)", cx: 400, cy: 220, r: 65, actionId: "fight" },
-            { id: "darts_zone", name: "🎯 Дартс", description: "Сыграть в пьяный дротик (тратит 10 энергии, нужно 20% опьянения)", cx: 600, cy: 200, r: 50, actionId: "darts" }
+            { id: "darts_zone", name: "🎯 Дартс", description: "Сыграть в пьяный дротик (тратит 10 энергии, нужно 20% опьянения)", cx: 600, cy: 200, r: 50, actionId: "darts" },
+            { id: "slot_machine_zone", name: "🎰 Однорукий бандит", description: "Сыграть в игровой автомат", cx: 700, cy: 150, r: 45, actionId: "slot_machine" }
         ],
         actions: [
             { id: "drink", name: "Выпить водку", desc: "Здоровье +10, голод -5, опьянение +30, стоит 40₽", effect: { health: 10, hunger: -5, intoxication: 30 }, cost: 40, risk: 0 },
             { id: "fight", name: "Подраться", desc: "Риск: 50% получить травму", effect: { money: [20, 100] }, risk: 50, riskEffect: { health: -20 } },
-            { id: "darts", name: "🎯 Пьяный дротик", desc: "Сыграть в дартс (10 энергии, нужно 20% опьянения)", effect: {}, cost: 0, risk: 0 }
+            { id: "darts", name: "🎯 Пьяный дротик", desc: "Сыграть в дартс (10 энергии, нужно 20% опьянения)", effect: {}, cost: 0, risk: 0 },
+            { id: "slot_machine", name: "🎰 Однорукий бандит", desc: "Сыграть в игровой автомат", effect: {}, cost: 0, risk: 0 }
         ]
     },
 
@@ -383,6 +386,20 @@ async function executeAction(locationId, action) {
         } catch (error) {
             console.error('Ошибка открытия хранилища:', error);
             showMessage("❌ Ошибка открытия хранилища. Попробуйте позже.", "#e74c3c");
+        }
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
+    
+    // Особый случай: однорукий бандит
+    if (action.id === 'slot_machine') {
+        try {
+            const { openSlotMachine } = await import('./minigameSlotMachine.js');
+            await openSlotMachine();
+            logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - открыт игровой автомат`, 'location');
+        } catch (error) {
+            console.error('Ошибка открытия автомата:', error);
+            showMessage("❌ Ошибка запуска автомата. Попробуйте позже.", "#e74c3c");
         }
         document.getElementById('locationModal').style.display = 'none';
         return;
