@@ -61,17 +61,17 @@ function calculateWin(reels, bet) {
         return { win: bet * s1.multiplier * 10, type: 'big' };
     }
     
-    // Два одинаковых (первые два или последние два) - фиксированный x1.2
+    // Два одинаковых (первые два или последние два) - возврат ставки x1
     if (s1.id === s2.id) {
-        return { win: Math.floor(bet * 1.2), type: 'small' };
+        return { win: bet, type: 'small' };
     }
     if (s2.id === s3.id) {
-        return { win: Math.floor(bet * 1.2), type: 'small' };
+        return { win: bet, type: 'small' };
     }
     
-    // Вишни в любом месте (утешительный приз)
+    // Вишни в любом месте (утешительный приз) - возврат половины
     if (s1.id === 'cherry' || s2.id === 'cherry' || s3.id === 'cherry') {
-        return { win: Math.floor(bet * 0.5), type: 'small' };
+        return { win: Math.floor(bet * 0.5), type: 'tiny' };
     }
     
     return { win: 0, type: 'lose' };
@@ -187,19 +187,20 @@ function playWinSound(winType) {
         console.log('Ошибка воспроизведения звука:', e);
     }
 }
-
-// ========== КОНФЕТТИ ПОСЛЕ ВЫИГРЫША ==========
+ 
+// ========== КРУТАЯ АНИМАЦИЯ ТОЛЬКО ДЛЯ КРУПНЫХ ВЫИГРЫШЕЙ ==========
 function celebrateWin(winAmount, winType) {
+    // Анимация только для jackpot и big
+    if (winType !== 'big' && winType !== 'jackpot') return;
+    
     // Вспышка
     createWinFlash(winType);
     
     // Всплывающая надпись
     createWinText(winAmount, winType);
     
-    // Конфетти (только для крупных выигрышей)
-    if (winType === 'big' || winType === 'jackpot') {
-        createConfetti();
-    }
+    // Конфетти
+    createConfetti();
     
     // Звук
     playWinSound(winType);
@@ -290,7 +291,7 @@ export async function openSlotMachine() {
                         <div>🍉🍉🍉</div><div>x150</div>
                         <div>7️⃣7️⃣7️⃣</div><div>x250</div>
                         <div>💎💎💎</div><div>x500</div>
-                        <div>Любые два одинаковых</div><div>x1.2</div>
+                        <div>Любые два одинаковых</div><div>x1</div>
                         <div>🍒 в любом месте</div><div>x0.5</div>
                     </div>
                 </div>
