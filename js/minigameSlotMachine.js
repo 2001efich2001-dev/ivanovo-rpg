@@ -63,10 +63,10 @@ function calculateWin(reels, bet) {
     
     // Два одинаковых (первые два или последние два) - множитель x1.2
     if (s1.id === s2.id) {
-    return Math.floor(bet * s1.multiplier * 1.2);
+    return Math.floor(bet * 1.2);
     }
     if (s2.id === s3.id) {
-    return Math.floor(bet * s2.multiplier * 1.2);
+    return Math.floor(bet * 1.2);
     }
     
     // Вишни в любом месте (утешительный приз)
