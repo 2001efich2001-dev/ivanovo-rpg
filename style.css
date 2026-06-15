@@ -1866,8 +1866,8 @@ body {
 }
 
 .popup-notification-image {
-    max-width: 120px;
-    max-height: 120px;
+    max-width: 600px;
+    max-height: 600px;
     border-radius: 16px;
     margin-bottom: 12px;
     display: block;
