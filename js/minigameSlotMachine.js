@@ -48,33 +48,161 @@ function calculateWin(reels, bet) {
     
     // Джекпот: три бриллианта 💎💎💎
     if (s1.id === 'diamond' && s2.id === 'diamond' && s3.id === 'diamond') {
-        return bet * 500;
+        return { win: bet * 500, type: 'jackpot' };
     }
     
     // Три семёрки
     if (s1.id === 'seven' && s2.id === 'seven' && s3.id === 'seven') {
-        return bet * 250;
+        return { win: bet * 250, type: 'big' };
     }
     
     // Три одинаковых символа (любых)
     if (s1.id === s2.id && s2.id === s3.id) {
-        return bet * s1.multiplier * 10;
+        return { win: bet * s1.multiplier * 10, type: 'big' };
     }
     
-    // Два одинаковых (первые два или последние два) - множитель x1.2
+    // Два одинаковых (первые два или последние два) - фиксированный x1.2
     if (s1.id === s2.id) {
-    return Math.floor(bet * 1.2);
+        return { win: Math.floor(bet * 1.2), type: 'small' };
     }
     if (s2.id === s3.id) {
-    return Math.floor(bet * 1.2);
+        return { win: Math.floor(bet * 1.2), type: 'small' };
     }
     
     // Вишни в любом месте (утешительный приз)
     if (s1.id === 'cherry' || s2.id === 'cherry' || s3.id === 'cherry') {
-        return Math.floor(bet * 0.5);
+        return { win: Math.floor(bet * 0.5), type: 'small' };
     }
     
-    return 0;
+    return { win: 0, type: 'lose' };
+}
+
+// ========== КОНФЕТТИ ==========
+function createConfetti() {
+    const container = document.getElementById('slotMachineModal');
+    if (!container) return;
+    
+    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500', '#ff69b4'];
+    const confettiCount = 150;
+    
+    for (let i = 0; i < confettiCount; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        confetti.style.cssText = `
+            position: fixed;
+            width: ${Math.random() * 10 + 5}px;
+            height: ${Math.random() * 10 + 5}px;
+            background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+            left: ${Math.random() * 100}%;
+            top: -20px;
+            border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+            opacity: 0.8;
+            pointer-events: none;
+            z-index: 10060;
+            animation: confettiFall ${Math.random() * 3 + 2}s linear forwards;
+        `;
+        container.appendChild(confetti);
+        
+        // Удаляем конфетти после анимации
+        setTimeout(() => {
+            if (confetti && confetti.remove) confetti.remove();
+        }, 5000);
+    }
+}
+
+// ========== ПОБЕДНАЯ ВСПЫШКА ==========
+function createWinFlash(winType) {
+    const container = document.getElementById('slotMachineModal');
+    if (!container) return;
+    
+    const flash = document.createElement('div');
+    flash.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: ${winType === 'jackpot' ? 'radial-gradient(circle, rgba(255,215,0,0.6), rgba(255,0,0,0.3))' : 'radial-gradient(circle, rgba(255,215,0,0.4), rgba(255,215,0,0.1))'};
+        pointer-events: none;
+        z-index: 10055;
+        animation: flashAnimation 0.5s ease-out forwards;
+    `;
+    container.appendChild(flash);
+    
+    setTimeout(() => {
+        if (flash && flash.remove) flash.remove();
+    }, 500);
+}
+
+// ========== ВСПЛЫВАЮЩАЯ НАДПИСЬ ==========
+function createWinText(winAmount, winType) {
+    const container = document.getElementById('slotMachineModal');
+    if (!container) return;
+    
+    const message = winType === 'jackpot' ? '💎 ДЖЕКПОТ! 💎' : '🎉 ВЫИГРЫШ! 🎉';
+    const text = document.createElement('div');
+    text.textContent = message;
+    text.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: ${winType === 'jackpot' ? '3rem' : '2rem'};
+        font-weight: bold;
+        color: #ffd700;
+        text-shadow: 2px 2px 10px rgba(0,0,0,0.5), 0 0 20px rgba(255,215,0,0.5);
+        background: rgba(0,0,0,0.7);
+        padding: 20px 40px;
+        border-radius: 60px;
+        white-space: nowrap;
+        z-index: 10058;
+        animation: winTextAnimation 0.3s ease-out, winTextFadeOut 0.5s ease-out 2s forwards;
+        pointer-events: none;
+        font-family: inherit;
+        letter-spacing: 2px;
+    `;
+    container.appendChild(text);
+    
+    setTimeout(() => {
+        if (text && text.remove) text.remove();
+    }, 2500);
+}
+
+// ========== ЗВУК ВЫИГРЫША ==========
+function playWinSound(winType) {
+    try {
+        let soundUrl = '';
+        if (winType === 'jackpot') {
+            soundUrl = 'sounds/jackpot.mp3';
+        } else if (winType === 'big') {
+            soundUrl = 'sounds/big_win.mp3';
+        } else {
+            soundUrl = 'sounds/small_win.mp3';
+        }
+        
+        const audio = new Audio(soundUrl);
+        audio.volume = 0.4;
+        audio.play().catch(e => console.log('Звук выигрыша не загрузился:', e));
+    } catch (e) {
+        console.log('Ошибка воспроизведения звука:', e);
+    }
+}
+
+// ========== КОНФЕТТИ ПОСЛЕ ВЫИГРЫША ==========
+function celebrateWin(winAmount, winType) {
+    // Вспышка
+    createWinFlash(winType);
+    
+    // Всплывающая надпись
+    createWinText(winAmount, winType);
+    
+    // Конфетти (только для крупных выигрышей)
+    if (winType === 'big' || winType === 'jackpot') {
+        createConfetti();
+    }
+    
+    // Звук
+    playWinSound(winType);
 }
 
 let spinInterval = null;
@@ -154,24 +282,23 @@ export async function openSlotMachine() {
                 <div class="slot-paytable">
                     <div style="font-weight: bold; margin-bottom: 8px;">📜 Таблица выигрышей:</div>
                     <div class="paytable-grid">
-                        <div>🍒🍒🍒</div><div>x10 ставки</div>
-                        <div>🍋🍋🍋</div><div>x30 ставки</div>
-                        <div>🍊🍊🍊</div><div>x40 ставки</div>
-                        <div>🍇🍇🍇</div><div>x50 ставки</div>
-                        <div>🔔🔔🔔</div><div>x100 ставки</div>
-                        <div>🍉🍉🍉</div><div>x150 ставки</div>
-                        <div>7️⃣7️⃣7️⃣</div><div>x250 ставки</div>
-                        <div>💎💎💎</div><div>x500 ставки</div>
-                        <div>🍒🍒❌</div><div>x2 ставки</div>
-                        <div>❌🍒🍒</div><div>x2 ставки</div>
-                        <div>🍒 в любом месте</div><div>x0.5 ставки</div>
+                        <div>🍒🍒🍒</div><div>x20</div>
+                        <div>🍋🍋🍋</div><div>x30</div>
+                        <div>🍊🍊🍊</div><div>x40</div>
+                        <div>🍇🍇🍇</div><div>x50</div>
+                        <div>🔔🔔🔔</div><div>x100</div>
+                        <div>🍉🍉🍉</div><div>x150</div>
+                        <div>7️⃣7️⃣7️⃣</div><div>x250</div>
+                        <div>💎💎💎</div><div>x500</div>
+                        <div>Любые два одинаковых</div><div>x1.2</div>
+                        <div>🍒 в любом месте</div><div>x0.5</div>
                     </div>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
         
-        // Добавляем стили, если их нет
+        // Добавляем стили для конфетти и анимаций
         if (!document.querySelector('#slotMachineStyle')) {
             const style = document.createElement('style');
             style.id = 'slotMachineStyle';
@@ -245,9 +372,38 @@ export async function openSlotMachine() {
                 .paytable-grid div:first-child {
                     color: #fff;
                 }
+                
+                /* Анимации */
                 @keyframes reelSpin {
                     0% { transform: translateY(0); }
                     100% { transform: translateY(-20px); }
+                }
+                
+                @keyframes confettiFall {
+                    0% {
+                        transform: translateY(0) rotate(0deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(100vh) rotate(720deg);
+                        opacity: 0;
+                    }
+                }
+                
+                @keyframes flashAnimation {
+                    0% { opacity: 0; }
+                    20% { opacity: 1; }
+                    100% { opacity: 0; }
+                }
+                
+                @keyframes winTextAnimation {
+                    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+                    50% { transform: translate(-50%, -50%) scale(1.1); }
+                    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+                }
+                
+                @keyframes winTextFadeOut {
+                    to { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
                 }
             `;
             document.head.appendChild(style);
@@ -302,7 +458,9 @@ export async function openSlotMachine() {
         const reelElements = [reel1, reel2, reel3];
         
         animateReels(reelElements, finalSymbols, bet, async (symbols, placedBet) => {
-            const winAmount = calculateWin(symbols, placedBet);
+            const result = calculateWin(symbols, placedBet);
+            const winAmount = result.win;
+            const winType = result.type;
             
             if (winAmount > 0) {
                 const totalWin = winAmount;
@@ -312,10 +470,13 @@ export async function openSlotMachine() {
                 if (moneySpan) moneySpan.textContent = Math.floor(afterWinMoney);
                 if (lastWinSpan) lastWinSpan.textContent = totalWin;
                 
+                // 🎉 КРУТАЯ АНИМАЦИЯ ПРИ ВЫИГРЫШЕ 🎉
+                celebrateWin(totalWin, winType);
+                
                 showMessage(`🎉 ВЫИГРЫШ: ${totalWin}₽! 🎉`, '#4caf50');
                 addLogEntry(`🎰 Однорукий бандит: выигрыш ${totalWin}₽`, 'economy');
                 
-                // Эффект победной вспышки
+                // Эффект победной вспышки на барабанах
                 const reelsContainer = document.querySelector('.slot-reels');
                 if (reelsContainer) {
                     reelsContainer.style.animation = 'none';
