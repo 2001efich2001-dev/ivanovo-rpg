@@ -269,17 +269,32 @@ export function updateIntoxication() {
 
 export function addIntoxication(amount) {
     const safeAmount = isNaN(amount) ? 0 : amount;
+    const oldIntoxication = intoxication;
     intoxication = Math.min(maxIntoxication, intoxication + safeAmount);
     lastIntoxicationUpdate = Date.now();
     updateUI();
     
-    if (intoxication >= 80 && intoxication - safeAmount < 80) {
+    if (intoxication >= 80 && oldIntoxication < 80) {
         addLogEntry(`🍺 Ты в стельку! Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
         showMessage(`🥴 Ты очень пьян! Осторожнее...`, '#e74c3c');
-    } else if (intoxication >= 50 && intoxication - safeAmount < 50) {
+    } else if (intoxication >= 50 && oldIntoxication < 50) {
         addLogEntry(`🥴 Опьянение достигло ${Math.floor(intoxication)}%`, 'system');
-    } else if (intoxication >= 100) {
+    }
+    
+    // 👇 ВЫЕЗЖАЮЩЕЕ УВЕДОМЛЕНИЕ ПРИ ДОСТИЖЕНИИ 100% ОПЬЯНЕНИЯ 👇
+    if (intoxication >= 100 && oldIntoxication < 100) {
         addLogEntry(`💀 Отключка! Опьянение 100%`, 'system');
+        
+        // Показываем красивое уведомление
+        import('./utils.js').then(utils => {
+            utils.showPopupNotification(
+                'images/events/drunk_100.png',   // путь к картинке (создайте её или используйте существующую)
+                '🍺 АЛКОГОЛЬНОЕ ОТКЛЮЧЕНИЕ! 🍺',
+                'Вы достигли 100% опьянения! Пора в ноктюрн...',
+                'sounds/drunk_alarm.mp3',        // звук (опционально)
+                5000
+            );
+        });
     }
     
     if (onIntoxicationUpdateCallback) onIntoxicationUpdateCallback();
