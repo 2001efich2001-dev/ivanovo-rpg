@@ -1,6 +1,6 @@
 // js/npcSystemUI.js
 import { showMessage, logAction } from './utils.js';
-import { npcDB, getNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog } from './npcSystem.js';
+import { npcDB, getNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog, getItemStock, decreaseItemStock, checkAndRestockNpc, getQuestCooldownRemaining } from './npcSystem.js';
 import { money, inventory, setStats, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
@@ -27,15 +27,12 @@ export async function openNpcDialog(npcId) {
         return;
     }
     
-    // Заполняем данные NPC
     document.getElementById('npcName').textContent = npc.name;
     document.getElementById('npcDescription').textContent = npc.description;
     const avatar = document.getElementById('npcAvatar');
     if (avatar) avatar.src = npc.avatar || 'images/npc/default.png';
     
     modal.style.display = 'flex';
-    
-    // Показываем приветствие
     showDialog(npcId, 'greeting');
 }
 
@@ -49,7 +46,6 @@ function showDialog(npcId, dialogId) {
     
     const dialog = getDialog(npcId, dialogId);
     if (!dialog) {
-        // Если диалог не найден, показываем приветствие
         const greeting = getDialog(npcId, 'greeting');
         if (greeting) {
             document.getElementById('npcText').textContent = greeting.text;
@@ -96,9 +92,7 @@ async function onNpcChoice(action) {
     
     if (result.type === 'goodbye') {
         document.getElementById('npcText').textContent = result.text;
-        renderOptions([
-            { text: '❌ Закрыть', action: 'close' }
-        ]);
+        renderOptions([{ text: '❌ Закрыть', action: 'close' }]);
         return;
     }
     
@@ -116,7 +110,6 @@ async function onNpcChoice(action) {
         return;
     }
     
-    // Обычный диалог
     if (result.text) {
         document.getElementById('npcText').textContent = result.text;
         renderOptions(result.options);
@@ -127,6 +120,9 @@ async function onNpcChoice(action) {
 async function showNpcShop(mode) {
     const npc = npcDB[currentNpcId];
     if (!npc) return;
+    
+    // Проверяем обновление стока
+    checkAndRestockNpc(currentNpcId);
     
     currentMode = 'shop';
     const container = document.getElementById('npcShop');
@@ -146,16 +142,23 @@ async function showNpcShop(mode) {
         if (!itemData) continue;
         
         const price = item.price;
-        const stock = item.stock || '∞';
-        const count = mode === 'sell' ? inventory.find(i => i.id === item.id)?.count || 0 : stock;
+        let stock = '∞';
+        let isAvailable = true;
+        
+        if (mode === 'buy') {
+            stock = getItemStock(currentNpcId, item.id);
+            isAvailable = stock > 0;
+        }
+        
+        const count = mode === 'sell' ? (inventory.find(i => i.id === item.id)?.count || 0) : stock;
         
         html += `
             <div class="shop-item">
                 <span>${itemData.icon} ${itemData.name}</span>
                 <span>${price}₽</span>
                 <span class="shop-stock">(${count})</span>
-                <button class="shop-trade-btn" data-id="${item.id}" data-price="${price}" data-mode="${mode}">
-                    ${mode === 'buy' ? '🛍️ Купить' : '💰 Продать'}
+                <button class="shop-trade-btn" data-id="${item.id}" data-price="${price}" data-mode="${mode}" ${!isAvailable ? 'disabled style="opacity:0.5;"' : ''}>
+                    ${mode === 'buy' ? (isAvailable ? '🛍️ Купить' : '❌ Закончился') : '💰 Продать'}
                 </button>
             </div>
         `;
@@ -172,10 +175,19 @@ async function showNpcShop(mode) {
             const modeType = btn.dataset.mode;
             
             if (modeType === 'buy') {
+                const currentStock = getItemStock(currentNpcId, itemId);
+                if (currentStock <= 0) {
+                    showMessage('❌ Товар закончился!', '#e74c3c');
+                    return;
+                }
+                
                 if (money < price) {
                     showMessage(`❌ Не хватает денег! Нужно ${price}₽`, '#e74c3c');
                     return;
                 }
+                
+                // Уменьшаем сток
+                decreaseItemStock(currentNpcId, itemId);
                 
                 const newMoney = money - price;
                 setStats(null, null, null, newMoney);
@@ -191,7 +203,6 @@ async function showNpcShop(mode) {
                 showMessage(`🛍️ Вы купили ${itemName} за ${price}₽`, '#4caf50');
                 logAction(`Куплено у NPC: ${itemName} за ${price}₽`, 'economy');
             } else {
-                // Продажа
                 const itemIndex = inventory.findIndex(i => i.id === itemId);
                 if (itemIndex === -1 || inventory[itemIndex].count === 0) {
                     showMessage(`❌ У вас нет этого предмета`, '#e74c3c');
@@ -214,11 +225,10 @@ async function showNpcShop(mode) {
             
             await saveGameData();
             updateUI();
-            await showNpcShop(mode); // Обновляем список
+            await showNpcShop(mode);
         });
     });
     
-    // Кнопка "Назад"
     const backBtn = document.createElement('button');
     backBtn.className = 'npc-option-btn';
     backBtn.textContent = '🔙 Назад к диалогу';
@@ -268,7 +278,7 @@ async function showNpcQuests() {
                     ${quest.reward.exp ? `⭐ +${quest.reward.exp} ` : ''}
                     ${quest.reward.item ? `🎁 ${itemsDB[quest.reward.item]?.name || quest.reward.item}` : ''}
                 </div>
-                <button class="quest-accept-btn" data-quest-id="${quest.id}">✅ Помочь </button>
+                <button class="quest-accept-btn" data-quest-id="${quest.id}">✅ Выполнить задание</button>
             </div>
         `;
     }
@@ -280,15 +290,8 @@ async function showNpcQuests() {
             const questId = btn.dataset.questId;
             const success = await checkNpcQuestProgress(currentNpcId, questId);
             if (success) {
-                // Обновляем список квестов
                 await showNpcQuests();
-                // Если квест выполнен, показываем диалог
                 showDialog(currentNpcId, 'greeting');
-            } else {
-                const quest = npc.quests.find(q => q.id === questId);
-                const req = quest.requirement;
-                const itemName = itemsDB[req.item]?.name || req.item;
-                showMessage(`❌ У вас не хватает ${req.count}x ${itemName}`, '#e74c3c');
             }
         });
     });
