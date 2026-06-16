@@ -1,5 +1,5 @@
 // js/npcSystem.js
-import { showMessage } from './utils.js';
+import { showMessage, logAction } from './utils.js';
 import { money, inventory, setStats, updateUI, addLogEntry } from './gameState.js';
 import { saveGameData } from './firestore.js';
 
@@ -206,7 +206,7 @@ export async function checkNpcQuestProgress(npcId, questId) {
         completedNpcQuests[questId] = true;
         await saveGameData();
         updateUI();
-        addLogEntry(`✅ Выполнен квест NPC: ${quest.name}`, 'quest');
+        logAction(`✅ Выполнен квест NPC: ${quest.name}`, 'quest');
         
         return true;
     }
