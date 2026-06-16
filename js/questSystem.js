@@ -1,371 +1,693 @@
-// js/npcSystem.js
-import { showMessage, logAction } from './utils.js';
-import { money, inventory, setStats, updateUI, addLogEntry } from './gameState.js';
-import { saveGameData } from './firestore.js';
+// js/questSystem.js
+import { db, saveGameData } from './firestore.js';
+import { doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { showMessage } from './utils.js';
+import { addExperience, money, setStats, inventory, updateUI } from './gameState.js';
+import { questsDB, getQuestById } from './quests.js';
+import { itemsDB } from './inventory.js';
 
-// ========== БАЗА ДАННЫХ NPC ==========
-export const npcDB = {
-    dump_hobo: {
-        id: 'dump_hobo',
-        name: '🗑️ Бомж Семён',
-        location: 'dump',
-        description: 'Старый бомж, который живёт на свалке. Знает все тайны этого места.',
-        avatar: 'images/npc/hobo.png',
-        position: { x: 300, y: 250 },
-        width: 70,
-        height: 100,
-        actionId: 'talk_hobo',
-        
-        // Диалоги
-        dialogues: [
-            {
-                id: 'greeting',
-                text: 'Эй, путник! Чего тебе надо на свалке? Ты не похож на местного...',
-                options: [
-                    { text: '🗣️ Ты кто такой?', action: 'who_are_you' },
-                    { text: '💰 Что тут можно найти?', action: 'info' },
-                    { text: '🎒 Хочешь продать?', action: 'shop_buy' },
-                    { text: '📜 Есть работа?', action: 'quest' },
-                    { text: '👋 Пока, старик', action: 'goodbye' }
-                ]
-            },
-            {
-                id: 'who_are_you',
-                text: 'Я Семён. Живу здесь уже 10 лет. Знаю каждую кучу мусора. Если надо найти что-то ценное — я помогу. За долю, конечно.',
-                options: [
-                    { text: '🔙 Назад', action: 'greeting' }
-                ]
-            },
-            {
-                id: 'info',
-                text: 'Тут можно найти всё! Бутылки, старую одежду, иногда даже еду. Но главное — тут есть секретный тайник с редкими вещами. Но я скажу где, если поможешь мне.',
-                options: [
-                    { text: '🔙 Назад', action: 'greeting' }
-                ]
-            }
-        ],
-        
-        // Товары для продажи (игрок покупает у NPC) - с maxStock для восстановления
-        shop_items: [
-            { id: 'old_hat', price: 10, stock: 999, maxStock: 999 },
-            { id: 'empty_bottle', price: 5, stock: 999, maxStock: 999 },
-            { id: 'cigarettes', price: 15, stock: 10, maxStock: 10 },
-            { id: 'medkit', price: 30, stock: 3, maxStock: 3 }
-        ],
-        
-        // Товары для покупки (NPC покупает у игрока)
-        buy_items: [
-            { id: 'empty_bottle', price: 3 },
-            { id: 'old_boot', price: 2 },
-            { id: 'rusty_can', price: 1 }
-        ],
-        
-        // Квесты NPC с кулдауном 24 часа
-        quests: [
-            {
-                id: 'hobo_collect_bottles',
-                name: 'Сбор бутылок для Семёна',
-                description: 'Принеси 5 пустых бутылок. Семён сдаст их в пункт приёма.',
-                requirement: { item: 'empty_bottle', count: 5 },
-                reward: { money: 50, exp: 15 },
-                cooldown: 24 * 60 * 60 * 1000 // 24 часа
-            },
-            {
-                id: 'hobo_find_boot',
-                name: 'Найти ботинок',
-                description: 'Семёну нужен второй ботинок. Принеси ему старый ботинок.',
-                requirement: { item: 'old_boot', count: 1 },
-                reward: { money: 30, exp: 10 },
-                cooldown: 24 * 60 * 60 * 1000
-            },
-            {
-                id: 'hobo_medkit',
-                name: 'Лекарство для Семёна',
-                description: 'Семён простудился. Принеси ему аптечку.',
-                requirement: { item: 'medkit', count: 1 },
-                reward: { money: 80, exp: 25, item: 'cigarettes' },
-                cooldown: 24 * 60 * 60 * 1000
-            }
-        ]
-    }
-};
+// ========== СТРУКТУРА ПРОГРЕССА ИГРОКА ==========
+// users/{userId}: {
+//     quests: {
+//         completed: [],           // ID выполненных статических квестов
+//         daily: {},               // прогресс дейликов
+//         dailyLastReset: null,    // дата последнего сброса
+//         race: {}                 // расовые квесты
+//     }
+// }
 
-// ========== СОСТОЯНИЕ NPC (СТОК + КВЕСТЫ) ==========
-let npcState = {
-    shopStock: {},      // { npcId: { itemId: stock } }
-    questCooldowns: {}, // { npcId: { questId: lastCompletedAt } }
-    lastRestock: {}     // { npcId: timestamp }
-};
-
-// Ключ для localStorage
-const STORAGE_KEY = 'npc_state';
-
-// ========== ЗАГРУЗКА / СОХРАНЕНИЕ СОСТОЯНИЯ ==========
-export function loadNpcState() {
+// ========== ЗАГРУЗИТЬ КВЕСТЫ ИГРОКА ==========
+export async function loadPlayerQuests(userId) {
+    if (!userId) return null;
+    
     try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            npcState.shopStock = parsed.shopStock || {};
-            npcState.questCooldowns = parsed.questCooldowns || {};
-            npcState.lastRestock = parsed.lastRestock || {};
-            console.log('📦 Загружено состояние NPC');
-            return;
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const quests = userData.quests || {
+                completed: [],
+                daily: {},
+                dailyLastReset: null,
+                race: {}
+            };
+            
+            // Гарантируем, что все поля есть
+            if (!quests.completed) quests.completed = [];
+            if (!quests.daily) quests.daily = {};
+            if (!quests.race) quests.race = {};
+            
+            // Проверяем необходимость сброса ежедневных квестов
+            await checkAndResetDailyQuests(userId, quests);
+            
+            return quests;
         }
-    } catch (e) {
-        console.warn('Ошибка загрузки состояния NPC:', e);
-    }
-    
-    // Если ничего не загрузилось — инициализируем
-    initializeNpcState();
-}
-
-function initializeNpcState() {
-    for (const [npcId, npc] of Object.entries(npcDB)) {
-        npcState.shopStock[npcId] = {};
-        npc.shop_items.forEach(item => {
-            npcState.shopStock[npcId][item.id] = item.stock;
-        });
-        npcState.questCooldowns[npcId] = {};
-        npcState.lastRestock[npcId] = null;
-    }
-    saveNpcState();
-    console.log('🆕 Состояние NPC инициализировано');
-}
-
-export function saveNpcState() {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            shopStock: npcState.shopStock,
-            questCooldowns: npcState.questCooldowns,
-            lastRestock: npcState.lastRestock
-        }));
-    } catch (e) {
-        console.warn('Ошибка сохранения состояния NPC:', e);
+        
+        // Новый игрок — создаём пустую структуру
+        const emptyQuests = {
+            completed: [],
+            daily: {},
+            dailyLastReset: null,
+            race: {}
+        };
+        
+        // Сохраняем в Firestore
+        await setDoc(userRef, { quests: emptyQuests }, { merge: true });
+        
+        return emptyQuests;
+        
+    } catch (error) {
+        console.error('Ошибка загрузки квестов:', error);
+        return {
+            completed: [],
+            daily: {},
+            dailyLastReset: null,
+            race: {}
+        };
     }
 }
 
-// ========== УПРАВЛЕНИЕ СТОКОМ ==========
-export function checkAndRestockNpc(npcId) {
-    const npc = npcDB[npcId];
-    if (!npc) return false;
+// ========== ПРОВЕРКА И СБРОС ЕЖЕДНЕВНЫХ КВЕСТОВ ==========
+export async function checkAndResetDailyQuests(userId, quests) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    const now = Date.now();
-    const lastRestock = npcState.lastRestock[npcId] || 0;
-    const RESTOCK_INTERVAL = 24 * 60 * 60 * 1000; // 24 часа
+    const lastReset = quests.dailyLastReset ? new Date(quests.dailyLastReset) : null;
     
-    if (now - lastRestock >= RESTOCK_INTERVAL) {
-        // Восстанавливаем сток
-        npc.shop_items.forEach(item => {
-            if (item.maxStock !== undefined) {
-                npcState.shopStock[npcId][item.id] = item.maxStock;
-            }
-        });
-        npcState.lastRestock[npcId] = now;
-        saveNpcState();
-        console.log(`🔄 Сток у ${npc.name} обновлён!`);
-        return true;
+    // Если сброс был сегодня — ничего не делаем
+    if (lastReset && lastReset.getTime() === today.getTime()) {
+        return;
     }
-    return false;
-}
-
-export function getItemStock(npcId, itemId) {
-    const npc = npcDB[npcId];
-    if (!npc) return 0;
-    checkAndRestockNpc(npcId);
-    return npcState.shopStock[npcId]?.[itemId] ?? 0;
-}
-
-export function decreaseItemStock(npcId, itemId) {
-    const currentStock = getItemStock(npcId, itemId);
-    if (currentStock <= 0) return false;
-    npcState.shopStock[npcId][itemId] = currentStock - 1;
-    saveNpcState();
-    return true;
-}
-
-// ========== УПРАВЛЕНИЕ КВЕСТАМИ С КУЛДАУНОМ ==========
-export function getNpcQuests(npcId) {
-    const npc = npcDB[npcId];
-    if (!npc) return [];
     
-    const now = Date.now();
-    const cooldowns = npcState.questCooldowns[npcId] || {};
+    console.log('🔄 Ежедневные квесты сброшены');
     
-    return npc.quests.filter(quest => {
-        const lastCompleted = cooldowns[quest.id] || 0;
-        const cooldown = quest.cooldown || 24 * 60 * 60 * 1000;
-        return now - lastCompleted >= cooldown;
+    // Сбрасываем дейлики
+    const newDaily = {};
+    const dailyQuests = Object.values(questsDB).filter(q => q.type === 'daily');
+    
+    for (const quest of dailyQuests) {
+        newDaily[quest.id] = {
+            progress: 0,
+            completed: false
+        };
+    }
+    
+    quests.daily = newDaily;
+    quests.dailyLastReset = today.toISOString();
+    
+    // Сохраняем в Firestore
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+        'quests.daily': newDaily,
+        'quests.dailyLastReset': quests.dailyLastReset
     });
 }
 
-export function markQuestCompleted(npcId, questId) {
-    if (!npcState.questCooldowns[npcId]) {
-        npcState.questCooldowns[npcId] = {};
+// ========== СОХРАНИТЬ КВЕСТЫ В FIRESTORE ==========
+export async function savePlayerQuests(userId, quests) {
+    if (!userId) return;
+    
+    try {
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { quests: quests });
+    } catch (error) {
+        console.error('Ошибка сохранения квестов:', error);
     }
-    npcState.questCooldowns[npcId][questId] = Date.now();
-    saveNpcState();
 }
 
-export function getQuestCooldownRemaining(npcId, questId) {
-    const npc = npcDB[npcId];
-    if (!npc) return 0;
+// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ СТАТИЧЕСКИХ КВЕСТОВ ==========
+let staticQuestCounters = {};
+
+async function checkStaticQuestProgress(quest, statType, value) {
+    const user = window.auth?.currentUser;
+    if (!user) return false;
     
-    const cooldowns = npcState.questCooldowns[npcId] || {};
-    const lastCompleted = cooldowns[questId] || 0;
-    const quest = npc.quests.find(q => q.id === questId);
-    if (!quest) return 0;
+    const key = `${user.uid}_${quest.id}`;
+    staticQuestCounters[key] = (staticQuestCounters[key] || 0) + value;
     
-    const cooldown = quest.cooldown || 24 * 60 * 60 * 1000;
-    const remaining = (lastCompleted + cooldown) - Date.now();
-    return Math.max(0, remaining);
+    return staticQuestCounters[key] >= quest.requirements.count;
 }
 
-// ========== ДЛЯ СОВМЕСТИМОСТИ ==========
-export function loadNpcQuests(data) {
-    if (data) {
-        for (const [npcId, quests] of Object.entries(data)) {
-            if (!npcState.questCooldowns[npcId]) {
-                npcState.questCooldowns[npcId] = {};
-            }
-            for (const questId of quests) {
-                if (!npcState.questCooldowns[npcId][questId]) {
-                    npcState.questCooldowns[npcId][questId] = Date.now();
-                }
+// ========== ВЫПОЛНИТЬ СТАТИЧЕСКИЙ КВЕСТ ==========
+async function completeStaticQuest(quest, userId, quests) {
+    if (quests.completed.includes(quest.id)) return;
+    
+    console.log(`🏆 Выполнен статический квест: ${quest.name}`);
+    
+    // Добавляем в список выполненных
+    quests.completed.push(quest.id);
+    
+    // Выдаём награду (титулы сохранятся внутри)
+    await giveQuestReward(quest, userId);
+    
+    // Показываем уведомление
+    showQuestCompleteNotification(quest);
+    
+    // Сохраняем
+    await savePlayerQuests(userId, quests);
+}
+
+// ========== ВЫПОЛНИТЬ ЕЖЕДНЕВНЫЙ КВЕСТ ==========
+async function completeDailyQuest(quest, userId, quests) {
+    console.log(`🏆 Выполнен ежедневный квест: ${quest.name}`);
+    
+    // Выдаём награду (титулы сохранятся внутри)
+    await giveQuestReward(quest, userId);
+    
+    // Показываем уведомление
+    showQuestCompleteNotification(quest);
+    
+    // Сохраняем
+    await savePlayerQuests(userId, quests);
+}
+
+// ========== ПРОВЕРКА, ВЫПОЛНЕН ЛИ РАСОВЫЙ КВЕСТ ГЛОБАЛЬНО ==========
+async function isRaceQuestCompletedGlobally(questId) {
+    try {
+        const { db } = await import('./firestore.js');
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        const usersRef = collection(db, 'users');
+        const snapshot = await getDocs(usersRef);
+        
+        for (const userDoc of snapshot.docs) {
+            const userData = userDoc.data();
+            const raceProgress = userData.quests?.race || {};
+            if (raceProgress[questId]?.completed === true) {
+                return true;
             }
         }
-        saveNpcState();
-    }
-}
-
-export function saveNpcQuests() {
-    const result = {};
-    for (const [npcId, cooldowns] of Object.entries(npcState.questCooldowns)) {
-        result[npcId] = Object.keys(cooldowns);
-    }
-    return result;
-}
-
-// ========== ДИАЛОГИ ==========
-export function getNpcDialogues(npcId) {
-    const npc = npcDB[npcId];
-    if (!npc) return null;
-    return npc.dialogues;
-}
-
-export function getDialog(npcId, dialogId) {
-    const npc = npcDB[npcId];
-    if (!npc) return null;
-    return npc.dialogues.find(d => d.id === dialogId) || null;
-}
-
-// ========== ОБРАБОТКА ВЫБОРА В ДИАЛОГЕ ==========
-export async function handleNpcChoice(npcId, choiceAction, userId) {
-    const npc = npcDB[npcId];
-    if (!npc) {
-        showMessage('NPC не найден', '#e74c3c');
-        return null;
-    }
-    
-    switch (choiceAction) {
-        case 'who_are_you':
-            return getDialog(npcId, 'who_are_you');
-        case 'info':
-            return getDialog(npcId, 'info');
-        case 'shop_buy':
-            return { type: 'shop', mode: 'buy' };
-        case 'shop_sell':
-            return { type: 'shop', mode: 'sell' };
-        case 'quest':
-            return { type: 'quest' };
-        case 'goodbye':
-            return { type: 'goodbye', text: '👋 Удачи, путник! Заходи ещё, если что.' };
-        case 'greeting':
-        default:
-            return getDialog(npcId, 'greeting');
-    }
-}
-
-// ========== ПРОВЕРКА И ВЫПОЛНЕНИЕ КВЕСТА ==========
-export async function checkNpcQuestProgress(npcId, questId) {
-    const npc = npcDB[npcId];
-    if (!npc) return false;
-    
-    const quest = npc.quests.find(q => q.id === questId);
-    if (!quest) return false;
-    
-    // Проверяем доступность квеста (не на кулдауне)
-    const availableQuests = getNpcQuests(npcId);
-    if (!availableQuests.find(q => q.id === questId)) {
-        const remaining = getQuestCooldownRemaining(npcId, questId);
-        const hours = Math.floor(remaining / (60 * 60 * 1000));
-        const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-        showMessage(`⏳ Квест будет доступен через ${hours}ч ${minutes}м`, '#ffd966');
+        return false;
+    } catch (error) {
+        console.error('Ошибка проверки расового квеста:', error);
         return false;
     }
-    
-    const requirement = quest.requirement;
-    let canComplete = false;
-    
-    if (requirement.item) {
-        const item = inventory.find(i => i.id === requirement.item);
-        if (item && item.count >= requirement.count) {
-            canComplete = true;
-        }
+}
+
+// ========== ВЫПОЛНИТЬ РАСОВЫЙ КВЕСТ ==========
+async function completeRaceQuest(quest, userId, quests) {
+    // Дополнительная проверка — не выполнил ли кто-то раньше
+    const alreadyCompleted = await isRaceQuestCompletedGlobally(quest.id);
+    if (alreadyCompleted) {
+        console.log(`⚠️ Расовый квест "${quest.name}" уже выполнен другим игроком`);
+        showMessage(`⚠️ К сожалению, "${quest.name}" уже выполнил другой игрок!`, '#e74c3c');
+        return;
     }
     
-    if (!canComplete) {
-        const itemName = itemsDB[requirement.item]?.name || requirement.item;
-        showMessage(`❌ У вас не хватает ${requirement.count}x ${itemName}`, '#e74c3c');
-        return false;
+    console.log(`🏆 ВЫПОЛНЕН РАСОВЫЙ КВЕСТ: ${quest.name} (первый в мире!)`);
+    
+    // Отмечаем как выполненный для этого игрока
+    quests.race[quest.id] = {
+        completed: true,
+        completedAt: new Date().toISOString()
+    };
+    
+    // Выдаём награду (титулы сохранятся внутри)
+    await giveQuestReward(quest, userId);
+    
+    // Показываем особое уведомление для расового квеста
+    showRaceQuestCompleteNotification(quest);
+    
+    // Сохраняем
+    await savePlayerQuests(userId, quests);
+}
+
+// ========== ПОКАЗАТЬ УВЕДОМЛЕНИЕ ДЛЯ РАСОВОГО КВЕСТА ==========
+function showRaceQuestCompleteNotification(quest) {
+    const notification = document.createElement('div');
+    notification.className = 'quest-notification race-notification';
+    notification.innerHTML = `
+        <div class="quest-notification-icon">🏆👑🏆</div>
+        <div class="quest-notification-text">
+            <div class="quest-notification-title">⭐ РАСОВЫЙ КВЕСТ ВЫПОЛНЕН! ⭐</div>
+            <div class="quest-notification-name">${quest.name}</div>
+            <div class="quest-notification-desc">Вы первый в мире, кто выполнил этот квест!</div>
+        </div>
+    `;
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #2c3e50, #1a2634);
+        color: #ffd966;
+        padding: 15px 25px;
+        border-radius: 16px;
+        z-index: 10002;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        border-left: 4px solid #ffd700;
+        border-right: 4px solid #ffd700;
+        animation: slideInRight 0.3s ease, racePulse 1s ease 3, fadeOut 0.5s ease 5s forwards;
+        font-family: inherit;
+    `;
+    
+    // Добавляем стиль, если ещё нет
+    if (!document.querySelector('#raceQuestStyle')) {
+        const style = document.createElement('style');
+        style.id = 'raceQuestStyle';
+        style.textContent = `
+            @keyframes racePulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(255,215,0,0.5); }
+                100% { transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
     }
     
-    // Забираем предметы
-    const itemIndex = inventory.findIndex(i => i.id === requirement.item);
-    if (itemIndex !== -1) {
-        if (inventory[itemIndex].count === requirement.count) {
-            inventory.splice(itemIndex, 1);
-        } else {
-            inventory[itemIndex].count -= requirement.count;
-        }
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification && notification.remove) notification.remove();
+    }, 5000);
+}
+
+// ========== ВЫДАТЬ НАГРАДУ ЗА КВЕСТ (С СОХРАНЕНИЕМ ТИТУЛОВ) ==========
+async function giveQuestReward(quest, userId) {
+    const gameState = await import('./gameState.js');
+    
+    if (quest.rewards.money) {
+        const newMoney = gameState.money + quest.rewards.money;
+        gameState.setStats(null, null, null, newMoney);
+        showMessage(`💰 +${quest.rewards.money}₽ за квест "${quest.name}"`, '#ffd966');
     }
     
-    // Выдаём награду
-    if (quest.reward.money) {
-        const newMoney = money + quest.reward.money;
-        setStats(null, null, null, newMoney);
-        showMessage(`💰 +${quest.reward.money}₽ за квест "${quest.name}"`, '#4caf50');
+    if (quest.rewards.exp) {
+        gameState.addExperience(quest.rewards.exp);
+        showMessage(`⭐ +${quest.rewards.exp} опыта за квест "${quest.name}"`, '#ffd966');
     }
-    if (quest.reward.exp) {
-        const { addExperience } = await import('./gameState.js');
-        addExperience(quest.reward.exp);
-        showMessage(`⭐ +${quest.reward.exp} опыта за квест "${quest.name}"`, '#4caf50');
+    
+    if (quest.rewards.health) {
+        const newHealth = Math.min(gameState.maxHealth, gameState.health + quest.rewards.health);
+        gameState.setStats(newHealth, gameState.hunger, gameState.cold, gameState.money);
+        showMessage(`❤️ +${quest.rewards.health} здоровья за квест "${quest.name}"`, '#ffd966');
     }
-    if (quest.reward.item) {
-        const existingItem = inventory.find(i => i.id === quest.reward.item);
+    
+    if (quest.rewards.item) {
+        const existingItem = gameState.inventory.find(i => i.id === quest.rewards.item);
         if (existingItem) {
             existingItem.count++;
         } else {
-            inventory.push({ id: quest.reward.item, count: 1 });
+            gameState.inventory.push({ id: quest.rewards.item, count: 1 });
         }
-        const { itemsDB } = await import('./inventory.js');
-        const itemName = itemsDB[quest.reward.item]?.name || quest.reward.item;
-        showMessage(`🎁 +1 ${itemName} за квест "${quest.name}"`, '#4caf50');
+        const itemName = itemsDB[quest.rewards.item]?.name || quest.rewards.item;
+        showMessage(`🎁 +1 ${itemName} за квест "${quest.name}"`, '#ffd966');
     }
     
-    // Отмечаем квест как выполненный (ставим кулдаун)
-    markQuestCompleted(npcId, questId);
+    // ===== ОБРАБОТКА ТИТУЛА С СОХРАНЕНИЕМ В FIRESTORE =====
+    if (quest.rewards.title) {
+        const title = quest.rewards.title;
+        
+        // Проверяем, есть ли уже такой титул
+        if (!gameState.ownedTitles.includes(title)) {
+            gameState.ownedTitles.push(title);
+            
+            // Если это первый титул — делаем его активным
+            if (!gameState.currentTitle) {
+                gameState.currentTitle = title;
+            }
+            
+            showMessage(`🏷️ Вы получили титул "${title}"!`, '#ffd966');
+            
+            // Сохраняем титулы в Firestore
+            if (userId) {
+                try {
+                    const userRef = doc(db, 'users', userId);
+                    await updateDoc(userRef, {
+                        'titles.current': gameState.currentTitle,
+                        'titles.owned': gameState.ownedTitles
+                    });
+                    console.log('🏷️ Титулы сохранены в Firestore:', gameState.ownedTitles);
+                } catch (error) {
+                    console.error('Ошибка сохранения титулов:', error);
+                }
+            }
+            
+            // Обновляем отображение титула в интерфейсе
+            const titleSpan = document.getElementById('playerTitle');
+            if (titleSpan) {
+                titleSpan.textContent = gameState.currentTitle;
+                titleSpan.style.display = 'inline-block';
+            }
+        } else {
+            showMessage(`🏷️ Титул "${title}" уже есть в коллекции!`, '#ffd966');
+        }
+    }
+    
+    gameState.updateUI();
     await saveGameData();
-    updateUI();
-    logAction(`✅ Выполнен квест NPC: ${quest.name}`, 'quest');
+}
+
+// ========== ПОКАЗАТЬ УВЕДОМЛЕНИЕ О ВЫПОЛНЕНИИ КВЕСТА ==========
+function showQuestCompleteNotification(quest) {
+    const notification = document.createElement('div');
+    notification.className = 'quest-notification';
+    notification.innerHTML = `
+        <div class="quest-notification-icon">${quest.icon || '🏆'}</div>
+        <div class="quest-notification-text">
+            <div class="quest-notification-title">КВЕСТ ВЫПОЛНЕН!</div>
+            <div class="quest-notification-name">${quest.name}</div>
+        </div>
+    `;
     
-    // Показываем время до следующего выполнения
-    const remaining = getQuestCooldownRemaining(npcId, questId);
-    const hours = Math.floor(remaining / (60 * 60 * 1000));
-    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-    if (remaining > 0) {
-        showMessage(`⏳ Квест будет доступен снова через ${hours}ч ${minutes}м`, '#ffd966');
+    notification.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: linear-gradient(135deg, #2c3e50, #1a2634);
+        color: #ffd966;
+        padding: 12px 20px;
+        border-radius: 16px;
+        z-index: 10002;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        border-left: 4px solid #ffd966;
+        animation: slideInRight 0.3s ease, fadeOut 0.5s ease 3s forwards;
+        font-family: inherit;
+    `;
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            to { opacity: 0; visibility: hidden; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification && notification.remove) notification.remove();
+    }, 3500);
+}
+
+// ========== ОБНОВИТЬ ПРОГРЕСС КВЕСТА ==========
+export async function updateQuestProgress(statType, value = 1, context = {}) {
+    const user = window.auth?.currentUser;
+    if (!user) return;
+    
+    let quests = await loadPlayerQuests(user.uid);
+    if (!quests) return;
+    
+    let updated = false;
+    
+    // Проверяем статические квесты
+    const staticQuests = Object.values(questsDB).filter(q => q.type === 'static');
+    
+    for (const quest of staticQuests) {
+        if (quests.completed.includes(quest.id)) continue;
+        
+        const requirement = quest.requirements;
+        let isCompleted = false;
+        
+        switch (requirement.type) {
+            case 'fishing':
+                if (statType === 'fishing') {
+                    isCompleted = await checkStaticQuestProgress(quest, statType, value);
+                }
+                break;
+            case 'fights_won':
+                if (statType === 'fights_won') {
+                    isCompleted = await checkStaticQuestProgress(quest, statType, value);
+                }
+                break;
+            case 'trash_found':
+                if (statType === 'trash_found') {
+                    isCompleted = await checkStaticQuestProgress(quest, statType, value);
+                }
+                break;
+            case 'buy_property':
+                if (statType === 'buy_property') {
+                    isCompleted = await checkStaticQuestProgress(quest, statType, value);
+                }
+                break;
+            case 'money_reach':
+                if (statType === 'money_reach') {
+                    const { money } = await import('./gameState.js');
+                    isCompleted = money >= requirement.targetMoney;
+                }
+                break;
+            case 'pray_count':
+                if (statType === 'pray_count') {
+                    isCompleted = await checkStaticQuestProgress(quest, statType, value);
+                }
+                break;
+            case 'steal_success':
+                if (statType === 'steal_success') {
+                    isCompleted = await checkStaticQuestProgress(quest, statType, value);
+                }
+                break;
+            case 'darts_win_with_intoxication':
+                if (statType === 'darts_win') {
+                    const { intoxication } = await import('./gameState.js');
+                    if (context.score >= 300 && intoxication >= requirement.minIntoxication) {
+                        isCompleted = true;
+                    }
+                }
+                break;
+            case 'darts_score':
+                if (statType === 'darts_score' && context.score >= requirement.targetScore) {
+                    isCompleted = true;
+                }
+                break;
+            case 'catch_fish':
+                if (statType === 'catch_fish' && context.fishId === requirement.fishId) {
+                    isCompleted = true;
+                }
+                break;
+        }
+        
+        if (isCompleted) {
+            await completeStaticQuest(quest, user.uid, quests);
+            updated = true;
+        }
     }
     
-    return true;
+    // Проверяем ежедневные квесты
+    const dailyQuests = Object.values(questsDB).filter(q => q.type === 'daily');
+    
+    for (const quest of dailyQuests) {
+        if (quests.daily[quest.id]?.completed) continue;
+        
+        const requirement = quest.requirements;
+        let progressNeeded = false;
+        
+        switch (requirement.type) {
+            case 'fishing':
+                if (statType === 'fishing') progressNeeded = true;
+                break;
+            case 'fights_won':
+                if (statType === 'fights_won') progressNeeded = true;
+                break;
+            case 'trash_found':
+                if (statType === 'trash_found') progressNeeded = true;
+                break;
+            case 'alcohol_consumed':
+                if (statType === 'alcohol_consumed') progressNeeded = true;
+                break;
+            case 'pray_count':
+                if (statType === 'pray_count') progressNeeded = true;
+                break;
+            case 'visit_location':
+                if (statType === 'visit_location' && context.locationId === requirement.locationId) {
+                    progressNeeded = true;
+                }
+                break;
+        }
+        
+        if (progressNeeded) {
+            const currentProgress = quests.daily[quest.id]?.progress || 0;
+            const newProgress = Math.min(requirement.count, currentProgress + value);
+            
+            quests.daily[quest.id] = {
+                progress: newProgress,
+                completed: newProgress >= requirement.count
+            };
+            
+            updated = true;
+            
+            if (quests.daily[quest.id].completed) {
+                await completeDailyQuest(quest, user.uid, quests);
+            }
+        }
+    }
+    
+    // ========== ПРОВЕРЯЕМ РАСОВЫЕ КВЕСТЫ ==========
+    const raceQuests = Object.values(questsDB).filter(q => q.type === 'race');
+    
+    for (const quest of raceQuests) {
+        // Проверяем, не выполнен ли уже этот расовый квест (кем-то)
+        const isRaceCompleted = await isRaceQuestCompletedGlobally(quest.id);
+        if (isRaceCompleted) {
+            // Если уже есть победитель — пропускаем
+            continue;
+        }
+        
+        // Проверяем, не выполнил ли уже этот игрок этот расовый квест
+        if (quests.race[quest.id]?.completed) continue;
+        
+        const requirement = quest.requirements;
+        let isCompleted = false;
+        
+        switch (requirement.type) {
+            case 'catch_fish':
+                if (statType === 'catch_fish' && context.fishId === requirement.fishId) {
+                    isCompleted = true;
+                }
+                break;
+            case 'darts_score':
+                if (statType === 'darts_score' && context.score >= requirement.targetScore) {
+                    isCompleted = true;
+                }
+                break;
+            case 'money_reach':
+                if (statType === 'money_reach') {
+                    const { money } = await import('./gameState.js');
+                    isCompleted = money >= requirement.targetMoney;
+                }
+                break;
+        }
+        
+        if (isCompleted) {
+            await completeRaceQuest(quest, user.uid, quests);
+            updated = true;
+        }
+    }
+    
+    if (updated) {
+        await savePlayerQuests(user.uid, quests);
+    }
+}
+
+// ========== ПОЛУЧИТЬ ВСЕ ДОСТУПНЫЕ КВЕСТЫ ==========
+export async function getAvailableQuests() {
+    const user = window.auth?.currentUser;
+    if (!user) return { static: [], daily: [], race: [] };
+    
+    const quests = await loadPlayerQuests(user.uid);
+    
+    const completedList = Array.isArray(quests?.completed) ? quests.completed : [];
+    const dailyProgress = quests?.daily && typeof quests.daily === 'object' ? quests.daily : {};
+    const raceProgress = quests?.race && typeof quests.race === 'object' ? quests.race : {};
+    
+    // 👇 НОВАЯ ФУНКЦИЯ: проверяем, выполнены ли расовые квесты глобально
+    const globalRaceCompleted = await getGlobalRaceCompletedQuests();
+    
+    const staticQuests = Object.values(questsDB).filter(q => 
+        q.type === 'static' && !completedList.includes(q.id)
+    );
+    
+    const dailyQuests = Object.values(questsDB).filter(q => 
+        q.type === 'daily' && !(dailyProgress[q.id] && dailyProgress[q.id].completed === true)
+    );
+    
+    // 👇 ИСПРАВЛЕНО: расовые квесты скрываем, если глобально выполнены ИЛИ выполнены игроком
+    const raceQuests = Object.values(questsDB).filter(q => {
+        if (q.type !== 'race') return false;
+        // Если глобально выполнен — не показываем никому
+        if (globalRaceCompleted.has(q.id)) return false;
+        // Если игрок уже выполнил — не показываем
+        if (raceProgress[q.id]?.completed === true) return false;
+        return true;
+    });
+    
+    console.log('📊 Загружены квесты:', {
+        static: staticQuests.length,
+        daily: dailyQuests.length,
+        race: raceQuests.length,
+        completedStatic: completedList.length,
+        globalRaceCompleted: Array.from(globalRaceCompleted)
+    });
+    
+    return {
+        static: staticQuests,
+        daily: dailyQuests,
+        race: raceQuests,
+        completed: completedList,
+        dailyProgress: dailyProgress
+    };
+}
+
+// ========== ПОЛУЧИТЬ ГЛОБАЛЬНО ВЫПОЛНЕННЫЕ РАСОВЫЕ КВЕСТЫ ==========
+export async function getGlobalRaceCompletedQuests() {
+    const completedQuests = new Set();
+    
+    try {
+        const { db } = await import('./firestore.js');
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        const usersRef = collection(db, 'users');
+        const snapshot = await getDocs(usersRef);
+        
+        for (const userDoc of snapshot.docs) {
+            const userData = userDoc.data();
+            const raceProgress = userData.quests?.race || {};
+            
+            for (const [questId, progress] of Object.entries(raceProgress)) {
+                if (progress && progress.completed === true) {
+                    completedQuests.add(questId);
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка получения глобальных расовых квестов:', error);
+    }
+    
+    return completedQuests;
+}
+
+// ========== ПОЛУЧИТЬ ВЫПОЛНЕННЫЕ КВЕСТЫ ==========
+export async function getCompletedQuests() {
+    const user = window.auth?.currentUser;
+    if (!user) return [];
+    
+    const quests = await loadPlayerQuests(user.uid);
+    const completedQuests = [];
+    
+    const completedList = Array.isArray(quests?.completed) ? quests.completed : [];
+    const dailyProgress = quests?.daily && typeof quests.daily === 'object' ? quests.daily : {};
+    const raceProgress = quests?.race && typeof quests.race === 'object' ? quests.race : {};
+    
+    for (const questId of completedList) {
+        const quest = getQuestById(questId);
+        if (quest) completedQuests.push({ ...quest, type: 'static' });
+    }
+    
+    for (const [questId, progress] of Object.entries(dailyProgress)) {
+        if (progress && progress.completed === true) {
+            const quest = getQuestById(questId);
+            if (quest) {
+                completedQuests.push({ 
+                    ...quest, 
+                    type: 'daily',
+                    dailyProgress: progress.progress || 0 
+                });
+            }
+        }
+    }
+    
+    for (const [questId, progress] of Object.entries(raceProgress)) {
+        if (progress && progress.completed === true) {
+            const quest = getQuestById(questId);
+            if (quest) {
+                completedQuests.push({ 
+                    ...quest, 
+                    type: 'race',
+                    completedAt: progress.completedAt
+                });
+            }
+        }
+    }
+    
+    return completedQuests;
 }
