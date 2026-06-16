@@ -1,7 +1,8 @@
 // js/npcSystem.js
 import { showMessage, logAction } from './utils.js';
 import { money, inventory, setStats, updateUI, addLogEntry } from './gameState.js';
-import { saveGameData } from './firestore.js';
+import { saveGameData, db } from './firestore.js';
+import { doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 
 // ========== БАЗА ДАННЫХ NPC ==========
 export const npcDB = {
@@ -45,10 +46,10 @@ export const npcDB = {
         ],
         
         shop_items: [
-            { id: 'old_hat', price: 10, stock: 999 },
-            { id: 'empty_bottle', price: 5, stock: 999 },
-            { id: 'cigarettes', price: 15, stock: 10 },
-            { id: 'medkit', price: 30, stock: 3 }
+            { id: 'old_hat', price: 10, stock: 999, maxStock: 999 },
+            { id: 'empty_bottle', price: 5, stock: 999, maxStock: 999 },
+            { id: 'cigarettes', price: 15, stock: 10, maxStock: 10 },
+            { id: 'medkit', price: 30, stock: 3, maxStock: 3 }
         ],
         
         buy_items: [
@@ -63,27 +64,120 @@ export const npcDB = {
                 name: 'Сбор бутылок для Семёна',
                 description: 'Принеси 5 пустых бутылок. Семён сдаст их в пункт приёма.',
                 requirement: { item: 'empty_bottle', count: 5 },
-                reward: { money: 50, exp: 15 }
+                reward: { money: 50, exp: 15 },
+                cooldown: 24 * 60 * 60 * 1000 // 24 часа
             },
             {
                 id: 'hobo_find_boot',
                 name: 'Найти ботинок',
                 description: 'Семёну нужен второй ботинок. Принеси ему старый ботинок.',
                 requirement: { item: 'old_boot', count: 1 },
-                reward: { money: 30, exp: 10 }
+                reward: { money: 30, exp: 10 },
+                cooldown: 24 * 60 * 60 * 1000
             },
             {
                 id: 'hobo_medkit',
                 name: 'Лекарство для Семёна',
                 description: 'Семён простудился. Принеси ему аптечку.',
                 requirement: { item: 'medkit', count: 1 },
-                reward: { money: 80, exp: 25, item: 'cigarettes' }
+                reward: { money: 80, exp: 25, item: 'cigarettes' },
+                cooldown: 24 * 60 * 60 * 1000
             }
         ]
     }
 };
 
-// ========== ХРАНИЛИЩЕ ВЫПОЛНЕННЫХ КВЕСТОВ ==========
+// ========== СОСТОЯНИЕ NPC В FIRESTORE ==========
+const NPC_STATE_KEY = 'npcState';
+
+// Загрузить состояние NPC из Firestore
+export async function loadNpcStateFromFirestore(userId) {
+    if (!userId) return;
+    
+    try {
+        const userRef = doc(db, 'users', userId);
+        const userSnap = await getDoc(userRef);
+        
+        if (userSnap.exists()) {
+            const data = userSnap.data();
+            const npcState = data.npcState;
+            
+            if (npcState) {
+                // Восстанавливаем сток товаров
+                for (const [npcId, state] of Object.entries(npcState)) {
+                    const npc = npcDB[npcId];
+                    if (npc && state.shopStock) {
+                        npc.shop_items.forEach(item => {
+                            if (state.shopStock[item.id] !== undefined) {
+                                item.stock = state.shopStock[item.id];
+                            }
+                        });
+                    }
+                }
+                console.log('📦 Состояние NPC загружено из Firestore');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Ошибка загрузки состояния NPC:', error);
+    }
+}
+
+// Сохранить состояние NPC в Firestore
+export async function saveNpcStateToFirestore(userId) {
+    if (!userId) return;
+    
+    try {
+        const npcState = {};
+        
+        for (const [npcId, npc] of Object.entries(npcDB)) {
+            npcState[npcId] = {
+                shopStock: {}
+            };
+            npc.shop_items.forEach(item => {
+                npcState[npcId].shopStock[item.id] = item.stock;
+            });
+        }
+        
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, { npcState: npcState });
+        console.log('💾 Состояние NPC сохранено в Firestore');
+    } catch (error) {
+        console.error('❌ Ошибка сохранения состояния NPC:', error);
+    }
+}
+
+// ========== ОБНОВЛЕНИЕ СТОКА РАЗ В СУТКИ ==========
+export function checkAndRestockNpc(npcId) {
+    const npc = npcDB[npcId];
+    if (!npc) return false;
+    
+    // Проверяем, есть ли сохранённое время последнего обновления
+    const now = Date.now();
+    const lastRestock = npc._lastRestock || 0;
+    const RESTOCK_INTERVAL = 24 * 60 * 60 * 1000; // 24 часа
+    
+    if (now - lastRestock >= RESTOCK_INTERVAL) {
+        // Восстанавливаем сток до максимума
+        npc.shop_items.forEach(item => {
+            if (item.maxStock !== undefined) {
+                item.stock = item.maxStock;
+            }
+        });
+        npc._lastRestock = now;
+        
+        // Сохраняем в Firestore
+        const user = window.auth?.currentUser;
+        if (user) {
+            saveNpcStateToFirestore(user.uid);
+        }
+        
+        console.log(`🔄 Сток у ${npc.name} обновлён!`);
+        return true;
+    }
+    return false;
+}
+
+// ========== ХРАНИЛИЩЕ ВЫПОЛНЕННЫХ КВЕСТОВ (с кулдаунами) ==========
 let completedNpcQuests = {};
 
 export function loadNpcQuests(data) {
@@ -92,6 +186,42 @@ export function loadNpcQuests(data) {
 
 export function saveNpcQuests() {
     return completedNpcQuests;
+}
+
+// ========== КВЕСТЫ С КУЛДАУНОМ ==========
+export function getNpcQuests(npcId) {
+    const npc = npcDB[npcId];
+    if (!npc) return [];
+    
+    const now = Date.now();
+    const cooldowns = completedNpcQuests[npcId] || {};
+    
+    return npc.quests.filter(quest => {
+        const lastCompleted = cooldowns[quest.id] || 0;
+        const cooldown = quest.cooldown || 24 * 60 * 60 * 1000;
+        return now - lastCompleted >= cooldown;
+    });
+}
+
+export function markQuestCompleted(npcId, questId) {
+    if (!completedNpcQuests[npcId]) {
+        completedNpcQuests[npcId] = {};
+    }
+    completedNpcQuests[npcId][questId] = Date.now();
+}
+
+export function getQuestCooldownRemaining(npcId, questId) {
+    const npc = npcDB[npcId];
+    if (!npc) return 0;
+    
+    const cooldowns = completedNpcQuests[npcId] || {};
+    const lastCompleted = cooldowns[questId] || 0;
+    const quest = npc.quests.find(q => q.id === questId);
+    if (!quest) return 0;
+    
+    const cooldown = quest.cooldown || 24 * 60 * 60 * 1000;
+    const remaining = (lastCompleted + cooldown) - Date.now();
+    return Math.max(0, remaining);
 }
 
 // ========== ДИАЛОГИ ==========
@@ -134,20 +264,23 @@ export async function handleNpcChoice(npcId, choiceAction, userId) {
     }
 }
 
-// ========== КВЕСТЫ ==========
-export function getNpcQuests(npcId) {
-    const npc = npcDB[npcId];
-    if (!npc) return [];
-    return npc.quests.filter(q => !completedNpcQuests[q.id]);
-}
-
+// ========== ПРОВЕРКА И ВЫПОЛНЕНИЕ КВЕСТА ==========
 export async function checkNpcQuestProgress(npcId, questId) {
     const npc = npcDB[npcId];
     if (!npc) return false;
     
     const quest = npc.quests.find(q => q.id === questId);
     if (!quest) return false;
-    if (completedNpcQuests[questId]) return false;
+    
+    // Проверяем доступность квеста (не на кулдауне)
+    const availableQuests = getNpcQuests(npcId);
+    if (!availableQuests.find(q => q.id === questId)) {
+        const remaining = getQuestCooldownRemaining(npcId, questId);
+        const hours = Math.floor(remaining / (60 * 60 * 1000));
+        const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+        showMessage(`⏳ Квест будет доступен через ${hours}ч ${minutes}м`, '#ffd966');
+        return false;
+    }
     
     const requirement = quest.requirement;
     let canComplete = false;
@@ -163,6 +296,7 @@ export async function checkNpcQuestProgress(npcId, questId) {
         return false;
     }
     
+    // Забираем предметы
     const itemIndex = inventory.findIndex(i => i.id === requirement.item);
     if (itemIndex !== -1) {
         if (inventory[itemIndex].count === requirement.count) {
@@ -172,6 +306,7 @@ export async function checkNpcQuestProgress(npcId, questId) {
         }
     }
     
+    // Выдаём награду
     if (quest.reward.money) {
         const newMoney = money + quest.reward.money;
         setStats(null, null, null, newMoney);
@@ -194,10 +329,25 @@ export async function checkNpcQuestProgress(npcId, questId) {
         showMessage(`🎁 +1 ${itemName} за квест "${quest.name}"`, '#4caf50');
     }
     
-    completedNpcQuests[questId] = true;
+    // Отмечаем квест как выполненный (ставим кулдаун)
+    markQuestCompleted(npcId, questId);
     await saveGameData();
     updateUI();
     logAction(`✅ Выполнен квест NPC: ${quest.name}`, 'quest');
+    
+    // Сохраняем состояние в Firestore
+    const user = window.auth?.currentUser;
+    if (user) {
+        await saveNpcStateToFirestore(user.uid);
+    }
+    
+    // Показываем время до следующего выполнения
+    const remaining = getQuestCooldownRemaining(npcId, questId);
+    const hours = Math.floor(remaining / (60 * 60 * 1000));
+    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+    if (remaining > 0) {
+        showMessage(`⏳ Квест будет доступен снова через ${hours}ч ${minutes}м`, '#ffd966');
+    }
     
     return true;
 }
