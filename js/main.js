@@ -1155,6 +1155,13 @@ import('./npcSystemUI.js').then(module => {
         console.log('🗣️ NPC UI инициализирован');
     }
 });
+        // ===== ЗАГРУЗКА СОСТОЯНИЯ NPC =====
+import('./npcSystem.js').then(async module => {
+    if (user) {
+        await module.loadNpcStateFromFirestore(user.uid);
+        console.log('🗣️ Состояние NPC загружено');
+    }
+});
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
