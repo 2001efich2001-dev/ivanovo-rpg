@@ -268,7 +268,7 @@ async function showNpcQuests() {
                     ${quest.reward.exp ? `⭐ +${quest.reward.exp} ` : ''}
                     ${quest.reward.item ? `🎁 ${itemsDB[quest.reward.item]?.name || quest.reward.item}` : ''}
                 </div>
-                <button class="quest-accept-btn" data-quest-id="${quest.id}">✅ Взять задание</button>
+                <button class="quest-accept-btn" data-quest-id="${quest.id}">✅ Помочь </button>
             </div>
         `;
     }
