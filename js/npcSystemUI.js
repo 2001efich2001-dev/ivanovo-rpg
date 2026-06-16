@@ -121,8 +121,20 @@ async function showNpcShop(mode) {
     const npc = npcDB[currentNpcId];
     if (!npc) return;
     
-    // Проверяем обновление стока
-    checkAndRestockNpc(currentNpcId);
+    const user = window.auth?.currentUser;
+    if (!user) {
+        showMessage('❌ Авторизуйтесь', '#e74c3c');
+        return;
+    }
+    
+    // ✅ ЗАГРУЖАЕМ СВЕЖИЕ ДАННЫЕ ИЗ FIRESTORE (с проверкой 24ч)
+    const state = await getCurrentNpcState(user.uid);
+    if (!state) {
+        showMessage('❌ Ошибка загрузки данных', '#e74c3c');
+        return;
+    }
+    
+    const npcState = state[currentNpcId] || { shopStock: {} };
     
     currentMode = 'shop';
     const container = document.getElementById('npcShop');
@@ -142,8 +154,8 @@ async function showNpcShop(mode) {
         if (!itemData) continue;
         
         const price = item.price;
-        // ✅ БЕРЁМ СТОК ИЗ npcRuntimeState
-        const stock = mode === 'buy' ? getItemStock(currentNpcId, item.id) : '∞';
+        // ✅ БЕРЁМ СТОК ИЗ FIRESTORE
+        const stock = mode === 'buy' ? (npcState.shopStock[item.id] || 0) : '∞';
         const count = mode === 'sell' ? inventory.find(i => i.id === item.id)?.count || 0 : stock;
         const isAvailable = mode === 'buy' ? (stock > 0) : true;
         
@@ -170,8 +182,11 @@ async function showNpcShop(mode) {
             const modeType = btn.dataset.mode;
             
             if (modeType === 'buy') {
-                const shopItem = npc.shop_items.find(i => i.id === itemId);
-                if (!shopItem || shopItem.stock <= 0) {
+                // ✅ ПРОВЕРЯЕМ СТОК ИЗ FIRESTORE
+                const currentState = await getCurrentNpcState(user.uid);
+                const currentStock = currentState?.[currentNpcId]?.shopStock?.[itemId] || 0;
+                
+                if (currentStock <= 0) {
                     showMessage('❌ Товар закончился!', '#e74c3c');
                     return;
                 }
@@ -181,8 +196,12 @@ async function showNpcShop(mode) {
                     return;
                 }
                 
-                // Уменьшаем сток
-                shopItem.stock--;
+                // ✅ УМЕНЬШАЕМ СТОК В FIRESTORE
+                const success = await decreaseItemStockInFirestore(user.uid, currentNpcId, itemId);
+                if (!success) {
+                    showMessage('❌ Ошибка при покупке', '#e74c3c');
+                    return;
+                }
                 
                 const newMoney = money - price;
                 setStats(null, null, null, newMoney);
@@ -198,13 +217,11 @@ async function showNpcShop(mode) {
                 showMessage(`🛍️ Вы купили ${itemName} за ${price}₽`, '#4caf50');
                 logAction(`Куплено у NPC: ${itemName} за ${price}₽`, 'economy');
                 
-                // Сохраняем состояние в Firestore
-                const user = window.auth?.currentUser;
-                if (user) {
-                    await saveNpcStateToFirestore(user.uid);
-                }
-                
+                await saveGameData();
+                updateUI();
+                await showNpcShop(mode); // Обновляем список
             } else {
+                // Продажа (без изменений)
                 const itemIndex = inventory.findIndex(i => i.id === itemId);
                 if (itemIndex === -1 || inventory[itemIndex].count === 0) {
                     showMessage(`❌ У вас нет этого предмета`, '#e74c3c');
@@ -223,11 +240,11 @@ async function showNpcShop(mode) {
                 const itemName = itemsDB[itemId]?.name || itemId;
                 showMessage(`💰 Вы продали ${itemName} за ${price}₽`, '#4caf50');
                 logAction(`Продано NPC: ${itemName} за ${price}₽`, 'economy');
+                
+                await saveGameData();
+                updateUI();
+                await showNpcShop(mode);
             }
-            
-            await saveGameData();
-            updateUI();
-            await showNpcShop(mode);
         });
     });
     
