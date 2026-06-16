@@ -1,5 +1,5 @@
 // js/npcSystemUI.js
-import { showMessage } from './utils.js';
+import { showMessage, logAction, addLogEntry } from './utils.js';
 import { npcDB, getNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog } from './npcSystem.js';
 import { money, inventory, setStats, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
