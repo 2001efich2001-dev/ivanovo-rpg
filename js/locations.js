@@ -346,55 +346,69 @@ export function renderLocation(locationId) {
     });
     
     // ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
-    if (loc.npc) {
-        const npc = loc.npc;
-        
-        const npcGroup = document.createElementNS(svgNS, "g");
-        npcGroup.style.cursor = "pointer";
-        
-        // Подпись над NPC
-        const text = document.createElementNS(svgNS, "text");
-        text.setAttribute("x", npc.position.x);
-        text.setAttribute("y", npc.position.y - 350);
-        text.setAttribute("text-anchor", "middle");
-        text.setAttribute("font-size", "16px");
-        text.setAttribute("font-weight", "bold");
-        text.setAttribute("fill", "#ffd966");
-        text.setAttribute("stroke", "#000");
-        text.setAttribute("stroke-width", "1");
-        text.textContent = npc.name;
-        npcGroup.appendChild(text);
-        
-        // Картинка NPC (PNG)
-        const img = document.createElementNS(svgNS, "image");
-        img.setAttribute("href", npc.avatar);
-        img.setAttribute("x", npc.position.x - npc.width/2);
-        img.setAttribute("y", npc.position.y - npc.height);
-        img.setAttribute("width", npc.width);
-        img.setAttribute("height", npc.height);
-        img.style.filter = "drop-shadow(0 4px 8px rgba(0,0,0,0.5))";
-        img.style.transition = "transform 0.3s ease";
-        
-        // Обработчик клика
-        const clickHandler = () => {
-            playClick();
-            const action = loc.actions.find(a => a.id === npc.actionId);
-            if (action) executeAction(locationId, action);
-        };
-        img.addEventListener('click', clickHandler);
-        text.addEventListener('click', clickHandler);
-        
-        // Анимация при наведении
-        img.addEventListener('mouseenter', () => {
-            img.style.transform = "scale(1.05)";
-        });
-        img.addEventListener('mouseleave', () => {
-            img.style.transform = "scale(1)";
-        });
-        
-        npcGroup.appendChild(img);
-        svg.appendChild(npcGroup);
-    }
+    // ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
+if (loc.npc) {
+    const npc = loc.npc;
+    
+    const npcGroup = document.createElementNS(svgNS, "g");
+    npcGroup.style.cursor = "pointer";
+    
+    // Подпись над NPC
+    const text = document.createElementNS(svgNS, "text");
+    text.setAttribute("x", npc.position.x);
+    text.setAttribute("y", npc.position.y - 350);
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("font-size", "16px");
+    text.setAttribute("font-weight", "bold");
+    text.setAttribute("fill", "#ffd966");
+    text.setAttribute("stroke", "#000");
+    text.setAttribute("stroke-width", "1");
+    text.textContent = npc.name;
+    text.style.pointerEvents = "visible";  // 👈 ДОБАВЬ
+    npcGroup.appendChild(text);
+    
+    // Картинка NPC (PNG) — через foreignObject для надёжности
+    const foreignObject = document.createElementNS(svgNS, "foreignObject");
+    foreignObject.setAttribute("x", npc.position.x - npc.width/2);
+    foreignObject.setAttribute("y", npc.position.y - npc.height);
+    foreignObject.setAttribute("width", npc.width);
+    foreignObject.setAttribute("height", npc.height);
+    foreignObject.style.pointerEvents = "visible";
+    foreignObject.style.cursor = "pointer";
+    
+    const img = document.createElement("img");
+    img.src = npc.avatar;
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.objectFit = "contain";
+    img.style.pointerEvents = "auto";
+    img.style.cursor = "pointer";
+    img.style.filter = "drop-shadow(0 4px 8px rgba(0,0,0,0.5))";
+    img.style.transition = "transform 0.3s ease";
+    
+    // Обработчик клика
+    const clickHandler = () => {
+        console.log('🖱️ Клик по NPC!');  // 👈 для отладки
+        playClick();
+        const action = loc.actions.find(a => a.id === npc.actionId);
+        if (action) executeAction(locationId, action);
+    };
+    
+    img.addEventListener('click', clickHandler);
+    text.addEventListener('click', clickHandler);
+    
+    // Анимация при наведении
+    img.addEventListener('mouseenter', () => {
+        img.style.transform = "scale(1.05)";
+    });
+    img.addEventListener('mouseleave', () => {
+        img.style.transform = "scale(1)";
+    });
+    
+    foreignObject.appendChild(img);
+    npcGroup.appendChild(foreignObject);
+    svg.appendChild(npcGroup);
+}
     
     zonesContainer.innerHTML = '';
     zonesContainer.appendChild(svg);
