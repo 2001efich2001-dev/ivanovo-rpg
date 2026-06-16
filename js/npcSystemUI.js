@@ -1,6 +1,6 @@
 // js/npcSystemUI.js
 import { showMessage, logAction } from './utils.js';
-import { npcDB, getNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog } from './npcSystem.js';
+import { npcDB, getNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog, checkAndRestockNpc, saveNpcStateToFirestore } from './npcSystem.js';
 import { money, inventory, setStats, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
@@ -121,6 +121,9 @@ async function showNpcShop(mode) {
     const npc = npcDB[currentNpcId];
     if (!npc) return;
     
+    // Проверяем обновление стока
+    checkAndRestockNpc(currentNpcId);
+    
     currentMode = 'shop';
     const container = document.getElementById('npcShop');
     const itemsContainer = container.querySelector('.npc-shop-items');
@@ -141,14 +144,15 @@ async function showNpcShop(mode) {
         const price = item.price;
         const stock = item.stock || '∞';
         const count = mode === 'sell' ? inventory.find(i => i.id === item.id)?.count || 0 : stock;
+        const isAvailable = mode === 'buy' ? (stock > 0) : true;
         
         html += `
             <div class="shop-item">
                 <span>${itemData.icon} ${itemData.name}</span>
                 <span>${price}₽</span>
                 <span class="shop-stock">(${count})</span>
-                <button class="shop-trade-btn" data-id="${item.id}" data-price="${price}" data-mode="${mode}">
-                    ${mode === 'buy' ? '🛍️ Купить' : '💰 Продать'}
+                <button class="shop-trade-btn" data-id="${item.id}" data-price="${price}" data-mode="${mode}" ${!isAvailable ? 'disabled style="opacity:0.5;"' : ''}>
+                    ${mode === 'buy' ? (isAvailable ? '🛍️ Купить' : '❌ Закончился') : '💰 Продать'}
                 </button>
             </div>
         `;
@@ -165,20 +169,19 @@ async function showNpcShop(mode) {
             const modeType = btn.dataset.mode;
             
             if (modeType === 'buy') {
+                const shopItem = npc.shop_items.find(i => i.id === itemId);
+                if (!shopItem || shopItem.stock <= 0) {
+                    showMessage('❌ Товар закончился!', '#e74c3c');
+                    return;
+                }
+                
                 if (money < price) {
                     showMessage(`❌ Не хватает денег! Нужно ${price}₽`, '#e74c3c');
                     return;
                 }
                 
-                // Уменьшаем сток прямо в объекте NPC
-                const shopItem = npc.shop_items.find(i => i.id === itemId);
-                if (shopItem) {
-                    if (shopItem.stock <= 0) {
-                        showMessage('❌ Товар закончился!', '#e74c3c');
-                        return;
-                    }
-                    shopItem.stock--;
-                }
+                // Уменьшаем сток
+                shopItem.stock--;
                 
                 const newMoney = money - price;
                 setStats(null, null, null, newMoney);
@@ -193,6 +196,13 @@ async function showNpcShop(mode) {
                 const itemName = itemsDB[itemId]?.name || itemId;
                 showMessage(`🛍️ Вы купили ${itemName} за ${price}₽`, '#4caf50');
                 logAction(`Куплено у NPC: ${itemName} за ${price}₽`, 'economy');
+                
+                // Сохраняем состояние в Firestore
+                const user = window.auth?.currentUser;
+                if (user) {
+                    await saveNpcStateToFirestore(user.uid);
+                }
+                
             } else {
                 const itemIndex = inventory.findIndex(i => i.id === itemId);
                 if (itemIndex === -1 || inventory[itemIndex].count === 0) {
