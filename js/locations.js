@@ -116,9 +116,9 @@ export const locationsDB = {
             id: 'dump_hobo',
             name: '🗑️ Бомж Семён',
             avatar: 'images/npc/hobo.png',
-            position: { x: 300, y: 250 },
-            width: 70,
-            height: 100,
+            position: { x: 510, y: 510 },
+            width: 400,
+            height: 400,
             actionId: 'talk_hobo'
         },
         zones: [
