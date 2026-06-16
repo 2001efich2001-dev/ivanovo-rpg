@@ -347,6 +347,7 @@ export function renderLocation(locationId) {
     
     // ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
     // ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
+// ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
 if (loc.npc) {
     const npc = loc.npc;
     
@@ -364,7 +365,8 @@ if (loc.npc) {
     text.setAttribute("stroke", "#000");
     text.setAttribute("stroke-width", "1");
     text.textContent = npc.name;
-    text.style.pointerEvents = "visible";  // 👈 ДОБАВЬ
+    text.style.pointerEvents = "visible";
+    text.style.transition = "all 0.3s ease";
     npcGroup.appendChild(text);
     
     // Картинка NPC (PNG) — через foreignObject для надёжности
@@ -388,7 +390,6 @@ if (loc.npc) {
     
     // Обработчик клика
     const clickHandler = () => {
-        console.log('🖱️ Клик по NPC!');  // 👈 для отладки
         playClick();
         const action = loc.actions.find(a => a.id === npc.actionId);
         if (action) executeAction(locationId, action);
@@ -397,12 +398,28 @@ if (loc.npc) {
     img.addEventListener('click', clickHandler);
     text.addEventListener('click', clickHandler);
     
-    // Анимация при наведении
+    // Анимация при наведении на картинку
     img.addEventListener('mouseenter', () => {
         img.style.transform = "scale(1.05)";
+        text.setAttribute("font-size", "20px");
+        text.setAttribute("fill", "#ffd700");
     });
     img.addEventListener('mouseleave', () => {
         img.style.transform = "scale(1)";
+        text.setAttribute("font-size", "16px");
+        text.setAttribute("fill", "#ffd966");
+    });
+    
+    // Анимация при наведении на текст
+    text.addEventListener('mouseenter', () => {
+        img.style.transform = "scale(1.05)";
+        text.setAttribute("font-size", "20px");
+        text.setAttribute("fill", "#ffd700");
+    });
+    text.addEventListener('mouseleave', () => {
+        img.style.transform = "scale(1)";
+        text.setAttribute("font-size", "16px");
+        text.setAttribute("fill", "#ffd966");
     });
     
     foreignObject.appendChild(img);
