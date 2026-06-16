@@ -29,7 +29,8 @@ const energyCosts = {
     darts: 10,    // дротики
     slot_machine: 0, // однорукий бандит (не тратит энергию)
     rest_dump: 0, // отдых на помойке
-    storage: 0    // открытие хранилища (не тратит энергию)
+    storage: 0,   // открытие хранилища (не тратит энергию)
+    talk: 0       // разговор с NPC (не тратит энергию)
 };
 
 // ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ КВЕСТОВ ==========
@@ -106,31 +107,28 @@ export const locationsDB = {
         ]
     },
     dump: {
-    id: "dump",
-    name: "Свалка",
-    description: "Опасно, но можно найти ценные вещи.",
-    bgImage: "images/dump_bg.jpg",
-    
-    // 👇 ДОБАВЛЯЕМ NPC
-    npc: {
-        id: 'dump_hobo',
-        name: '🗑️ Бомж Семён',
-        avatar: 'images/npc/hobo.png',
-        position: { x: 300, y: 250 },
-        width: 70,
-        height: 100,
-        actionId: 'talk_hobo'
+        id: "dump",
+        name: "Свалка",
+        description: "Опасно, но можно найти ценные вещи.",
+        bgImage: "images/dump_bg.jpg",
+        // 👇 NPC НА СВАЛКЕ
+        npc: {
+            id: 'dump_hobo',
+            name: '🗑️ Бомж Семён',
+            avatar: 'images/npc/hobo.png',
+            position: { x: 300, y: 250 },
+            width: 70,
+            height: 100,
+            actionId: 'talk_hobo'
+        },
+        zones: [
+            { id: "scavenge_zone", name: "Куча мусора", description: "Покопаться: найти бутылку или старую шапку (риск 40%)", cx: 200, cy: 200, r: 70, actionId: "scavenge" }
+        ],
+        actions: [
+            { id: "scavenge", name: "Покопаться в мусоре", desc: "Риск: 40% получить инфекцию", effect: { items: ["empty_bottle", "old_hat"] }, risk: 40, riskEffect: { health: -15, hunger: -5 } },
+            { id: "talk_hobo", name: "🗑️ Поговорить с бомжом", desc: "Поговорить с местным жителем", effect: {}, cost: 0, risk: 0 }
+        ]
     },
-    
-    zones: [
-        { id: "scavenge_zone", name: "Куча мусора", description: "Покопаться: найти бутылку или старую шапку (риск 40%)", cx: 200, cy: 200, r: 70, actionId: "scavenge" }
-    ],
-    actions: [
-        { id: "scavenge", name: "Покопаться в мусоре", desc: "Риск: 40% получить инфекцию", effect: { items: ["empty_bottle", "old_hat"] }, risk: 40, riskEffect: { health: -15, hunger: -5 } },
-        // 👇 ДОБАВЛЯЕМ ДЕЙСТВИЕ
-        { id: "talk_hobo", name: "🗑️ Поговорить с бомжом", desc: "Поговорить с местным жителем", effect: {}, cost: 0, risk: 0 }
-    ]
-},
     church: {
         id: "church",
         name: "Церковь",
@@ -304,6 +302,7 @@ export function renderLocation(locationId) {
     svg.style.left = "0";
     svg.style.pointerEvents = "none";
     
+    // ========== ОТРИСОВКА ЗОН ==========
     loc.zones.forEach(zone => {
         const circle = document.createElementNS(svgNS, "circle");
         circle.setAttribute("cx", zone.cx);
@@ -345,6 +344,57 @@ export function renderLocation(locationId) {
         
         svg.appendChild(circle);
     });
+    
+    // ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
+    if (loc.npc) {
+        const npc = loc.npc;
+        
+        const npcGroup = document.createElementNS(svgNS, "g");
+        npcGroup.style.cursor = "pointer";
+        
+        // Подпись над NPC
+        const text = document.createElementNS(svgNS, "text");
+        text.setAttribute("x", npc.position.x);
+        text.setAttribute("y", npc.position.y - 60);
+        text.setAttribute("text-anchor", "middle");
+        text.setAttribute("font-size", "16px");
+        text.setAttribute("font-weight", "bold");
+        text.setAttribute("fill", "#ffd966");
+        text.setAttribute("stroke", "#000");
+        text.setAttribute("stroke-width", "1");
+        text.textContent = npc.name;
+        npcGroup.appendChild(text);
+        
+        // Картинка NPC (PNG)
+        const img = document.createElementNS(svgNS, "image");
+        img.setAttribute("href", npc.avatar);
+        img.setAttribute("x", npc.position.x - npc.width/2);
+        img.setAttribute("y", npc.position.y - npc.height);
+        img.setAttribute("width", npc.width);
+        img.setAttribute("height", npc.height);
+        img.style.filter = "drop-shadow(0 4px 8px rgba(0,0,0,0.5))";
+        img.style.transition = "transform 0.3s ease";
+        
+        // Обработчик клика
+        const clickHandler = () => {
+            playClick();
+            const action = loc.actions.find(a => a.id === npc.actionId);
+            if (action) executeAction(locationId, action);
+        };
+        img.addEventListener('click', clickHandler);
+        text.addEventListener('click', clickHandler);
+        
+        // Анимация при наведении
+        img.addEventListener('mouseenter', () => {
+            img.style.transform = "scale(1.05)";
+        });
+        img.addEventListener('mouseleave', () => {
+            img.style.transform = "scale(1)";
+        });
+        
+        npcGroup.appendChild(img);
+        svg.appendChild(npcGroup);
+    }
     
     zonesContainer.innerHTML = '';
     zonesContainer.appendChild(svg);
@@ -391,7 +441,26 @@ function hideTooltip() {
 async function executeAction(locationId, action) {
     playClick();
     
-    // ===== НОВЫЙ ОСОБЫЙ СЛУЧАЙ: ОТКРЫТЬ ХРАНИЛИЩЕ =====
+    // ===== НОВЫЙ ОСОБЫЙ СЛУЧАЙ: РАЗГОВОР С NPC =====
+    if (action.id === 'talk_hobo' || action.id.startsWith('talk_')) {
+        try {
+            const { openNpcDialog } = await import('./npcSystemUI.js');
+            const loc = locationsDB[locationId];
+            if (loc && loc.npc) {
+                await openNpcDialog(loc.npc.id);
+                logAction(`В локации "${locationsDB[locationId]?.name}": разговор с NPC`, 'location');
+            } else {
+                showMessage('NPC не найден в этой локации', '#e74c3c');
+            }
+        } catch (error) {
+            console.error('Ошибка открытия NPC:', error);
+            showMessage("❌ Ошибка диалога. Попробуйте позже.", "#e74c3c");
+        }
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
+    
+    // ===== ОСОБЫЙ СЛУЧАЙ: ОТКРЫТЬ ХРАНИЛИЩЕ =====
     if (action.id === 'storage_open' || action.id === 'garage_storage') {
         try {
             const { openStorageModal } = await import('./inventory.js');
