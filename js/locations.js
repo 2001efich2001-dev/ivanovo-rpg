@@ -355,7 +355,7 @@ export function renderLocation(locationId) {
         // Подпись над NPC
         const text = document.createElementNS(svgNS, "text");
         text.setAttribute("x", npc.position.x);
-        text.setAttribute("y", npc.position.y - 460);
+        text.setAttribute("y", npc.position.y - 350);
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("font-size", "16px");
         text.setAttribute("font-weight", "bold");
