@@ -1,5 +1,5 @@
 // js/npcSystemUI.js
-import { showMessage, logAction, addLogEntry } from './utils.js';
+import { showMessage, logAction } from './utils.js';
 import { npcDB, getNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog } from './npcSystem.js';
 import { money, inventory, setStats, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
@@ -189,7 +189,7 @@ async function showNpcShop(mode) {
                 
                 const itemName = itemsDB[itemId]?.name || itemId;
                 showMessage(`🛍️ Вы купили ${itemName} за ${price}₽`, '#4caf50');
-                addLogEntry(`Куплено у NPC: ${itemName} за ${price}₽`, 'economy');
+                logAction(`Куплено у NPC: ${itemName} за ${price}₽`, 'economy');
             } else {
                 // Продажа
                 const itemIndex = inventory.findIndex(i => i.id === itemId);
@@ -209,7 +209,7 @@ async function showNpcShop(mode) {
                 
                 const itemName = itemsDB[itemId]?.name || itemId;
                 showMessage(`💰 Вы продали ${itemName} за ${price}₽`, '#4caf50');
-                addLogEntry(`Продано NPC: ${itemName} за ${price}₽`, 'economy');
+                logAction(`Продано NPC: ${itemName} за ${price}₽`, 'economy');
             }
             
             await saveGameData();
