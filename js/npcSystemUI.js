@@ -1,6 +1,6 @@
 // js/npcSystemUI.js
 import { showMessage, logAction } from './utils.js';
-import { npcDB, getDialog, handleNpcChoice, getCurrentNpcState, decreaseItemStockInFirestore, getAvailableNpcQuests, checkNpcQuestProgress } from './npcSystem.js';
+import { npcDB, getAvailableNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog, getCurrentNpcState, decreaseItemStockInFirestore } from './npcSystem.js';
 import { money, inventory, setStats, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
@@ -260,9 +260,16 @@ async function showNpcShop(mode) {
 }
 
 // ========== ПОКАЗАТЬ КВЕСТЫ NPC ==========
+// ========== ПОКАЗАТЬ КВЕСТЫ NPC ==========
 async function showNpcQuests() {
     const npc = npcDB[currentNpcId];
     if (!npc) return;
+    
+    const user = window.auth?.currentUser;
+    if (!user) {
+        showMessage('❌ Авторизуйтесь', '#e74c3c');
+        return;
+    }
     
     currentMode = 'quest';
     const container = document.getElementById('npcQuestList');
@@ -271,7 +278,8 @@ async function showNpcQuests() {
     document.getElementById('npcOptions').innerHTML = '';
     document.getElementById('npcText').textContent = '📜 Вот что я могу тебе предложить:';
     
-    const quests = getNpcQuests(currentNpcId);
+    // ✅ ВЫЗЫВАЕМ АСИНХРОННУЮ ФУНКЦИЮ ДЛЯ ЗАГРУЗКИ КВЕСТОВ ИЗ FIRESTORE
+    const quests = await getAvailableNpcQuests(user.uid, currentNpcId);
     
     if (quests.length === 0) {
         document.getElementById('npcText').textContent = '📜 У меня пока нет для тебя заданий. Зайди позже!';
@@ -304,6 +312,7 @@ async function showNpcQuests() {
     html += '</div>';
     container.innerHTML = html;
     
+    // Обработчики кнопок
     document.querySelectorAll('.quest-accept-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const questId = btn.dataset.questId;
