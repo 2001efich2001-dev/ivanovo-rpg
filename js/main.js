@@ -1148,6 +1148,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // ===== ИНИЦИАЛИЗАЦИЯ ИНДИКАТОРА ЗАЩИТЫ =====
         initTradeGuardIndicator();
+        // ===== ИНИЦИАЛИЗАЦИЯ NPC UI =====
+import('./npcSystemUI.js').then(module => {
+    if (module.initNpcUI) {
+        module.initNpcUI();
+        console.log('🗣️ NPC UI инициализирован');
+    }
+});
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
