@@ -91,6 +91,7 @@ export const npcDB = {
 const NPC_STATE_KEY = 'npcState';
 
 // Загрузить состояние NPC из Firestore
+// ========== ЗАГРУЗИТЬ СОСТОЯНИЕ NPC ИЗ FIRESTORE ==========
 export async function loadNpcStateFromFirestore(userId) {
     if (!userId) return;
     
@@ -103,7 +104,7 @@ export async function loadNpcStateFromFirestore(userId) {
             const npcState = data.npcState;
             
             if (npcState) {
-                // Восстанавливаем сток товаров
+                // ✅ ОБНОВЛЯЕМ npcDB ПРЯМО ИЗ FIRESTORE
                 for (const [npcId, state] of Object.entries(npcState)) {
                     const npc = npcDB[npcId];
                     if (npc && state.shopStock) {
@@ -114,11 +115,19 @@ export async function loadNpcStateFromFirestore(userId) {
                         });
                     }
                 }
-                console.log('📦 Состояние NPC загружено из Firestore');
+                console.log('📦 Состояние NPC загружено из Firestore', npcState);
+                return true;
+            } else {
+                console.log('📦 Поле npcState отсутствует в Firestore, инициализируем...');
+                // Если поля нет — создаём его с дефолтными значениями
+                await saveNpcStateToFirestore(userId);
+                return false;
             }
         }
+        return false;
     } catch (error) {
         console.error('❌ Ошибка загрузки состояния NPC:', error);
+        return false;
     }
 }
 
