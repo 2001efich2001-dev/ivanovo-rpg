@@ -116,7 +116,7 @@ export const locationsDB = {
             id: 'dump_hobo',
             name: '🗑️ Бомж Семён',
             avatar: 'images/npc/hobo.png',
-            position: { x: 510, y: 510 },
+            position: { x: 610, y: 810 },
             width: 400,
             height: 400,
             actionId: 'talk_hobo'
@@ -355,7 +355,7 @@ export function renderLocation(locationId) {
         // Подпись над NPC
         const text = document.createElementNS(svgNS, "text");
         text.setAttribute("x", npc.position.x);
-        text.setAttribute("y", npc.position.y - 60);
+        text.setAttribute("y", npc.position.y - 460);
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("font-size", "16px");
         text.setAttribute("font-weight", "bold");
