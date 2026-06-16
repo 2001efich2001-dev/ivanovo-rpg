@@ -142,7 +142,8 @@ async function showNpcShop(mode) {
         if (!itemData) continue;
         
         const price = item.price;
-        const stock = item.stock || '∞';
+        // ✅ БЕРЁМ СТОК ИЗ npcRuntimeState
+        const stock = mode === 'buy' ? getItemStock(currentNpcId, item.id) : '∞';
         const count = mode === 'sell' ? inventory.find(i => i.id === item.id)?.count || 0 : stock;
         const isAvailable = mode === 'buy' ? (stock > 0) : true;
         
