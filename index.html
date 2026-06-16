@@ -375,6 +375,32 @@
         </div>
     </div>
 
+<!-- ===== МОДАЛЬНОЕ ОКНО ДЛЯ NPC ===== -->
+<div id="npcModal" class="modal">
+    <div class="modal-content npc-content">
+        <div class="npc-header">
+            <img id="npcAvatar" src="images/npc/default.png" alt="NPC" class="npc-avatar">
+            <div>
+                <h3 id="npcName">NPC</h3>
+                <p id="npcDescription" class="npc-desc">Описание NPC</p>
+            </div>
+        </div>
+        <div id="npcDialog" class="npc-dialog">
+            <p id="npcText">Привет, путник!</p>
+        </div>
+        <div id="npcOptions" class="npc-options">
+            <!-- Кнопки генерируются динамически -->
+        </div>
+        <div id="npcShop" class="npc-shop" style="display: none;">
+            <div class="npc-shop-items"></div>
+        </div>
+        <div id="npcQuestList" class="npc-quest-list" style="display: none;">
+            <!-- Список квестов генерируется динамически -->
+        </div>
+        <button id="closeNpcBtn" class="reset-btn" style="margin-top:16px;">❌ Закрыть</button>
+    </div>
+</div>
+    
     <!-- ===== НОВОЕ МОДАЛЬНОЕ ОКНО ДЛЯ ХРАНИЛИЩА ===== -->
     <div id="storageModal" class="modal">
         <div class="modal-content" style="max-width: 900px; width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
