@@ -1,6 +1,6 @@
 // js/npcSystemUI.js
 import { showMessage, logAction } from './utils.js';
-import { npcDB, getNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog, checkAndRestockNpc, saveNpcStateToFirestore } from './npcSystem.js';
+import { npcDB, getDialog, handleNpcChoice, getCurrentNpcState, decreaseItemStockInFirestore, getAvailableNpcQuests, checkNpcQuestProgress } from './npcSystem.js';
 import { money, inventory, setStats, updateUI } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
