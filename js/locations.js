@@ -106,17 +106,31 @@ export const locationsDB = {
         ]
     },
     dump: {
-        id: "dump",
-        name: "Свалка",
-        description: "Опасно, но можно найти ценные вещи.",
-        bgImage: "images/dump_bg.jpg",
-        zones: [
-            { id: "scavenge_zone", name: "Куча мусора", description: "Покопаться: найти бутылку или старую шапку (риск 40%)", cx: 200, cy: 200, r: 70, actionId: "scavenge" }
-        ],
-        actions: [
-            { id: "scavenge", name: "Покопаться в мусоре", desc: "Риск: 40% получить инфекцию", effect: { items: ["empty_bottle", "old_hat"] }, risk: 40, riskEffect: { health: -15, hunger: -5 } }
-        ]
+    id: "dump",
+    name: "Свалка",
+    description: "Опасно, но можно найти ценные вещи.",
+    bgImage: "images/dump_bg.jpg",
+    
+    // 👇 ДОБАВЛЯЕМ NPC
+    npc: {
+        id: 'dump_hobo',
+        name: '🗑️ Бомж Семён',
+        avatar: 'images/npc/hobo.png',
+        position: { x: 300, y: 250 },
+        width: 70,
+        height: 100,
+        actionId: 'talk_hobo'
     },
+    
+    zones: [
+        { id: "scavenge_zone", name: "Куча мусора", description: "Покопаться: найти бутылку или старую шапку (риск 40%)", cx: 200, cy: 200, r: 70, actionId: "scavenge" }
+    ],
+    actions: [
+        { id: "scavenge", name: "Покопаться в мусоре", desc: "Риск: 40% получить инфекцию", effect: { items: ["empty_bottle", "old_hat"] }, risk: 40, riskEffect: { health: -15, hunger: -5 } },
+        // 👇 ДОБАВЛЯЕМ ДЕЙСТВИЕ
+        { id: "talk_hobo", name: "🗑️ Поговорить с бомжом", desc: "Поговорить с местным жителем", effect: {}, cost: 0, risk: 0 }
+    ]
+},
     church: {
         id: "church",
         name: "Церковь",
