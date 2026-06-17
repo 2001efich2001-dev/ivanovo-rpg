@@ -7,7 +7,7 @@ import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
 import { logAction, showMessage } from './utils.js';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc, where } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { collection, query, orderBy, limit, getDocs, doc, getDoc, where, deleteDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
 import { setAchievementsData } from './achievements.js';
@@ -1330,6 +1330,17 @@ document.addEventListener('DOMContentLoaded', () => {
             stopWeatherEffects();
             stopTimeWeatherUpdates();
             stopHousingCheckTimer();
+            
+            // 👇 УДАЛЯЕМ ИЗ ОНЛАЙНА ПРИ ВЫХОДЕ
+            try {
+                const user = auth.currentUser;
+                if (user) {
+                    await deleteDoc(doc(db, 'online', user.uid));
+                    console.log('🔴 Пользователь удалён из онлайна');
+                }
+            } catch (e) {
+                console.warn('Ошибка удаления из онлайна:', e);
+            }
             
             if (realTimeUnsubscribe) {
                 realTimeUnsubscribe();
