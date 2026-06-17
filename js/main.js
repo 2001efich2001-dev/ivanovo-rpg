@@ -166,9 +166,9 @@ async function updatePlayerStats() {
         const totalPlayers = usersSnapshot.size;
         document.getElementById('totalPlayersCount').textContent = totalPlayers;
         
-        // Онлайн — пока просто считаем авторизованных (упрощённо)
-        // В будущем можно сделать отдельную коллекцию online
-        const onlineCount = 0; // временно 0, пока не добавим механизм
+        // РЕАЛЬНЫЙ ОНЛАЙН
+        const onlineSnapshot = await getDocs(collection(db, 'online'));
+        const onlineCount = onlineSnapshot.size;
         document.getElementById('onlineCount').textContent = onlineCount;
         
         console.log(`📊 Статистика: ${onlineCount} онлайн, ${totalPlayers} всего игроков`);
