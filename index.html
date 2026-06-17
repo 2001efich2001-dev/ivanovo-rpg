@@ -291,9 +291,19 @@
         </div>
     </div>
     
+    <!-- ===== НОВЫЙ ФУТЕР С ДОНАТОМ И СТАТИСТИКОЙ ===== -->
     <div class="global-footer">
-        <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
-        <p>RPG-Иваново · Альфа 0.2.26 · Глобоальное обновление: квесты, уникальные титулы </p>
+        <div class="footer-links">
+            <p><span id="developerLink" class="developer-link">developed by Efich</span></p>
+            <p>RPG-Иваново · Альфа 0.2.26 · Глобальное обновление: квесты, уникальные титулы</p>
+        </div>
+        <div class="footer-stats">
+            <span>🟢 Онлайн: <strong id="onlineCount">0</strong></span>
+            <span>👥 Всего игроков: <strong id="totalPlayersCount">0</strong></span>
+        </div>
+        <div class="footer-donate">
+            <button id="donateBtn" class="donate-btn">🍺 Пожертвовать на пиво разработчику</button>
+        </div>
     </div>
 
     <script type="module" src="js/main.js"></script>
@@ -375,31 +385,49 @@
         </div>
     </div>
 
-<!-- ===== МОДАЛЬНОЕ ОКНО ДЛЯ NPC ===== -->
-<div id="npcModal" class="modal">
-    <div class="modal-content npc-content">
-        <div class="npc-header">
-            <img id="npcAvatar" src="images/npc/default.png" alt="NPC" class="npc-avatar">
-            <div>
-                <h3 id="npcName">NPC</h3>
-                <p id="npcDescription" class="npc-desc">Описание NPC</p>
+    <!-- ===== МОДАЛЬНОЕ ОКНО ДЛЯ NPC ===== -->
+    <div id="npcModal" class="modal">
+        <div class="modal-content npc-content">
+            <div class="npc-header">
+                <img id="npcAvatar" src="images/npc/default.png" alt="NPC" class="npc-avatar">
+                <div>
+                    <h3 id="npcName">NPC</h3>
+                    <p id="npcDescription" class="npc-desc">Описание NPC</p>
+                </div>
             </div>
+            <div id="npcDialog" class="npc-dialog">
+                <p id="npcText">Привет, путник!</p>
+            </div>
+            <div id="npcOptions" class="npc-options">
+                <!-- Кнопки генерируются динамически -->
+            </div>
+            <div id="npcShop" class="npc-shop" style="display: none;">
+                <div class="npc-shop-items"></div>
+            </div>
+            <div id="npcQuestList" class="npc-quest-list" style="display: none;">
+                <!-- Список квестов генерируется динамически -->
+            </div>
+            <button id="closeNpcBtn" class="reset-btn" style="margin-top:16px;">❌ Закрыть</button>
         </div>
-        <div id="npcDialog" class="npc-dialog">
-            <p id="npcText">Привет, путник!</p>
-        </div>
-        <div id="npcOptions" class="npc-options">
-            <!-- Кнопки генерируются динамически -->
-        </div>
-        <div id="npcShop" class="npc-shop" style="display: none;">
-            <div class="npc-shop-items"></div>
-        </div>
-        <div id="npcQuestList" class="npc-quest-list" style="display: none;">
-            <!-- Список квестов генерируется динамически -->
-        </div>
-        <button id="closeNpcBtn" class="reset-btn" style="margin-top:16px;">❌ Закрыть</button>
     </div>
-</div>
+
+    <!-- ===== МОДАЛЬНОЕ ОКНО ДЛЯ ДОНАТА ===== -->
+    <div id="donateModal" class="modal">
+        <div class="modal-content donate-content" style="max-width: 400px; text-align: center;">
+            <h3>🍺 Пожертвовать на пиво разработчику</h3>
+            <p style="margin: 16px 0; font-size: 0.95rem; color: var(--text-secondary);">
+                Если ты добрый и щедрый, а игра приносит удовольствие,<br>
+                то поддержи любой денежкой автора игры!
+            </p>
+            <div style="background: #fff; padding: 16px; border-radius: 24px; display: inline-block; margin: 10px 0;">
+                <img id="donateQRImage" src="images/donate_qr.png" alt="QR-код для перевода" style="max-width: 200px; width: 100%; height: auto; border-radius: 12px;" onerror="this.style.display='none'">
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 16px;">
+                Отсканируй QR-код или переведи на карту по номеру телефона
+            </p>
+            <button class="close-modal action-btn" style="background: var(--buy-btn-bg); border: none; padding: 10px 24px; border-radius: 40px; color: white; cursor: pointer;">❌ Закрыть</button>
+        </div>
+    </div>
     
     <!-- ===== НОВОЕ МОДАЛЬНОЕ ОКНО ДЛЯ ХРАНИЛИЩА ===== -->
     <div id="storageModal" class="modal">
