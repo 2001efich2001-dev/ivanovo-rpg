@@ -166,14 +166,43 @@ async function updatePlayerStats() {
         const totalPlayers = usersSnapshot.size;
         document.getElementById('totalPlayersCount').textContent = totalPlayers;
         
-        // РЕАЛЬНЫЙ ОНЛАЙН
+        // РЕАЛЬНЫЙ ОНЛАЙН — считаем только тех, кто был активен в последние 2 минуты
         const onlineSnapshot = await getDocs(collection(db, 'online'));
-        const onlineCount = onlineSnapshot.size;
+        const now = Date.now();
+        const TWO_MINUTES = 2 * 60 * 1000; // 2 минуты
+        
+        let onlineCount = 0;
+        for (const doc of onlineSnapshot.docs) {
+            const data = doc.data();
+            const lastSeen = data.lastSeen ? new Date(data.lastSeen).getTime() : 0;
+            if (now - lastSeen < TWO_MINUTES) {
+                onlineCount++;
+            }
+        }
         document.getElementById('onlineCount').textContent = onlineCount;
         
         console.log(`📊 Статистика: ${onlineCount} онлайн, ${totalPlayers} всего игроков`);
     } catch (error) {
         console.error('Ошибка загрузки статистики:', error);
+    }
+}
+
+// ========== ОБНОВЛЕНИЕ СТАТУСА ОНЛАЙН (HEARTBEAT) ==========
+async function updateOnlineStatus() {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+    try {
+        const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const { db } = await import('./firestore.js');
+        
+        await setDoc(doc(db, 'online', user.uid), {
+            uid: user.uid,
+            displayName: user.displayName || 'Игрок',
+            lastSeen: new Date().toISOString()
+        }, { merge: true });
+    } catch (e) {
+        // тихо игнорируем
     }
 }
 
@@ -1118,6 +1147,10 @@ document.addEventListener('DOMContentLoaded', () => {
         await updatePlayerStats();
         // И каждые 60 секунд обновляем статистику
         setInterval(updatePlayerStats, 60000);
+
+        // ===== ОНЛАЙН: обновляем статус каждые 30 секунд =====
+        await updateOnlineStatus(); // сразу при входе
+        setInterval(updateOnlineStatus, 30000); // и каждые 30 секунд
         
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
