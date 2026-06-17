@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
-import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+import { getFirestore, doc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { showMessage } from './utils.js';
 import { initFirestore, loadGameData, saveGameData } from './firestore.js';
 import { initDOM, updateUI, inventory, equipped } from './gameState.js';
@@ -17,8 +17,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-initFirestore(auth); // инициализируем Firestore с нашим auth
-window.auth = auth; // делаем глобальный доступ для firestore.js
+initFirestore(auth);
+window.auth = auth;
 
 const db = getFirestore(app);
 
@@ -31,10 +31,33 @@ async function saveUserNickOnRegister(userId, email, nick) {
     if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: nick });
 }
 
-// Функция для скрытия сплеша при ошибке (если определена в main.js)
+// Функция для скрытия сплеша при ошибке
 function hideSplashOnError() {
     if (typeof window.hideSplashOnError === 'function') {
         window.hideSplashOnError();
+    }
+}
+
+// ========== ДОБАВЛЕНИЕ/УДАЛЕНИЕ ИЗ ОНЛАЙНА ==========
+async function addUserToOnline(user) {
+    try {
+        await setDoc(doc(db, 'online', user.uid), {
+            uid: user.uid,
+            displayName: user.displayName || 'Игрок',
+            lastSeen: new Date().toISOString()
+        }, { merge: true });
+        console.log('🟢 Пользователь добавлен в онлайн');
+    } catch (e) {
+        console.warn('Ошибка добавления в онлайн:', e);
+    }
+}
+
+async function removeUserFromOnline(user) {
+    try {
+        await deleteDoc(doc(db, 'online', user.uid));
+        console.log('🔴 Пользователь удалён из онлайна');
+    } catch (e) {
+        console.warn('Ошибка удаления из онлайна:', e);
     }
 }
 
@@ -52,7 +75,6 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
         registerFormDiv.style.display = 'block';
         if (authError) authError.innerText = '';
         if (regError) regError.innerText = '';
-        // При переключении на регистрацию скрываем сплеш, если он висит
         hideSplashOnError();
     });
     showLoginLink.addEventListener('click', (e) => {
@@ -64,31 +86,31 @@ export function initAuth(authContainer, gameContainer, loginFormDiv, registerFor
         hideSplashOnError();
     });
 
- loginBtn.addEventListener('click', async () => {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    if (authError) authError.innerText = '';
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-        if (authError) authError.innerText = error.message;
-        hideSplashOnError();
+    loginBtn.addEventListener('click', async () => {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        if (authError) authError.innerText = '';
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            if (authError) authError.innerText = error.message;
+            hideSplashOnError();
+        }
+    });
+
+    const loginEmail = document.getElementById('loginEmail');
+    const loginPassword = document.getElementById('loginPassword');
+
+    function onEnterPress(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            loginBtn.click();
+        }
     }
-});
 
-// ===== НОВЫЙ КОД: вход по нажатию Enter =====
-const loginEmail = document.getElementById('loginEmail');
-const loginPassword = document.getElementById('loginPassword');
+    if (loginEmail) loginEmail.addEventListener('keypress', onEnterPress);
+    if (loginPassword) loginPassword.addEventListener('keypress', onEnterPress);
 
-function onEnterPress(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        loginBtn.click();
-    }
-}
-
-if (loginEmail) loginEmail.addEventListener('keypress', onEnterPress);
-if (loginPassword) loginPassword.addEventListener('keypress', onEnterPress);
     registerBtn.addEventListener('click', async () => {
         const nick = document.getElementById('regNick').value.trim();
         const email = document.getElementById('regEmail').value;
@@ -112,12 +134,20 @@ if (loginPassword) loginPassword.addEventListener('keypress', onEnterPress);
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
+            // 👇 ДОБАВЛЯЕМ В ОНЛАЙН
+            await addUserToOnline(user);
+            
             authContainer.style.display = 'none';
             gameContainer.style.display = 'block';
             playerNickSpan.innerText = user.displayName || 'Игрок';
             await loadGameData(user.uid);
             if (onLoginCallback) onLoginCallback();
         } else {
+            // 👇 УДАЛЯЕМ ИЗ ОНЛАЙНА (если был)
+            if (window._lastUser) {
+                await removeUserFromOnline(window._lastUser);
+            }
+            
             gameContainer.style.display = 'none';
             authContainer.style.display = 'block';
             loginFormDiv.style.display = 'block';
@@ -129,8 +159,10 @@ if (loginPassword) loginPassword.addEventListener('keypress', onEnterPress);
             document.getElementById('regNick').value = '';
             document.getElementById('regEmail').value = '';
             document.getElementById('regPassword').value = '';
-            // Неавторизованный пользователь – скрываем сплеш
             hideSplashOnError();
         }
+        
+        // Сохраняем последнего пользователя для удаления из онлайна при выходе
+        window._lastUser = user;
     });
 }
