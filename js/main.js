@@ -156,6 +156,27 @@ function updatePlayerTitle() {
     }
 }
 
+// ========== СТАТИСТИКА ИГРОКОВ ==========
+async function updatePlayerStats() {
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        
+        // Общее количество игроков
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const totalPlayers = usersSnapshot.size;
+        document.getElementById('totalPlayersCount').textContent = totalPlayers;
+        
+        // Онлайн — пока просто считаем авторизованных (упрощённо)
+        // В будущем можно сделать отдельную коллекцию online
+        const onlineCount = 0; // временно 0, пока не добавим механизм
+        document.getElementById('onlineCount').textContent = onlineCount;
+        
+        console.log(`📊 Статистика: ${onlineCount} онлайн, ${totalPlayers} всего игроков`);
+    } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+    }
+}
+
 // ========== ТОП ИГРОКОВ ==========
 let topPlayersCache = null;
 let topPlayersCacheTime = 0;
@@ -617,7 +638,6 @@ function setupRealTimeUpdates(userId) {
     
     subscribeToUserChanges(userId, async (newData, isRealtime = true) => {
         // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ИСПОЛЬЗУЕМ TRADEGUARD =====
-        // Если защита активна — полностью пропускаем realtime обновление
         if (isTradeGuardActive()) {
             const pending = getPendingTrade();
             const remaining = getTradeBlockTimeRemaining();
@@ -625,7 +645,6 @@ function setupRealTimeUpdates(userId) {
             return;
         }
         
-        // Проверяем, что данные не старые
         const newLastUpdated = newData.lastUpdated ? new Date(newData.lastUpdated).getTime() : 0;
         
         if (localLastUpdated && newLastUpdated <= localLastUpdated) {
@@ -635,16 +654,12 @@ function setupRealTimeUpdates(userId) {
         
         console.log('🔄 Real-time: получены свежие данные, обновляем локальное состояние');
         
-        // Используем защищённую функцию обновления
         const updated = updateFromFirestoreWithGuard(newData, false);
         
         if (updated) {
             localLastUpdated = newLastUpdated;
-            
-            // Обновляем отображение титула
             updatePlayerTitle();
             
-            // Обновляем UI компоненты
             try {
                 const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab, renderTitlesTab } = await import('./inventory.js');
                 const { renderLocation } = await import('./locations.js');
@@ -698,7 +713,6 @@ async function checkHousingPayment() {
 
 function startHousingCheckTimer() {
     if (housingCheckInterval) clearInterval(housingCheckInterval);
-    
     housingCheckInterval = setInterval(() => {
         console.log('🏠 Плановая проверка коммуналки/аренды...');
         checkHousingPayment();
@@ -804,7 +818,6 @@ async function initAchievements() {
 
 // ========== ДОБАВЛЯЕМ ВИЗУАЛЬНЫЙ ИНДИКАТОР ЗАЩИТЫ ==========
 function initTradeGuardIndicator() {
-    // Добавляем индикатор в правый верхний угол (рядом с аватаром)
     const gameRight = document.querySelector('.game-right');
     if (gameRight && !document.getElementById('tradeGuardStatus')) {
         const indicator = document.createElement('div');
@@ -831,7 +844,6 @@ function initTradeGuardIndicator() {
         gameRight.appendChild(indicator);
     }
     
-    // Периодически проверяем статус защиты
     setInterval(() => {
         const indicator = document.getElementById('tradeGuardStatus');
         if (indicator) {
@@ -888,7 +900,6 @@ async function openRealEstateMarket() {
         html += '</div>';
         container.innerHTML = html;
         
-        // Обработчики покупки
         document.querySelectorAll('.buy-from-market-btn').forEach(btn => {
             btn.removeEventListener('click', btn._marketHandler);
             const handler = async () => {
@@ -905,8 +916,7 @@ async function openRealEstateMarket() {
                     const { buyProperty } = await import('./realEstateMarket.js');
                     const success = await buyProperty(listingId, user.uid);
                     if (success) {
-                        // Обновляем доску и вкладку недвижимости
-                        await openRealEstateMarket(); // переоткрываем доску
+                        await openRealEstateMarket();
                         const { renderHousingTab } = await import('./inventory.js');
                         renderHousingTab();
                         showMessage(`🏠 Поздравляем! Вы купили недвижимость!`, '#4caf50');
@@ -947,21 +957,18 @@ async function changeNickname(newNick) {
         return false;
     }
     
-    // Проверка на недопустимые символы
     const invalidChars = /[<>{}[\]\\/|@#$%^&*()+=!`~]/;
     if (invalidChars.test(newNick)) {
         showMessage('❌ Ник содержит недопустимые символы', '#e74c3c');
         return false;
     }
     
-    // Проверка, что ник не совпадает с текущим
     const currentNick = user.displayName;
     if (currentNick === newNick) {
         showMessage('❌ Это ваш текущий ник', '#ffd966');
         return false;
     }
     
-    // Проверка уникальности ника
     showMessage('🔍 Проверка уникальности ника...', '#ffd966');
     
     try {
@@ -981,23 +988,19 @@ async function changeNickname(newNick) {
             return false;
         }
         
-        // Обновляем displayName в Auth
         await updateProfile(user, { displayName: newNick });
         
-        // Обновляем displayName в Firestore
         const userRef = doc(db, 'users', user.uid);
         const { updateDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
         await updateDoc(userRef, {
             displayName: newNick
         });
         
-        // Обновляем отображение ника в интерфейсе
         const playerNickSpan = document.getElementById('playerNick');
         if (playerNickSpan) playerNickSpan.innerText = newNick;
         
         showMessage(`✅ Ник успешно изменён на "${newNick}"!`, '#4caf50');
         
-        // Обновляем ники в активных предложениях обмена (опционально)
         try {
             const { updateNickInTradeOffers, updateNickInRealEstateListings } = await import('./firestore.js');
             if (typeof updateNickInTradeOffers === 'function') {
@@ -1044,6 +1047,28 @@ document.addEventListener('DOMContentLoaded', () => {
     setLogUpdateCallback(() => { renderLogPanel(); });
     setExpUpdateCallback(() => { updateUI(); });
     
+    // ===== ОБРАБОТЧИК КНОПКИ ДОНАТА =====
+    const donateBtn = document.getElementById('donateBtn');
+    const donateModal = document.getElementById('donateModal');
+    if (donateBtn && donateModal) {
+        donateBtn.addEventListener('click', () => {
+            playClick();
+            donateModal.style.display = 'flex';
+        });
+        donateModal.addEventListener('click', (e) => {
+            if (e.target === donateModal) {
+                donateModal.style.display = 'none';
+            }
+        });
+        // Закрытие по кнопке внутри модалки
+        const closeDonateBtn = donateModal.querySelector('.close-modal');
+        if (closeDonateBtn) {
+            closeDonateBtn.addEventListener('click', () => {
+                donateModal.style.display = 'none';
+            });
+        }
+    }
+    
     async function afterLogin() {
         const user = window.auth?.currentUser;
         
@@ -1055,7 +1080,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window._preventAutoSave = false;
         
         if (user) {
-            // Загружаем lastUpdated из Firestore при входе
             try {
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
                 if (userDoc.exists() && userDoc.data().lastUpdated) {
@@ -1068,6 +1092,15 @@ document.addEventListener('DOMContentLoaded', () => {
             
             setupRealTimeUpdates(user.uid);
             initAchievements();
+            
+            // Загружаем состояние NPC
+            try {
+                const { loadNpcStateFromFirestore } = await import('./npcSystem.js');
+                await loadNpcStateFromFirestore(user.uid);
+                console.log('🗣️ Состояние NPC загружено');
+            } catch (err) {
+                console.warn('Ошибка загрузки состояния NPC:', err);
+            }
         }
         
         renderItemsTab();
@@ -1079,9 +1112,12 @@ document.addEventListener('DOMContentLoaded', () => {
         startTimeWeatherUpdates();
         renderLogPanel();
         updateUI();
-        
-        // 👉 ОБНОВЛЯЕМ ОТОБРАЖЕНИЕ ТИТУЛА ПОСЛЕ ЗАГРУЗКИ ДАННЫХ
         updatePlayerTitle();
+        
+        // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
+        await updatePlayerStats();
+        // И каждые 60 секунд обновляем статистику
+        setInterval(updatePlayerStats, 60000);
         
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
@@ -1148,20 +1184,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // ===== ИНИЦИАЛИЗАЦИЯ ИНДИКАТОРА ЗАЩИТЫ =====
         initTradeGuardIndicator();
+        
         // ===== ИНИЦИАЛИЗАЦИЯ NPC UI =====
-import('./npcSystemUI.js').then(module => {
-    if (module.initNpcUI) {
-        module.initNpcUI();
-        console.log('🗣️ NPC UI инициализирован');
-    }
-});
-        // ===== ЗАГРУЗКА СОСТОЯНИЯ NPC =====
-import('./npcSystem.js').then(async module => {
-    if (user) {
-        await module.loadNpcStateFromFirestore(user.uid);
-        console.log('🗣️ Состояние NPC загружено');
-    }
-});
+        import('./npcSystemUI.js').then(module => {
+            if (module.initNpcUI) {
+                module.initNpcUI();
+                console.log('🗣️ NPC UI инициализирован');
+            }
+        });
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
@@ -1258,12 +1288,10 @@ import('./npcSystem.js').then(async module => {
         });
     }
     
-    // ===== КНОПКА: КВЕСТЫ =====
     if (questsBtn) {
         questsBtn.addEventListener('click', openQuestsModal);
     }
     
-    // ===== КНОПКА: АГЕНТСТВО НЕДВИЖИМОСТИ =====
     if (realEstateMarketBtn) {
         realEstateMarketBtn.addEventListener('click', openRealEstateMarket);
     }
@@ -1339,7 +1367,6 @@ import('./npcSystem.js').then(async module => {
         });
     }
     
-    // ===== КНОПКА: СМЕНА НИКА =====
     if (changeNickBtn) {
         changeNickBtn.addEventListener('click', () => {
             playClick();
@@ -1350,7 +1377,6 @@ import('./npcSystem.js').then(async module => {
         });
     }
     
-    // ===== ОБРАБОТЧИК ПОДТВЕРЖДЕНИЯ СМЕНЫ НИКА =====
     const confirmNickBtn = document.getElementById('confirmChangeNickBtn');
     if (confirmNickBtn) {
         confirmNickBtn.addEventListener('click', async () => {
