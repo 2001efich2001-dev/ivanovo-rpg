@@ -1,8 +1,8 @@
 // js/randomEvents.js
 import { eventsDB } from './randomEventsDB.js';
-import { inventory, health, hunger, cold, money, setStats, maxHealth, maxHunger, maxCold, updateUI, addLogEntry, addExperience, currentLocation } from './gameState.js';
+import { inventory, health, hunger, cold, money, setStats, maxHealth, maxHunger, maxCold, updateUI, addLogEntry, addExperience, currentLocation, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 import { saveGameData } from './firestore.js';
-import { showMessage } from './utils.js';
+import { showMessage, showTutorialTip } from './utils.js';
 import { itemsDB } from './inventory.js';
 
 // Переменная для отслеживания активных временных эффектов
@@ -183,6 +183,13 @@ async function showEventModal(event, choiceHandler) {
     const modal = document.getElementById('eventModal');
     const modalContent = document.getElementById('eventModalContent');
     if (!modal || !modalContent) return;
+    
+    // 👇 ПОДСКАЗКА: первое случайное событие
+    if (tutorialEnabled && !isTutorialShown('shown_random_event')) {
+        showTutorialTip('⚡ Случайные события! В городе Иваново может случиться что угодно. Будь готов к неожиданностям — они могут принести удачу или проблемы.', 4000);
+        markTutorialShown('shown_random_event');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
     
     if (event.type === 'auto') {
         modalContent.innerHTML = `
