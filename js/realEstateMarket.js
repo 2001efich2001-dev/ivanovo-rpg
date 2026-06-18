@@ -1,9 +1,10 @@
 // js/realEstateMarket.js
 import { db } from './firestore.js';
 import { collection, addDoc, query, where, getDocs, updateDoc, doc, getDoc, deleteDoc, orderBy, limit, runTransaction } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { showMessage } from './utils.js';
+import { showMessage, showTutorialTip } from './utils.js';
 import { saveGameData } from './firestore.js';
 import { activateTradeGuard, deactivateTradeGuard } from './tradeGuard.js';
+import { markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 
 // ========== ВЫСТАВИТЬ НЕДВИЖИМОСТЬ НА ПРОДАЖУ ==========
 export async function listPropertyForSale(propertyId, price) {
@@ -281,6 +282,13 @@ export async function buyProperty(listingId, buyerId) {
             
             console.log('🏠 UI покупателя обновлён принудительно');
             showMessage(`🏠 Вы купили ${propertyName} за ${price}₽`, '#4caf50');
+            
+            // 👇 ПОДСКАЗКА: первая покупка с доски
+            if (tutorialEnabled && !isTutorialShown('shown_estate_buy')) {
+                showTutorialTip('🏠 Поздравляем с покупкой! Теперь у тебя есть новое жильё. Не забывай пополнять счёт для коммуналки, чтобы не выселили!', 4000);
+                markTutorialShown('shown_estate_buy');
+                await import('./firestore.js').then(m => m.saveGameData());
+            }
         }
         
         // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ПРОДАВЦА =====
