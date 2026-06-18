@@ -917,6 +917,13 @@ function initTradeGuardIndicator() {
 async function openRealEstateMarket() {
     playClick();
     
+    // 👇 ПОДСКАЗКА: первый раз открыли агентство
+    if (tutorialEnabled && !isTutorialShown('shown_estate_agency')) {
+        showTutorialTip('📢 Агентство недвижимости "Авит0" — здесь можно купить и продать недвижимость другим игрокам. Перед продажей убедись, что хранилище пустое!', 5000);
+        markTutorialShown('shown_estate_agency');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
+    
     const modal = document.getElementById('realEstateMarketModal');
     const container = document.getElementById('marketListings');
     
@@ -1375,6 +1382,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (topPlayersBtn) {
         topPlayersBtn.addEventListener('click', async () => {
             playClick();
+            
+            // 👇 ПОДСКАЗКА: первый раз открыли топ
+            if (tutorialEnabled && !isTutorialShown('shown_top_players')) {
+                showTutorialTip('🏆 Топ игроков — здесь ты видишь лучших игроков города. Поднимайся в топ, выполняя квесты и зарабатывая опыт!', 4000);
+                markTutorialShown('shown_top_players');
+                await import('./firestore.js').then(m => m.saveGameData());
+            }
+            
             const modal = document.getElementById('topModal');
             await loadTopPlayers();
             modal.style.display = 'flex';
