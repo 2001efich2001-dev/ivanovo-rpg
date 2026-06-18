@@ -1,7 +1,8 @@
-import { money, inventory, health, hunger, cold, setStats } from './gameState.js';
+// js/shop.js
+import { money, inventory, health, hunger, cold, setStats, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
-import { showMessage, logAction } from './utils.js';
+import { showMessage, logAction, showTutorialTip } from './utils.js';
 
 // Цены продажи (50% от цены покупки, но не менее 1)
 function getSellPrice(itemId) {
@@ -245,6 +246,13 @@ async function buyItem(itemId) {
         await saveGameData();
         showMessage(`✅ Куплено: ${item.name}. Предмет добавлен в инвентарь.`, '#4caf50');
         logAction(`Куплен предмет: ${item.name} за ${item.price}₽`, 'economy');
+        
+        // 👇 ПОДСКАЗКА: первая покупка в магазине
+        if (tutorialEnabled && !isTutorialShown('shown_shop_buy')) {
+            showTutorialTip('🛒 Отличная покупка! Предметы можно использовать из инвентаря. Некоторые предметы дают бонусы к теплу, здоровью или энергии.', 4000);
+            markTutorialShown('shown_shop_buy');
+            await import('./firestore.js').then(m => m.saveGameData());
+        }
         
         // Обновляем обе вкладки магазина
         renderShopBuyTab();

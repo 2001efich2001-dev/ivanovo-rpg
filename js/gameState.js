@@ -67,6 +67,58 @@ export let lastUpdated = null;             // Время последнего о
 export let currentTitle = null;            // Текущий активный титул
 export let ownedTitles = [];               // Массив полученных титулов
 
+// ========== ТУТОРИАЛ ==========
+export let tutorialEnabled = true;         // Глобальный выключатель подсказок
+export let tutorialFlags = {
+    // Общие
+    shown_first_enter: false,
+    shown_zone_click: false,
+    shown_inventory: false,
+    shown_map: false,
+    shown_shop: false,
+    shown_quests: false,
+    shown_npc: false,
+    shown_death: false,
+    shown_money_1000: false,
+    shown_energy_low: false,
+    
+    // Специфичные для механик
+    shown_trade: false,
+    shown_housing: false,
+    shown_estate_agency: false,
+    shown_home_teleport: false,
+    shown_storage: false,
+    shown_darts: false,
+    shown_fishing: false,
+    shown_slot_machine: false,
+    shown_top_players: false,
+    
+    // Действия на локациях
+    shown_beg: false,
+    shown_search: false,
+    shown_steal: false,
+    shown_scavenge: false,
+    shown_pray: false,
+    shown_fight: false,
+    shown_drink: false,
+    shown_sleep: false,
+    shown_eat: false,
+    shown_rest: false,
+    shown_collect_water: false,
+    shown_relax: false,
+    shown_scavenge_home: false,
+    shown_sauna: false,
+    shown_cook: false,
+    
+    // 👇 НОВЫЕ ФЛАГИ ДЛЯ ТУТОРИАЛА
+    shown_quest_complete: false,   // Выполнение квеста
+    shown_npc_shop: false,         // Магазин NPC
+    shown_npc_quest: false,        // Квесты NPC
+    shown_random_event: false,     // Случайное событие
+    shown_estate_buy: false,       // Покупка с доски
+    shown_shop_buy: false,         // Покупка в магазине
+};
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -78,6 +130,48 @@ let onLogUpdateCallback = null;
 let onExpUpdateCallback = null;
 let onEnergyUpdateCallback = null;
 let onIntoxicationUpdateCallback = null;
+
+// ========== ФУНКЦИИ ДЛЯ ТУТОРИАЛА ==========
+export function setTutorialData(data) {
+    if (data) {
+        tutorialEnabled = data.enabled ?? true;
+        tutorialFlags = { ...tutorialFlags, ...(data.flags || {}) };
+    }
+}
+
+export function getTutorialData() {
+    return {
+        enabled: tutorialEnabled,
+        flags: tutorialFlags
+    };
+}
+
+export function resetTutorialFlags() {
+    for (const key in tutorialFlags) {
+        if (typeof tutorialFlags[key] === 'boolean') {
+            tutorialFlags[key] = false;
+        }
+    }
+    // Не сбрасываем tutorialEnabled
+}
+
+export function isTutorialEnabled() {
+    return tutorialEnabled;
+}
+
+export function setTutorialEnabled(enabled) {
+    tutorialEnabled = enabled;
+}
+
+export function markTutorialShown(flagKey) {
+    if (tutorialFlags.hasOwnProperty(flagKey)) {
+        tutorialFlags[flagKey] = true;
+    }
+}
+
+export function isTutorialShown(flagKey) {
+    return tutorialFlags[flagKey] || false;
+}
 
 export function initDOM() {
     healthValueSpan = document.getElementById('healthValue');
@@ -288,10 +382,10 @@ export function addIntoxication(amount) {
         // Показываем красивое уведомление
         import('./utils.js').then(utils => {
             utils.showPopupNotification(
-                'images/events/drunk_100.png',   // путь к картинке (создайте её или используйте существующую)
+                'images/events/drunk_100.png',
                 '🍺 АЛКОГОЛЬНОЕ ОТКЛЮЧЕНИЕ! 🍺',
                 'Вы достигли 100% опьянения! Пора в ноктюрн...',
-                'sounds/drunk_alarm.mp3',        // звук (опционально)
+                'sounds/drunk_alarm.mp3',
                 5000
             );
         });
@@ -553,7 +647,6 @@ export function setTitlesData(data) {
         currentTitle = data.current || null;
         ownedTitles = Array.isArray(data.owned) ? data.owned : [];
     }
-    // Обновляем отображение в интерфейсе
     const titleSpan = document.getElementById('playerTitle');
     if (titleSpan) {
         if (currentTitle) {
@@ -578,15 +671,10 @@ export function getTitlesData() {
     };
 }
 
-// ===== НОВАЯ ФУНКЦИЯ ДЛЯ СМЕНЫ ТИТУЛА =====
 export async function setCurrentTitle(title) {
     currentTitle = title;
     updateUI();
-    
-    // Сохраняем в Firestore
     await saveGameData();
-    
-    // Обновляем отображение в интерфейсе
     const titleSpan = document.getElementById('playerTitle');
     if (titleSpan) {
         if (title) {
@@ -596,7 +684,6 @@ export async function setCurrentTitle(title) {
             titleSpan.style.display = 'none';
         }
     }
-    
     console.log(`🏷️ Титул изменён на: ${title || 'нет'}`);
 }
 
@@ -1175,26 +1262,16 @@ export async function validateCurrentHome() {
 }
 
 // ========== НОВАЯ ФУНКЦИЯ: ОБНОВЛЕНИЕ ИЗ FIRESTORE С ЗАЩИТОЙ ==========
-/**
- * Обновить состояние из Firestore (с защитой от обмена)
- * @param {Object} remoteData - Данные из Firestore
- * @param {boolean} force - Принудительное обновление (игнорировать защиту)
- * @returns {boolean} - Было ли обновление применено
- */
 export function updateFromFirestoreWithGuard(remoteData, force = false) {
-    // Если защита активна и не форсируем — пропускаем обновление
     if (!force && shouldBlockRealtime()) {
         const remaining = getRemainingBlockTime();
         console.log(`🛡️ updateFromFirestoreWithGuard: обновление отклонено (защита активна, осталось ${remaining}с)`);
-        
-        // Добавляем запись в лог для отладки (но не спамим)
-        if (Math.random() < 0.1) { // только 10% случаев, чтобы не заспамить лог
+        if (Math.random() < 0.1) {
             addLogEntry(`🛡️ Пропущено автоматическое обновление (обработка обмена ${remaining}с)`, 'system');
         }
         return false;
     }
     
-    // Применяем обновление
     let updated = false;
     
     if (remoteData.health !== undefined) {
@@ -1253,6 +1330,10 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
         setTitlesData(remoteData.titles);
         updated = true;
     }
+    if (remoteData.tutorial !== undefined) {
+        setTutorialData(remoteData.tutorial);
+        updated = true;
+    }
     if (remoteData.lastUpdated !== undefined) {
         lastUpdated = remoteData.lastUpdated;
         updated = true;
@@ -1261,8 +1342,6 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
     if (updated) {
         updateUI();
         console.log('🔄 updateFromFirestoreWithGuard: данные обновлены из Firestore');
-        
-        // Если обновление пришло и защита была активна, но мы форсированно применили — снимаем защиту
         if (force && shouldBlockRealtime()) {
             deactivateTradeGuard();
             console.log('🔄 Форсированное обновление применено, защита снята');
@@ -1274,18 +1353,10 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
 }
 
 // ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ TRADE ==========
-/**
- * Проверить, активна ли сейчас защита обмена
- * @returns {boolean}
- */
 export function isTradeBlocked() {
     return isTradeGuardActive();
 }
 
-/**
- * Получить время до снятия защиты (в секундах)
- * @returns {number}
- */
 export function getTradeBlockTimeRemaining() {
     return getRemainingBlockTime();
 }

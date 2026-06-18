@@ -1,7 +1,8 @@
 // js/questUI.js
 import { getAvailableQuests, getCompletedQuests, updateQuestProgress } from './questSystem.js';
 import { questsDB } from './quests.js';
-import { showMessage } from './utils.js';
+import { showMessage, showTutorialTip } from './utils.js';
+import { markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 
 // ========== ОТКРЫТЬ МОДАЛЬНОЕ ОКНО КВЕСТОВ ==========
 export async function openQuestsModal() {
@@ -9,6 +10,13 @@ export async function openQuestsModal() {
     if (!modal) {
         console.error('Модальное окно квестов не найдено');
         return;
+    }
+    
+    // 👇 ПОДСКАЗКА: первый раз открыли квесты
+    if (tutorialEnabled && !isTutorialShown('shown_quests')) {
+        showTutorialTip('📜 Квесты — твой путь к богатству и славе! Выполняй задания, зарабатывай деньги, опыт и уникальные титулы. Ежедневные квесты обновляются каждый день!', 5000);
+        markTutorialShown('shown_quests');
+        await import('./firestore.js').then(m => m.saveGameData());
     }
     
     modal.style.display = 'flex';

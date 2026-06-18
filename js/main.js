@@ -1,12 +1,12 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining, currentTitle, ownedTitles, setCurrentTitle } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining, currentTitle, ownedTitles, setCurrentTitle, tutorialEnabled, tutorialFlags, resetTutorialFlags, setTutorialEnabled, markTutorialShown, isTutorialShown } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal, renderTitlesTab } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
 import { renderLocation } from './locations.js';
 import { startTimeWeatherUpdates, stopTimeWeatherUpdates, updateTimeWeatherUI } from './timeWeather.js';
 import { stopWeatherEffects } from './weatherEffects.js';
-import { logAction, showMessage } from './utils.js';
+import { logAction, showMessage, showTutorialTip } from './utils.js';
 import { collection, query, orderBy, limit, getDocs, doc, getDoc, where, deleteDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { db, getIncomingTradeOffers, getOutgoingTradeOffers, cancelTradeOffer, acceptTradeOffer, rejectTradeOffer, createTradeOffer, subscribeToUserChanges, unsubscribeFromUserChanges } from './firestore.js';
 import { initCheats, initQuickCheats } from './cheats.js';
@@ -154,6 +154,32 @@ function updatePlayerTitle() {
     } else {
         titleSpan.style.display = 'none';
     }
+}
+
+// ========== УПРАВЛЕНИЕ ТУТОРИАЛОМ ==========
+async function handleToggleTutorial() {
+    const btn = document.getElementById('toggleTutorialBtn');
+    if (!btn) return;
+    
+    const newState = !tutorialEnabled;
+    setTutorialEnabled(newState);
+    await import('./firestore.js').then(m => m.saveGameData());
+    
+    if (newState) {
+        btn.textContent = '💡 Подсказки: Вкл';
+        btn.style.background = '#2c3e50';
+        showMessage('💡 Подсказки включены!', '#4caf50');
+    } else {
+        btn.textContent = '💡 Подсказки: Выкл';
+        btn.style.background = '#7f8c8d';
+        showMessage('💡 Подсказки выключены. Ты можешь включить их в любой момент.', '#ffd966');
+    }
+}
+
+async function handleResetTutorial() {
+    resetTutorialFlags();
+    await import('./firestore.js').then(m => m.saveGameData());
+    showMessage('💡 Все подсказки сброшены! Они появятся снова, когда ты встретишь соответствующую механику.', '#8e44ad');
 }
 
 // ========== СТАТИСТИКА ИГРОКОВ ==========
@@ -666,7 +692,6 @@ function setupRealTimeUpdates(userId) {
     }
     
     subscribeToUserChanges(userId, async (newData, isRealtime = true) => {
-        // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ИСПОЛЬЗУЕМ TRADEGUARD =====
         if (isTradeGuardActive()) {
             const pending = getPendingTrade();
             const remaining = getTradeBlockTimeRemaining();
@@ -892,6 +917,13 @@ function initTradeGuardIndicator() {
 async function openRealEstateMarket() {
     playClick();
     
+    // 👇 ПОДСКАЗКА: первый раз открыли агентство
+    if (tutorialEnabled && !isTutorialShown('shown_estate_agency')) {
+        showTutorialTip('📢 Агентство недвижимости "Авит0" — здесь можно купить и продать недвижимость другим игрокам. Перед продажей убедись, что хранилище пустое!', 5000);
+        markTutorialShown('shown_estate_agency');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
+    
     const modal = document.getElementById('realEstateMarketModal');
     const container = document.getElementById('marketListings');
     
@@ -1089,13 +1121,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 donateModal.style.display = 'none';
             }
         });
-        // Закрытие по кнопке внутри модалки
         const closeDonateBtn = donateModal.querySelector('.close-modal');
         if (closeDonateBtn) {
             closeDonateBtn.addEventListener('click', () => {
                 donateModal.style.display = 'none';
             });
         }
+    }
+    
+    // ===== ОБРАБОТЧИКИ КНОПОК ТУТОРИАЛА =====
+    const toggleTutorialBtn = document.getElementById('toggleTutorialBtn');
+    const resetTutorialBtn = document.getElementById('resetTutorialBtn');
+    
+    if (toggleTutorialBtn) {
+        toggleTutorialBtn.addEventListener('click', handleToggleTutorial);
+        // Устанавливаем начальное состояние кнопки
+        if (tutorialEnabled) {
+            toggleTutorialBtn.textContent = '💡 Подсказки: Вкл';
+            toggleTutorialBtn.style.background = '#2c3e50';
+        } else {
+            toggleTutorialBtn.textContent = '💡 Подсказки: Выкл';
+            toggleTutorialBtn.style.background = '#7f8c8d';
+        }
+    }
+    
+    if (resetTutorialBtn) {
+        resetTutorialBtn.addEventListener('click', handleResetTutorial);
     }
     
     async function afterLogin() {
@@ -1122,7 +1173,6 @@ document.addEventListener('DOMContentLoaded', () => {
             setupRealTimeUpdates(user.uid);
             initAchievements();
             
-            // Загружаем состояние NPC
             try {
                 const { loadNpcStateFromFirestore } = await import('./npcSystem.js');
                 await loadNpcStateFromFirestore(user.uid);
@@ -1145,12 +1195,18 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
         await updatePlayerStats();
-        // И каждые 60 секунд обновляем статистику
         setInterval(updatePlayerStats, 60000);
 
-        // ===== ОНЛАЙН: обновляем статус каждые 30 секунд =====
-        await updateOnlineStatus(); // сразу при входе
-        setInterval(updateOnlineStatus, 30000); // и каждые 30 секунд
+        // ===== ОНЛАЙН =====
+        await updateOnlineStatus();
+        setInterval(updateOnlineStatus, 30000);
+        
+        // ===== ПОДСКАЗКА ПРИ ПЕРВОМ ВХОДЕ =====
+        if (!isTutorialShown('shown_first_enter')) {
+            showTutorialTip('Добро пожаловать в Иваново! 🏙️ Ты — бомж. Твоя цель — выжить и разбогатеть. Начни с того, что попроси подаяние на вокзале.', 6000);
+            markTutorialShown('shown_first_enter');
+            await import('./firestore.js').then(m => m.saveGameData());
+        }
         
         if (gameContainer) gameContainer.classList.remove('game-container-hidden');
         hideSplash();
@@ -1191,7 +1247,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ =====
         try {
             const gameState = await import('./gameState.js');
             if (typeof gameState.checkAllHousingPayments === 'function') {
@@ -1202,23 +1257,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Ошибка при глобальной проверке недвижимости:', err);
         }
         
-        // ===== ПРОВЕРКА ТЕКУЩЕГО ЖИЛЬЯ =====
         await checkHousingPayment();
         startHousingCheckTimer();
         
-        // ===== МОДАЛЬНОЕ ОКНО "ОБ АВТОРЕ" =====
         setupAboutModal();
         
-        // ===== НОВОСТНОЕ ОКНО =====
         initNewsModal();
         setTimeout(() => {
             showNewsIfNeeded();
         }, 500);
         
-        // ===== ИНИЦИАЛИЗАЦИЯ ИНДИКАТОРА ЗАЩИТЫ =====
         initTradeGuardIndicator();
         
-        // ===== ИНИЦИАЛИЗАЦИЯ NPC UI =====
         import('./npcSystemUI.js').then(module => {
             if (module.initNpcUI) {
                 module.initNpcUI();
@@ -1332,6 +1382,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (topPlayersBtn) {
         topPlayersBtn.addEventListener('click', async () => {
             playClick();
+            
+            // 👇 ПОДСКАЗКА: первый раз открыли топ
+            if (tutorialEnabled && !isTutorialShown('shown_top_players')) {
+                showTutorialTip('🏆 Топ игроков — здесь ты видишь лучших игроков города. Поднимайся в топ, выполняя квесты и зарабатывая опыт!', 4000);
+                markTutorialShown('shown_top_players');
+                await import('./firestore.js').then(m => m.saveGameData());
+            }
+            
             const modal = document.getElementById('topModal');
             await loadTopPlayers();
             modal.style.display = 'flex';
@@ -1364,7 +1422,6 @@ document.addEventListener('DOMContentLoaded', () => {
             stopTimeWeatherUpdates();
             stopHousingCheckTimer();
             
-            // 👇 УДАЛЯЕМ ИЗ ОНЛАЙНА ПРИ ВЫХОДЕ
             try {
                 const user = auth.currentUser;
                 if (user) {

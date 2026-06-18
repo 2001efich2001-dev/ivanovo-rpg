@@ -1,6 +1,6 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 import { saveGameData } from './firestore.js';
-import { showMessage, logAction } from './utils.js';
+import { showMessage, logAction, showTutorialTip } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
 
 
@@ -13,6 +13,16 @@ function playClick() {
 }
 function playPurchase() {
     if (typeof window.playPurchaseSound === 'function') window.playPurchaseSound();
+}
+
+// ========== ПОКАЗАТЬ ПОДСКАЗКУ ДЛЯ ИНВЕНТАРЯ ==========
+async function showInventoryTip(flagKey, tipText) {
+    if (!tutorialEnabled) return;
+    if (isTutorialShown(flagKey)) return;
+    
+    showTutorialTip(tipText, 4000);
+    markTutorialShown(flagKey);
+    await import('./firestore.js').then(m => m.saveGameData());
 }
 
 // Добавляем поле image для каждого предмета
@@ -735,6 +745,9 @@ export function renderItemsTab() {
     
     itemsTab.innerHTML = html;
     
+    // 👇 ПОДСКАЗКА: первый раз открыли инвентарь
+    showInventoryTip('shown_inventory', '🎒 Здесь все твои вещи. Надевай одежду, ешь еду, используй предметы. Всё, что в инвентаре, может помочь тебе выжить.');
+    
     document.querySelectorAll('.slot-use-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -853,27 +866,27 @@ async function useItem(itemId) {
         setEnergy(newEnergy);
         effText += `Энергия ${itemData.effect.energy > 0 ? '+' : ''}${itemData.effect.energy}. `;
     }
- if (itemData.effect.intoxication) {
-    if (itemData.effect.intoxication > 0) {
-        const oldIntoxication = intoxication;
-        addIntoxication(itemData.effect.intoxication);
-        effText += `Опьянение +${itemData.effect.intoxication}. `;
-        
-        updateAchievementStats('totalAlcoholConsumed', 1);
-        
-        // 👇 ВЫЗОВ КВЕСТА ДЛЯ "ПОХМЕЛЬЕ" 👇
-        import('./questSystem.js').then(qs => {
-            qs.updateQuestProgress('alcohol_consumed', 1);
-        });
-        
-        if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
-            updateAchievementStats('maxIntoxication', 100);
+    if (itemData.effect.intoxication) {
+        if (itemData.effect.intoxication > 0) {
+            const oldIntoxication = intoxication;
+            addIntoxication(itemData.effect.intoxication);
+            effText += `Опьянение +${itemData.effect.intoxication}. `;
+            
+            updateAchievementStats('totalAlcoholConsumed', 1);
+            
+            // 👇 ВЫЗОВ КВЕСТА ДЛЯ "ПОХМЕЛЬЕ" 👇
+            import('./questSystem.js').then(qs => {
+                qs.updateQuestProgress('alcohol_consumed', 1);
+            });
+            
+            if (oldIntoxication < 100 && oldIntoxication + itemData.effect.intoxication >= 100) {
+                updateAchievementStats('maxIntoxication', 100);
+            }
+        } else if (itemData.effect.intoxication < 0) {
+            reduceIntoxication(Math.abs(itemData.effect.intoxication));
+            effText += `Опьянение ${itemData.effect.intoxication}. `;
         }
-    } else if (itemData.effect.intoxication < 0) {
-        reduceIntoxication(Math.abs(itemData.effect.intoxication));
-        effText += `Опьянение ${itemData.effect.intoxication}. `;
     }
-}
     
     if (inventory[itemIndex].count === 1) inventory.splice(itemIndex,1);
     else inventory[itemIndex].count--;
@@ -889,6 +902,10 @@ async function useItem(itemId) {
 
 async function equipItem(itemId) {
     playClick();
+    
+    // 👇 ПОДСКАЗКА: первая экипировка
+    await showInventoryTip('shown_equip_item', '👕 Одежда даёт бонус к теплу. Надевай её, чтобы не замёрзнуть!');
+    
     const itemIndex = inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1 || inventory[itemIndex].count <= 0) { showMessage("Нет предмета!", "#e74c3c"); return; }
     const itemData = itemsDB[itemId];
@@ -1310,6 +1327,9 @@ export async function openTradeOfferModal(targetUserId, targetUserNick) {
     const title = modal.querySelector('.modal-content h3');
     if (title) title.innerHTML = `💼 Предложить обмен игроку ${escapeHtml(targetUserNick)}`;
     
+    // 👇 ПОДСКАЗКА: первый раз открыли обмен
+    await showInventoryTip('shown_trade', '💼 Обмен — это способ получить нужные предметы от других игроков. Предложи свои вещи в обмен на их.');
+    
     // Очищаем все контейнеры
     document.getElementById('tradeFromItems').innerHTML = '<div class="empty-inventory">📦 Инвентарь пуст</div>';
     document.getElementById('tradeToItems').innerHTML = '<div class="empty-inventory">📦 Загрузка...</div>';
@@ -1512,6 +1532,9 @@ export async function openStorageModal() {
         console.error('Модальное окно хранилища не найдено');
         return;
     }
+    
+    // 👇 ПОДСКАЗКА: открытие хранилища (уже есть в locations.js, но добавим и сюда для страховки)
+    await showInventoryTip('shown_storage', '📦 Хранилище — место для хранения вещей. Вместимость зависит от твоего жилья.');
     
     // Обновляем информацию о вместимости
     updateStorageCapacityInfo();

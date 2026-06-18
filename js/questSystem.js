@@ -1,8 +1,8 @@
 // js/questSystem.js
 import { db, saveGameData } from './firestore.js';
 import { doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { showMessage } from './utils.js';
-import { addExperience, money, setStats, inventory, updateUI } from './gameState.js';
+import { showMessage, showTutorialTip } from './utils.js';
+import { addExperience, money, setStats, inventory, updateUI, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 import { questsDB, getQuestById } from './quests.js';
 import { itemsDB } from './inventory.js';
 
@@ -146,6 +146,13 @@ async function completeStaticQuest(quest, userId, quests) {
     
     // Сохраняем
     await savePlayerQuests(userId, quests);
+    
+    // 👇 ПОДСКАЗКА: первый выполненный квест
+    if (tutorialEnabled && !isTutorialShown('shown_quest_complete')) {
+        showTutorialTip('📜 Квест выполнен! Продолжай выполнять задания, чтобы получать награды. Некоторые квесты дают уникальные титулы!', 4000);
+        markTutorialShown('shown_quest_complete');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
 }
 
 // ========== ВЫПОЛНИТЬ ЕЖЕДНЕВНЫЙ КВЕСТ ==========
@@ -160,6 +167,13 @@ async function completeDailyQuest(quest, userId, quests) {
     
     // Сохраняем
     await savePlayerQuests(userId, quests);
+    
+    // 👇 ПОДСКАЗКА: первый выполненный квест
+    if (tutorialEnabled && !isTutorialShown('shown_quest_complete')) {
+        showTutorialTip('📜 Квест выполнен! Продолжай выполнять задания, чтобы получать награды. Некоторые квесты дают уникальные титулы!', 4000);
+        markTutorialShown('shown_quest_complete');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
 }
 
 // ========== ПРОВЕРКА, ВЫПОЛНЕН ЛИ РАСОВЫЙ КВЕСТ ГЛОБАЛЬНО ==========
@@ -211,6 +225,13 @@ async function completeRaceQuest(quest, userId, quests) {
     
     // Сохраняем
     await savePlayerQuests(userId, quests);
+    
+    // 👇 ПОДСКАЗКА: первый выполненный квест
+    if (tutorialEnabled && !isTutorialShown('shown_quest_complete')) {
+        showTutorialTip('📜 Квест выполнен! Продолжай выполнять задания, чтобы получать награды. Некоторые квесты дают уникальные титулы!', 4000);
+        markTutorialShown('shown_quest_complete');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
 }
 
 // ========== ПОКАЗАТЬ УВЕДОМЛЕНИЕ ДЛЯ РАСОВОГО КВЕСТА ==========

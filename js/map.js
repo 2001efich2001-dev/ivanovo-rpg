@@ -1,9 +1,22 @@
-import { setCurrentLocation, teleportHome } from './gameState.js';
-import { showMessage } from './utils.js';
+import { setCurrentLocation, teleportHome, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
+import { showMessage, showTutorialTip } from './utils.js';
+
+// ========== ПОКАЗАТЬ ПОДСКАЗКУ ДЛЯ КАРТЫ ==========
+async function showMapTip(flagKey, tipText) {
+    if (!tutorialEnabled) return;
+    if (isTutorialShown(flagKey)) return;
+    
+    showTutorialTip(tipText, 4000);
+    markTutorialShown(flagKey);
+    await import('./firestore.js').then(m => m.saveGameData());
+}
 
 export function renderInteractiveMap() {
     const container = document.getElementById('mapContainer');
     if (!container) return;
+    
+    // 👇 ПОДСКАЗКА: первый раз открыли карту
+    showMapTip('shown_map', '🗺️ Карта города. Перемещайся между локациями, чтобы искать приключения.');
     
     // Основные локации для перемещения (ДОБАВЛЕНА fishing_spot)
     const zones = [
@@ -88,6 +101,8 @@ export function renderInteractiveMap() {
         
         circle.addEventListener('click', async () => {
             if (typeof window.playClickSound === 'function') window.playClickSound();
+            // 👇 ПОДСКАЗКА: покупка недвижимости
+            await showMapTip('shown_housing_buy', '🏠 Покупка недвижимости даёт тебе дом, хранилище и возможность телепортироваться.');
             openHousingModal(type);
         });
     });
@@ -100,6 +115,8 @@ export function renderInteractiveMap() {
         
         newHomeBtn.addEventListener('click', async () => {
             if (typeof window.playClickSound === 'function') window.playClickSound();
+            // 👇 ПОДСКАЗКА: телепорт домой
+            await showMapTip('shown_home_teleport', '🏠 Телепорт домой. Если у тебя есть жильё — ты сразу окажешься там.');
             await teleportHome();
         });
     }

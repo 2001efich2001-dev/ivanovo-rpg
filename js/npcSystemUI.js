@@ -1,7 +1,7 @@
 // js/npcSystemUI.js
-import { showMessage, logAction } from './utils.js';
+import { showMessage, logAction, showTutorialTip } from './utils.js';
 import { npcDB, getAvailableNpcQuests, checkNpcQuestProgress, handleNpcChoice, getDialog, getCurrentNpcState, decreaseItemStockInFirestore } from './npcSystem.js';
-import { money, inventory, setStats, updateUI } from './gameState.js';
+import { money, inventory, setStats, updateUI, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 
@@ -25,6 +25,13 @@ export async function openNpcDialog(npcId) {
     if (!modal) {
         console.error('NPC модальное окно не найдено');
         return;
+    }
+    
+    // 👇 ПОДСКАЗКА: первый разговор с NPC (уже есть в locations.js, но добавим для страховки)
+    if (tutorialEnabled && !isTutorialShown('shown_npc')) {
+        showTutorialTip('💬 NPC дают квесты, продают вещи и могут рассказать полезную информацию. Общайся с ними регулярно!', 4000);
+        markTutorialShown('shown_npc');
+        await import('./firestore.js').then(m => m.saveGameData());
     }
     
     document.getElementById('npcName').textContent = npc.name;
@@ -146,6 +153,13 @@ async function showNpcShop(mode) {
         ? '🛍️ Вот что у меня есть для продажи:' 
         : '💰 Что хочешь продать?';
     
+    // 👇 ПОДСКАЗКА: первый раз открыли магазин NPC
+    if (tutorialEnabled && !isTutorialShown('shown_npc_shop')) {
+        showTutorialTip('🛍️ У NPC можно покупать и продавать вещи. Ассортимент обновляется каждый день! Торгуй с умом.', 4000);
+        markTutorialShown('shown_npc_shop');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
+    
     let items = mode === 'buy' ? npc.shop_items : npc.buy_items;
     let html = '<div class="shop-grid">';
     
@@ -260,7 +274,6 @@ async function showNpcShop(mode) {
 }
 
 // ========== ПОКАЗАТЬ КВЕСТЫ NPC ==========
-// ========== ПОКАЗАТЬ КВЕСТЫ NPC ==========
 async function showNpcQuests() {
     const npc = npcDB[currentNpcId];
     if (!npc) return;
@@ -277,6 +290,13 @@ async function showNpcQuests() {
     document.getElementById('npcShop').style.display = 'none';
     document.getElementById('npcOptions').innerHTML = '';
     document.getElementById('npcText').textContent = '📜 Вот что я могу тебе предложить:';
+    
+    // 👇 ПОДСКАЗКА: первый раз открыли квесты NPC
+    if (tutorialEnabled && !isTutorialShown('shown_npc_quest')) {
+        showTutorialTip('📜 Квесты NPC — отличный способ заработать деньги и опыт. Возвращайся через 24 часа за новыми заданиями!', 4000);
+        markTutorialShown('shown_npc_quest');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
     
     // ✅ ВЫЗЫВАЕМ АСИНХРОННУЮ ФУНКЦИЮ ДЛЯ ЗАГРУЗКИ КВЕСТОВ ИЗ FIRESTORE
     const quests = await getAvailableNpcQuests(user.uid, currentNpcId);
