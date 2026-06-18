@@ -2076,3 +2076,44 @@ body {
     border-color: #fff;
     box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
 }
+/* ========== ПОДСКАЗКИ ТУТОРИАЛА ========== */
+
+@keyframes tutorialFadeIn {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes tutorialFadeOut {
+    0% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+}
+
+/* Кнопки управления туториалом в настройках */
+#toggleTutorialBtn {
+    transition: all 0.3s ease;
+}
+
+#toggleTutorialBtn:hover {
+    transform: scale(1.05);
+}
+
+#resetTutorialBtn {
+    transition: all 0.3s ease;
+}
+
+#resetTutorialBtn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(142, 68, 173, 0.4);
+}
