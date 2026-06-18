@@ -1,8 +1,8 @@
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
-import { showMessage, logAction } from './utils.js';
+import { showMessage, logAction, showTutorialTip } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
-import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction, addIntoxication, reduceIntoxication } from './gameState.js';
+import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction, addIntoxication, reduceIntoxication, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
 import { updateAchievementStats } from './achievements.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
@@ -39,24 +39,33 @@ async function updateQuest(statType, value = 1, context = {}) {
         const { updateQuestProgress } = await import('./questSystem.js');
         await updateQuestProgress(statType, value, context);
     } catch (err) {
-        // тихо игнорируем, если квесты ещё не загружены
         if (!err.message?.includes('Failed to fetch')) {
             console.warn('Ошибка обновления квеста:', err);
         }
     }
 }
 
-// Модификация риска в зависимости от опьянения (чем выше опьянение, тем выше шанс неудачи)
+// ========== ПОКАЗАТЬ ПОДСКАЗКУ ДЛЯ ДЕЙСТВИЯ ==========
+async function showActionTip(flagKey, tipText) {
+    if (!tutorialEnabled) return;
+    if (isTutorialShown(flagKey)) return;
+    
+    showTutorialTip(tipText, 4000);
+    markTutorialShown(flagKey);
+    await import('./firestore.js').then(m => m.saveGameData());
+}
+
+// Модификация риска в зависимости от опьянения
 function applyIntoxicationToRisk(originalRisk, intoxicationLevel) {
     if (intoxicationLevel < 20) return originalRisk;
-    if (intoxicationLevel < 50) return originalRisk + 10;  // +10% к риску
-    if (intoxicationLevel < 80) return originalRisk + 25;  // +25% к риску
-    return originalRisk + 50;  // +50% к риску
+    if (intoxicationLevel < 50) return originalRisk + 10;
+    if (intoxicationLevel < 80) return originalRisk + 25;
+    return originalRisk + 50;
 }
 
 // Модификация урона/потери здоровья в зависимости от опьянения
 function applyIntoxicationToDamage(originalDamage, intoxicationLevel, isSuccess = true) {
-    if (!isSuccess) return originalDamage; // при неудаче не модифицируем
+    if (!isSuccess) return originalDamage;
     const modifier = getIntoxicationDamageModifier();
     if (modifier === 1.0) return originalDamage;
     return Math.floor(originalDamage * modifier);
@@ -111,7 +120,6 @@ export const locationsDB = {
         name: "Свалка",
         description: "Опасно, но можно найти ценные вещи.",
         bgImage: "images/dump_bg.jpg",
-        // 👇 NPC НА СВАЛКЕ
         npc: {
             id: 'dump_hobo',
             name: '🗑️ Бомж Семён',
@@ -277,7 +285,6 @@ export function renderLocation(locationId) {
     const locationContainer = document.getElementById('locationContainer');
     if (!locationContainer) return;
     
-    // Удаляем старые слои погоды
     removeWeatherLayers();
     
     const bgUrl = loc.bgImage || 'images/default_bg.jpg';
@@ -302,7 +309,6 @@ export function renderLocation(locationId) {
     svg.style.left = "0";
     svg.style.pointerEvents = "none";
     
-    // ========== ОТРИСОВКА ЗОН ==========
     loc.zones.forEach(zone => {
         const circle = document.createElementNS(svgNS, "circle");
         circle.setAttribute("cx", zone.cx);
@@ -345,105 +351,93 @@ export function renderLocation(locationId) {
         svg.appendChild(circle);
     });
     
-    // ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
-    // ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
-// ========== ОТРИСОВКА NPC (ПОВЕРХ КАРТЫ) ==========
-if (loc.npc) {
-    const npc = loc.npc;
-    
-    const npcGroup = document.createElementNS(svgNS, "g");
-    npcGroup.style.cursor = "pointer";
-    
-    // Подпись над NPC
-    const text = document.createElementNS(svgNS, "text");
-    text.setAttribute("x", npc.position.x + 30 );
-    text.setAttribute("y", npc.position.y - 370);
-    text.setAttribute("text-anchor", "middle");
-    text.setAttribute("font-size", "16px");
-    text.setAttribute("font-weight", "bold");
-    text.setAttribute("fill", "#ffd966");
-    text.setAttribute("stroke", "#000");
-    text.setAttribute("stroke-width", "1");
-    text.textContent = npc.name;
-    text.style.pointerEvents = "visible";
-    text.style.transition = "all 0.3s ease";
-    npcGroup.appendChild(text);
-    
-    // Картинка NPC (PNG) — через foreignObject для надёжности
-    const foreignObject = document.createElementNS(svgNS, "foreignObject");
-    foreignObject.setAttribute("x", npc.position.x - npc.width/2);
-    foreignObject.setAttribute("y", npc.position.y - npc.height);
-    foreignObject.setAttribute("width", npc.width);
-    foreignObject.setAttribute("height", npc.height);
-    foreignObject.style.pointerEvents = "visible";
-    foreignObject.style.cursor = "pointer";
-    
-    const img = document.createElement("img");
-    img.src = npc.avatar;
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.objectFit = "contain";
-    img.style.pointerEvents = "auto";
-    img.style.cursor = "pointer";
-    img.style.filter = "drop-shadow(0 4px 8px rgba(0,0,0,0.5))";
-    img.style.transition = "transform 0.3s ease";
-    
-    // Обработчик клика
-    const clickHandler = () => {
-        playClick();
-        const action = loc.actions.find(a => a.id === npc.actionId);
-        if (action) executeAction(locationId, action);
-    };
-    
-    img.addEventListener('click', clickHandler);
-    text.addEventListener('click', clickHandler);
-    
-    // Анимация при наведении на картинку
-    img.addEventListener('mouseenter', () => {
-        img.style.transform = "scale(1.05)";
-        text.setAttribute("font-size", "20px");
-        text.setAttribute("fill", "#ffd700");
-    });
-    img.addEventListener('mouseleave', () => {
-        img.style.transform = "scale(1)";
+    // ========== ОТРИСОВКА NPC ==========
+    if (loc.npc) {
+        const npc = loc.npc;
+        
+        const npcGroup = document.createElementNS(svgNS, "g");
+        npcGroup.style.cursor = "pointer";
+        
+        const text = document.createElementNS(svgNS, "text");
+        text.setAttribute("x", npc.position.x + 30);
+        text.setAttribute("y", npc.position.y - 370);
+        text.setAttribute("text-anchor", "middle");
         text.setAttribute("font-size", "16px");
+        text.setAttribute("font-weight", "bold");
         text.setAttribute("fill", "#ffd966");
-    });
-    
-    // Анимация при наведении на текст
-    text.addEventListener('mouseenter', () => {
-        img.style.transform = "scale(1.05)";
-        text.setAttribute("font-size", "20px");
-        text.setAttribute("fill", "#ffd700");
-    });
-    text.addEventListener('mouseleave', () => {
-        img.style.transform = "scale(1)";
-        text.setAttribute("font-size", "16px");
-        text.setAttribute("fill", "#ffd966");
-    });
-    
-    foreignObject.appendChild(img);
-    npcGroup.appendChild(foreignObject);
-    svg.appendChild(npcGroup);
-}
+        text.setAttribute("stroke", "#000");
+        text.setAttribute("stroke-width", "1");
+        text.textContent = npc.name;
+        text.style.pointerEvents = "visible";
+        text.style.transition = "all 0.3s ease";
+        npcGroup.appendChild(text);
+        
+        const foreignObject = document.createElementNS(svgNS, "foreignObject");
+        foreignObject.setAttribute("x", npc.position.x - npc.width/2);
+        foreignObject.setAttribute("y", npc.position.y - npc.height);
+        foreignObject.setAttribute("width", npc.width);
+        foreignObject.setAttribute("height", npc.height);
+        foreignObject.style.pointerEvents = "visible";
+        foreignObject.style.cursor = "pointer";
+        
+        const img = document.createElement("img");
+        img.src = npc.avatar;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.objectFit = "contain";
+        img.style.pointerEvents = "auto";
+        img.style.cursor = "pointer";
+        img.style.filter = "drop-shadow(0 4px 8px rgba(0,0,0,0.5))";
+        img.style.transition = "transform 0.3s ease";
+        
+        const clickHandler = () => {
+            playClick();
+            const action = loc.actions.find(a => a.id === npc.actionId);
+            if (action) executeAction(locationId, action);
+        };
+        
+        img.addEventListener('click', clickHandler);
+        text.addEventListener('click', clickHandler);
+        
+        img.addEventListener('mouseenter', () => {
+            img.style.transform = "scale(1.05)";
+            text.setAttribute("font-size", "20px");
+            text.setAttribute("fill", "#ffd700");
+        });
+        img.addEventListener('mouseleave', () => {
+            img.style.transform = "scale(1)";
+            text.setAttribute("font-size", "16px");
+            text.setAttribute("fill", "#ffd966");
+        });
+        
+        text.addEventListener('mouseenter', () => {
+            img.style.transform = "scale(1.05)";
+            text.setAttribute("font-size", "20px");
+            text.setAttribute("fill", "#ffd700");
+        });
+        text.addEventListener('mouseleave', () => {
+            img.style.transform = "scale(1)";
+            text.setAttribute("font-size", "16px");
+            text.setAttribute("fill", "#ffd966");
+        });
+        
+        foreignObject.appendChild(img);
+        npcGroup.appendChild(foreignObject);
+        svg.appendChild(npcGroup);
+    }
     
     zonesContainer.innerHTML = '';
     zonesContainer.appendChild(svg);
     
-    // Создаём слои для погодных эффектов
     createWeatherLayers(locationContainer);
-    
-    // Обновляем затемнение и погодные эффекты
     updateDarkness();
     updateWeatherEffects();
     
-    // Принудительно обновляем canvas после небольшой задержки (чтобы размеры успели установиться)
     setTimeout(() => {
         updateDarkness();
         updateWeatherEffects();
     }, 50);
     
-    // ===== АЧИВКИ: отслеживаем посещение новой локации =====
     if (!visitedLocations.includes(locationId)) {
         visitedLocations.push(locationId);
         localStorage.setItem('visited_locations_' + (window.auth?.currentUser?.uid || 'guest'), JSON.stringify(visitedLocations));
@@ -472,8 +466,14 @@ function hideTooltip() {
 async function executeAction(locationId, action) {
     playClick();
     
-    // ===== НОВЫЙ ОСОБЫЙ СЛУЧАЙ: РАЗГОВОР С NPC =====
+    // ===== ПОДСКАЗКА: первый клик по зоне =====
+    if (action.id !== 'talk_hobo' && action.id !== 'storage_open' && action.id !== 'garage_storage') {
+        await showActionTip('shown_zone_click', '🟢 Зелёные круги — места для действий. Нажми на них, чтобы сделать что-то.');
+    }
+    
+    // ===== РАЗГОВОР С NPC =====
     if (action.id === 'talk_hobo' || action.id.startsWith('talk_')) {
+        await showActionTip('shown_npc', '💬 Диалоги с NPC могут открыть новые квесты, магазины и информацию.');
         try {
             const { openNpcDialog } = await import('./npcSystemUI.js');
             const loc = locationsDB[locationId];
@@ -491,8 +491,9 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // ===== ОСОБЫЙ СЛУЧАЙ: ОТКРЫТЬ ХРАНИЛИЩЕ =====
+    // ===== ОТКРЫТЬ ХРАНИЛИЩЕ =====
     if (action.id === 'storage_open' || action.id === 'garage_storage') {
+        await showActionTip('shown_storage', '📦 Хранилище — место для хранения вещей. Вместимость зависит от твоего жилья.');
         try {
             const { openStorageModal } = await import('./inventory.js');
             await openStorageModal();
@@ -505,8 +506,9 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Особый случай: однорукий бандит
+    // ===== ОДНОРУКИЙ БАНДИТ =====
     if (action.id === 'slot_machine') {
+        await showActionTip('shown_slot_machine', '🎰 Однорукий бандит — игра на удачу. Поставь деньги и попробуй сорвать джекпот!');
         try {
             const { openSlotMachine } = await import('./minigameSlotMachine.js');
             await openSlotMachine();
@@ -519,39 +521,33 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Особый случай: дротики
+    // ===== ДРОТИКИ =====
     if (action.id === 'darts') {
-        // Проверка энергии
+        await showActionTip('shown_darts', '🎯 Дартс — игра на точность. Чем выше опьянение — тем сложнее попасть, но и выигрыш больше!');
         const energyCost = energyCosts.darts || 10;
         if (!hasEnoughEnergy(energyCost)) {
             showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
             return;
         }
         
-        // Проверка опьянения (нельзя играть трезвым)
         if (intoxication < 20) {
             showMessage(`🍺 Бармен не даёт дротики трезвым! Выпей сначала! (нужно 20% опьянения)`, '#e74c3c');
             return;
         }
         
-        // Проверка возможности выполнения действия
         if (!canPerformAction(action.name)) {
             return;
         }
         
-        // Тратим энергию
         spendEnergy(energyCost);
         
-        // Открываем мини-игру дротиков
         try {
             const { openDartsGame } = await import('./minigameDarts.js');
             await openDartsGame();
-            
             logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - начало игры в дротики`, 'location');
         } catch (error) {
             console.error('Ошибка открытия дротиков:', error);
             showMessage("❌ Ошибка запуска игры. Попробуйте позже.", "#e74c3c");
-            // Возвращаем энергию при ошибке
             setEnergy(Math.min(100, energy + energyCost));
         }
         
@@ -559,43 +555,35 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Особый случай: рыбалка
+    // ===== РЫБАЛКА =====
     if (action.id === 'fishing') {
-        // Проверяем наличие удочки
+        await showActionTip('shown_fishing', '🎣 Рыбалка — способ добыть еду и редкие трофеи. Нужна удочка!');
         const hasRod = inventory.find(i => i.id === 'fishing_rod' && i.count > 0);
         if (!hasRod) {
             showMessage("❌ У вас нет удочки! Купите её в магазине.", "#e74c3c");
             return;
         }
         
-        // Проверка энергии
         const energyCost = energyCosts.fishing || 15;
         if (!hasEnoughEnergy(energyCost)) {
             showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
             return;
         }
         
-        // Проверка возможности выполнения действия
         if (!canPerformAction(action.name)) {
             return;
         }
         
-        // Тратим энергию
         spendEnergy(energyCost);
         
-        // Открываем мини-игру рыбалки
         try {
             const { openFishingGame } = await import('./minigameFishing.js');
             await openFishingGame();
-            
-            // КВЕСТЫ: обновляем прогресс рыбалки
             await updateQuest('fishing', 1);
-            
             logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - начало рыбалки`, 'location');
         } catch (error) {
             console.error('Ошибка открытия рыбалки:', error);
             showMessage("❌ Ошибка запуска рыбалки. Попробуйте позже.", "#e74c3c");
-            // Возвращаем энергию при ошибке
             setEnergy(Math.min(100, energy + energyCost));
         }
         
@@ -603,8 +591,9 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Особый случай: отдых у реки
+    // ===== ОТДЫХ У РЕКИ =====
     if (action.id === 'relax') {
+        await showActionTip('shown_relax', '🌿 Отдых у реки восстанавливает здоровье, голод и тепло.');
         const newHealth = Math.min(maxHealth, health + 5);
         const newHunger = Math.min(maxHunger, hunger + 5);
         const newCold = Math.min(maxCold, cold + 5);
@@ -617,8 +606,9 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Особый случай: отдых на помойке
+    // ===== ОТДЫХ НА ПОМОЙКЕ =====
     if (action.id === 'rest_dump') {
+        await showActionTip('shown_rest', '🛌 Отдых на помойке восстанавливает здоровье и энергию.');
         const newHealth = Math.min(maxHealth, health + (action.effect?.health || 10));
         const newEnergy = Math.min(100, energy + (action.effect?.energy || 5));
         setStats(newHealth, hunger, cold, money);
@@ -631,8 +621,9 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Особый случай: набор воды
+    // ===== НАБОР ВОДЫ =====
     if (action.id === 'collect_water') {
+        await showActionTip('shown_collect_water', '💧 Набор воды — пополни запасы чистой воды.');
         const energyCost = energyCosts.collect_water || 5;
         if (!hasEnoughEnergy(energyCost)) {
             showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
@@ -656,7 +647,7 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Проверка энергии (кроме сна, так как он восстанавливает)
+    // Проверка энергии
     const energyCost = energyCosts[action.id] || 0;
     if (energyCost > 0) {
         if (!hasEnoughEnergy(energyCost)) {
@@ -665,7 +656,6 @@ async function executeAction(locationId, action) {
         }
     }
     
-    // Проверка возможности выполнения действия (из-за сильного опьянения)
     if (!canPerformAction(action.name)) {
         return;
     }
@@ -675,9 +665,12 @@ async function executeAction(locationId, action) {
     let actionLogMessage = '';
     let gainedExp = 0;
     
-    // ========== ОБРАБОТКА СНА (НОЧЛЕЖКА + ЖИЛЬЁ) ==========
+    // ========== СОН ==========
     if (action.id === 'sleep' || action.id === 'sleep_dorm' || action.id === 'sleep_apartment' || action.id === 'sleep_house') {
-        // Проверяем деньги (только для ночлежки)
+        if (action.id === 'sleep') {
+            await showActionTip('shown_sleep', '🛌 Сон в ночлежке восстанавливает здоровье и энергию. Стоит 20₽.');
+        }
+        
         if (action.cost && action.cost > 0) {
             if (money < action.cost) { 
                 showMessage(`Не хватает ${action.cost}₽`, "#e74c3c"); 
@@ -687,7 +680,6 @@ async function executeAction(locationId, action) {
             actionLogMessage += `-${action.cost}₽. `;
         }
         
-        // Восстанавливаем здоровье
         if (action.effect && action.effect.health) {
             const add = action.effect.health;
             const newHealth = Math.min(maxHealth, Math.max(0, health + add));
@@ -696,7 +688,6 @@ async function executeAction(locationId, action) {
             actionLogMessage += `Здоровье +${add}. `;
         }
         
-        // Восстанавливаем энергию
         if (action.effect && action.effect.energy) {
             const add = action.effect.energy;
             setEnergy(Math.min(100, energy + add));
@@ -704,12 +695,10 @@ async function executeAction(locationId, action) {
             msg += `Энергия +${add}. `;
         }
         
-        // Для ночлежки ещё и опьянение снимаем + анимация
         if (action.id === 'sleep') {
             reduceIntoxication(30);
             actionLogMessage += `🍺 Опьянение -30. `;
             
-            // Затемняем экран
             const overlay = document.createElement('div');
             overlay.id = 'sleepOverlay';
             overlay.style.position = 'fixed';
@@ -748,7 +737,7 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // Обычная обработка для остальных действий
+    // Обычная обработка
     if (action.needsItem) {
         const has = inventory.find(i => i.id === action.needsItem && i.count > 0);
         if (!has) { showMessage(`Нет ${itemsDB[action.needsItem]?.name || action.needsItem}`, "#e74c3c"); return; }
@@ -759,7 +748,7 @@ async function executeAction(locationId, action) {
         actionLogMessage += `-${action.cost}₽. `;
     }
     
-    // Модифицированный риск с учётом опьянения
+    // Риск с учётом опьянения
     if (action.risk && action.risk > 0) {
         const modifiedRisk = applyIntoxicationToRisk(action.risk, intoxication);
         const roll = Math.random() * 100;
@@ -770,7 +759,6 @@ async function executeAction(locationId, action) {
             if (action.riskEffect) {
                 let newMoney = money + (action.riskEffect.money || 0);
                 let newHealth = health + (action.riskEffect.health || 0);
-                // Применяем модификатор урона от опьянения
                 if (action.riskEffect.health) {
                     const modifiedDamage = applyIntoxicationToDamage(action.riskEffect.health, intoxication, false);
                     newHealth = health + modifiedDamage;
@@ -810,14 +798,12 @@ async function executeAction(locationId, action) {
                 msg += `Голод ${add>0?'+':''}${add}. `;
                 actionLogMessage += `Голод ${add>0?'+':''}${add}. `;
             }
-            // 👇 ДОБАВЛЕНА ОБРАБОТКА ОПЬЯНЕНИЯ ДЛЯ ДЕЙСТВИЙ (например, выпить водку в баре)
             if (action.effect.intoxication) {
                 const oldIntoxication = intoxication;
                 addIntoxication(action.effect.intoxication);
                 msg += `Опьянение +${action.effect.intoxication}. `;
                 actionLogMessage += `Опьянение +${action.effect.intoxication}. `;
                 
-                // КВЕСТ: обновляем прогресс алкоголя
                 await updateQuest('alcohol_consumed', 1);
                 
                 if (oldIntoxication < 100 && oldIntoxication + action.effect.intoxication >= 100) {
@@ -834,7 +820,6 @@ async function executeAction(locationId, action) {
                     actionLogMessage += `+1 ${itemsDB[it]?.name}. `;
                     gainedExp += 10;
                     
-                    // КВЕСТЫ: обновляем прогресс нахождения мусора
                     if (it === 'old_boot' || it === 'rusty_can' || it === 'torn_net' || it === 'plastic_bottle' || it === 'dirty_rag') {
                         await updateQuest('trash_found', 1);
                     }
@@ -851,47 +836,63 @@ async function executeAction(locationId, action) {
             }
         }
         
-        if (action.id === 'fight') {
-            gainedExp += 20;
-            // КВЕСТЫ: обновляем прогресс выигранных драк
-            await updateQuest('fights_won', 1);
+        // ===== ПОДСКАЗКИ ДЛЯ ДЕЙСТВИЙ =====
+        if (action.id === 'beg') {
+            await showActionTip('shown_beg', '🙏 Попрошайничество — один из первых способов заработать деньги. Риск: могут прогнать.');
+        }
+        if (action.id === 'search') {
+            await showActionTip('shown_search', '🔍 Поиск вещей — можно найти еду или полезные предметы.');
         }
         if (action.id === 'steal') {
-            gainedExp += 15;
-            // КВЕСТЫ: успешная кража
+            await showActionTip('shown_steal', '🫳 Кража — рискованный способ добыть еду. Если поймают — потеряешь деньги и здоровье.');
+        }
+        if (action.id === 'scavenge' || action.id === 'scavenge_home') {
+            await showActionTip('shown_scavenge', '🗑️ Копка в мусоре — можно найти бутылки, старую одежду или что-то ценное.');
+        }
+        if (action.id === 'pray') {
+            await showActionTip('shown_pray', '🙏 Молитва восстанавливает здоровье. Бесплатно и безопасно.');
+        }
+        if (action.id === 'fight') {
+            await showActionTip('shown_fight', '👊 Драка — можно заработать деньги, но есть риск получить травму.');
+            gainedExp += 20;
+            await updateQuest('fights_won', 1);
+        }
+        if (action.id === 'drink') {
+            await showActionTip('shown_drink', '🍺 Выпивка повышает опьянение, но даёт здоровье. Не переусердствуй!');
+        }
+        if (action.id === 'eat') {
+            await showActionTip('shown_eat', '🍽️ Еда в столовой восстанавливает голод. Стоит 25₽.');
+        }
+        if (action.id === 'steal') {
             await updateQuest('steal_success', 1);
         }
         if (action.id === 'pray') {
-            gainedExp += 5;
-            // КВЕСТЫ: молитва
             await updateQuest('pray_count', 1);
         }
         if (action.id === 'eat' && locationId === 'shelter') gainedExp += 5;
-        if (action.id === 'get_food') gainedExp += 10;
+        if (action.id === 'get_food') {
+            await showActionTip('shown_get_food', '🍞 В церкви можно попросить хлеб. Бесплатно!');
+            gainedExp += 10;
+        }
         
         if (gainedExp > 0) {
             addExperience(gainedExp);
             logAction(`Получено ${gainedExp} опыта за действие "${action.name}"`, 'system');
         }
         
-        // Списание энергии только при успешном действии
         if (energyCost > 0) {
             spendEnergy(energyCost);
             actionLogMessage += `-${energyCost}⚡. `;
         }
         
-        // ===== АЧИВКИ =====
-        // Отслеживаем попрошайничество (beg) и получение еды (get_food)
         if (action.id === 'beg' || action.id === 'get_food') {
             updateAchievementStats('totalBegs');
         }
-        // Отслеживаем выигранные драки
         if (action.id === 'fight' && success) {
             updateAchievementStats('fightsWon');
         }
     }
     
-    // КВЕСТЫ: обновляем посещение локации
     if (action.id && locationId) {
         await updateQuest('visit_location', 1, { locationId });
     }
