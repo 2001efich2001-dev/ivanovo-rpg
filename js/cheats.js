@@ -5,6 +5,24 @@
 let cheatInputBuffer = '';
 let cheatInputTimeout = null;
 
+// Функция для показа уведомления
+function showCheatNotification(text, bgColor = '#4caf50') {
+    const msg = document.createElement('div');
+    msg.innerText = text;
+    msg.style.position = 'fixed';
+    msg.style.bottom = '70px';
+    msg.style.left = '50%';
+    msg.style.transform = 'translateX(-50%)';
+    msg.style.backgroundColor = bgColor;
+    msg.style.color = 'white';
+    msg.style.padding = '6px 18px';
+    msg.style.borderRadius = '60px';
+    msg.style.fontWeight = 'bold';
+    msg.style.zIndex = '9999';
+    document.body.appendChild(msg);
+    setTimeout(() => msg.remove(), 3000);
+}
+
 export function initCheats() {
     document.addEventListener('keydown', (e) => {
         // Сбрасываем буфер через 2 секунды бездействия
@@ -52,7 +70,6 @@ export function initCheats() {
                     
                     // Активируем чит через setStats
                     import('./gameState.js').then(m => {
-                        // Используем setStats для изменения характеристик
                         m.setStats(
                             m.maxHealth,
                             m.maxHunger,
@@ -62,7 +79,7 @@ export function initCheats() {
                         m.updateUI();
                         import('./firestore.js').then(f => f.saveGameData());
                         
-                        console.log('🧪 Чит-код "LimonAd-666" активирован! Здоровье, голод, тепло = 100, +500₽');
+                        console.log('🧪 Чит-код "LimonAd-666" активирован!');
                         
                         const msg = document.createElement('div');
                         msg.innerText = '🧪 Чит-код активирован! Все шкалы восстановлены до 100, +500₽';
@@ -89,85 +106,135 @@ export function initCheats() {
                 document.removeEventListener('keydown', enterHandler);
             }, 5000);
         }
+        
+        // ========== НОВЫЙ КОД: tecon ==========
+        if (cheatInputBuffer.toLowerCase().endsWith('tecon')) {
+            cheatInputBuffer = '';
+            if (cheatInputTimeout) clearTimeout(cheatInputTimeout);
+            
+            // Показываем сообщение, что код принят, ожидаем Enter
+            const waitingMsg = document.createElement('div');
+            waitingMsg.innerText = '🧪 Код принят! Нажмите Enter для активации';
+            waitingMsg.style.position = 'fixed';
+            waitingMsg.style.top = '50%';
+            waitingMsg.style.left = '50%';
+            waitingMsg.style.transform = 'translate(-50%, -50%)';
+            waitingMsg.style.backgroundColor = '#2c2e3a';
+            waitingMsg.style.color = '#ffd966';
+            waitingMsg.style.padding = '12px 24px';
+            waitingMsg.style.borderRadius = '60px';
+            waitingMsg.style.fontWeight = 'bold';
+            waitingMsg.style.zIndex = '10000';
+            waitingMsg.style.boxShadow = '0 0 20px rgba(0,0,0,0.5)';
+            document.body.appendChild(waitingMsg);
+            setTimeout(() => waitingMsg.remove(), 2000);
+            
+            const enterHandler = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.removeEventListener('keydown', enterHandler);
+                    
+                    import('./gameState.js').then(m => {
+                        m.setStats(null, null, null, m.money + 15000);
+                        m.updateUI();
+                        import('./firestore.js').then(f => f.saveGameData());
+                        
+                        console.log('🧪 Чит-код "tecon" активирован! +15000₽');
+                        
+                        // 👇 СПЕЦИАЛЬНОЕ УВЕДОМЛЕНИЕ ДЛЯ TECON
+                        const msg = document.createElement('div');
+                        msg.innerText = '🧪 Ооо... Вы из Текона :)';
+                        msg.style.position = 'fixed';
+                        msg.style.bottom = '70px';
+                        msg.style.left = '50%';
+                        msg.style.transform = 'translateX(-50%)';
+                        msg.style.backgroundColor = '#ff6b35';
+                        msg.style.color = 'white';
+                        msg.style.padding = '6px 18px';
+                        msg.style.borderRadius = '60px';
+                        msg.style.fontWeight = 'bold';
+                        msg.style.zIndex = '9999';
+                        document.body.appendChild(msg);
+                        setTimeout(() => msg.remove(), 3000);
+                        
+                        m.addLogEntry('🧪 Активирован секретный код "tecon" (+15000₽)', 'system');
+                    });
+                }
+            };
+            document.addEventListener('keydown', enterHandler);
+            
+            setTimeout(() => {
+                document.removeEventListener('keydown', enterHandler);
+            }, 5000);
+        }
+        
+        // ========== НОВЫЙ КОД: pump12 ==========
+        if (cheatInputBuffer.toLowerCase().endsWith('pump12')) {
+            cheatInputBuffer = '';
+            if (cheatInputTimeout) clearTimeout(cheatInputTimeout);
+            
+            // Показываем сообщение, что код принят, ожидаем Enter
+            const waitingMsg = document.createElement('div');
+            waitingMsg.innerText = '🧪 Код принят! Нажмите Enter для активации';
+            waitingMsg.style.position = 'fixed';
+            waitingMsg.style.top = '50%';
+            waitingMsg.style.left = '50%';
+            waitingMsg.style.transform = 'translate(-50%, -50%)';
+            waitingMsg.style.backgroundColor = '#2c2e3a';
+            waitingMsg.style.color = '#ffd966';
+            waitingMsg.style.padding = '12px 24px';
+            waitingMsg.style.borderRadius = '60px';
+            waitingMsg.style.fontWeight = 'bold';
+            waitingMsg.style.zIndex = '10000';
+            waitingMsg.style.boxShadow = '0 0 20px rgba(0,0,0,0.5)';
+            document.body.appendChild(waitingMsg);
+            setTimeout(() => waitingMsg.remove(), 2000);
+            
+            const enterHandler = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.removeEventListener('keydown', enterHandler);
+                    
+                    import('./gameState.js').then(m => {
+                        // Устанавливаем энергию на максимум
+                        m.setEnergy(m.maxEnergy);
+                        m.updateUI();
+                        import('./firestore.js').then(f => f.saveGameData());
+                        
+                        console.log('🧪 Чит-код "pump12" активирован! Энергия восстановлена до 100%');
+                        
+                        const msg = document.createElement('div');
+                        msg.innerText = '🧪 Энергия восстановлена до 100%!';
+                        msg.style.position = 'fixed';
+                        msg.style.bottom = '70px';
+                        msg.style.left = '50%';
+                        msg.style.transform = 'translateX(-50%)';
+                        msg.style.backgroundColor = '#4caf50';
+                        msg.style.color = 'white';
+                        msg.style.padding = '6px 18px';
+                        msg.style.borderRadius = '60px';
+                        msg.style.fontWeight = 'bold';
+                        msg.style.zIndex = '9999';
+                        document.body.appendChild(msg);
+                        setTimeout(() => msg.remove(), 3000);
+                        
+                        m.addLogEntry('🧪 Активирован секретный код "pump12" (энергия 100%)', 'system');
+                    });
+                }
+            };
+            document.addEventListener('keydown', enterHandler);
+            
+            setTimeout(() => {
+                document.removeEventListener('keydown', enterHandler);
+            }, 5000);
+        }
     });
 }
 
-// Чит 2: Комбинация Ctrl + Shift + C (быстрое пополнение ресурсов)
+// ========== УДАЛЁН QUICK CHEATS ==========
+// initQuickCheats полностью удалена. Горячие клавиши больше не работают.
+
 export function initQuickCheats() {
-    let cheatKeysPressed = {};
-    
-    document.addEventListener('keydown', (e) => {
-        cheatKeysPressed[e.key] = true;
-        
-        // Ctrl + Shift + C
-        if (cheatKeysPressed['Control'] && cheatKeysPressed['Shift'] && e.key === 'C') {
-            e.preventDefault();
-            import('./gameState.js').then(m => {
-                const newHealth = Math.min(m.maxHealth, m.health + 100);
-                const newHunger = Math.min(m.maxHunger, m.hunger + 100);
-                const newCold = Math.min(m.maxCold, m.cold + 100);
-                m.setStats(newHealth, newHunger, newCold, m.money + 1000);
-                m.addExperience(100);
-                m.updateUI();
-                import('./firestore.js').then(f => f.saveGameData());
-                console.log('🧪 Быстрый чит: +1000 денег, +100 к шкалам, +100 опыта');
-                
-                const msg = document.createElement('div');
-                msg.innerText = '🧪 Быстрый чит активирован! +1000₽, +100 ко всем шкалам, +100 опыта';
-                msg.style.position = 'fixed';
-                msg.style.bottom = '70px';
-                msg.style.left = '50%';
-                msg.style.transform = 'translateX(-50%)';
-                msg.style.backgroundColor = '#4caf50';
-                msg.style.color = 'white';
-                msg.style.padding = '6px 18px';
-                msg.style.borderRadius = '60px';
-                msg.style.fontWeight = 'bold';
-                msg.style.zIndex = '9999';
-                document.body.appendChild(msg);
-                setTimeout(() => msg.remove(), 3000);
-            });
-        }
-        
-        // Ctrl + Shift + I – получить все предметы
-        if (cheatKeysPressed['Control'] && cheatKeysPressed['Shift'] && e.key === 'I') {
-            e.preventDefault();
-            import('./gameState.js').then(m => {
-                import('./inventory.js').then(i => {
-                    const allItems = Object.keys(i.itemsDB);
-                    for (const itemId of allItems) {
-                        const idx = m.inventory.findIndex(inv => inv.id === itemId);
-                        if (idx !== -1) {
-                            m.inventory[idx].count += 1;
-                        } else {
-                            m.inventory.push({ id: itemId, count: 1 });
-                        }
-                    }
-                    m.updateUI();
-                    import('./firestore.js').then(f => f.saveGameData());
-                });
-            });
-            // Показываем сообщение после добавления предметов
-            setTimeout(() => {
-                const msg = document.createElement('div');
-                msg.innerText = '🧪 Чит активирован! Все предметы добавлены по 1 штуке';
-                msg.style.position = 'fixed';
-                msg.style.bottom = '70px';
-                msg.style.left = '50%';
-                msg.style.transform = 'translateX(-50%)';
-                msg.style.backgroundColor = '#4caf50';
-                msg.style.color = 'white';
-                msg.style.padding = '6px 18px';
-                msg.style.borderRadius = '60px';
-                msg.style.fontWeight = 'bold';
-                msg.style.zIndex = '9999';
-                document.body.appendChild(msg);
-                setTimeout(() => msg.remove(), 3000);
-            }, 500);
-        }
-    });
-    
-    document.addEventListener('keyup', (e) => {
-        delete cheatKeysPressed[e.key];
-    });
+    // Функция пустая, чтобы не ломать импорт в main.js
+    console.log('⚡ Быстрые читы отключены (оставлены только текстовые коды)');
 }
