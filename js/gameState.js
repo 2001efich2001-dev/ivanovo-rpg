@@ -679,47 +679,6 @@ export async function setCurrentTitle(title) {
     console.log(`🏷️ Титул изменён на: ${title || 'нет'}`);
 }
 
-// ========== ФУНКЦИИ ДЛЯ ТУТОРИАЛА ==========
-export function setTutorialData(data) {
-    if (data) {
-        tutorialEnabled = data.enabled ?? true;
-        tutorialFlags = { ...tutorialFlags, ...(data.flags || {}) };
-    }
-}
-
-export function getTutorialData() {
-    return {
-        enabled: tutorialEnabled,
-        flags: tutorialFlags
-    };
-}
-
-export function resetTutorialFlags() {
-    for (const key in tutorialFlags) {
-        if (typeof tutorialFlags[key] === 'boolean') {
-            tutorialFlags[key] = false;
-        }
-    }
-}
-
-export function isTutorialEnabled() {
-    return tutorialEnabled;
-}
-
-export function setTutorialEnabled(enabled) {
-    tutorialEnabled = enabled;
-}
-
-export function markTutorialShown(flagKey) {
-    if (tutorialFlags.hasOwnProperty(flagKey)) {
-        tutorialFlags[flagKey] = true;
-    }
-}
-
-export function isTutorialShown(flagKey) {
-    return tutorialFlags[flagKey] || false;
-}
-
 // ===== ОБНОВЛЕНИЕ ЕЖЕДНЕВНОЙ СТОИМОСТИ =====
 export function updateHousingDailyCost(homeId = currentHome) {
     if (!homeId) {
