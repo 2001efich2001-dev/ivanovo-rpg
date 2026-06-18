@@ -108,7 +108,15 @@ export let tutorialFlags = {
     shown_relax: false,
     shown_scavenge_home: false,
     shown_sauna: false,
-    shown_cook: false
+    shown_cook: false,
+    
+    // 👇 НОВЫЕ ФЛАГИ ДЛЯ ТУТОРИАЛА
+    shown_quest_complete: false,   // Выполнение квеста
+    shown_npc_shop: false,         // Магазин NPC
+    shown_npc_quest: false,        // Квесты NPC
+    shown_random_event: false,     // Случайное событие
+    shown_estate_buy: false,       // Покупка с доски
+    shown_shop_buy: false,         // Покупка в магазине
 };
 
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
