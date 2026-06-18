@@ -66,6 +66,12 @@ export async function saveGameData() {
         owned: gameState.ownedTitles ?? []
     };
     
+    // 👉 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА: собираем данные туториала
+    const tutorialData = {
+        enabled: gameState.tutorialEnabled ?? true,
+        flags: gameState.tutorialFlags ?? {}
+    };
+    
     const docRef = doc(db, 'users', user.uid);
     await setDoc(docRef, {
         health: healthVal,
@@ -90,9 +96,10 @@ export async function saveGameData() {
         dailyBonusStreak: dailyBonusStreakVal,
         achievements: achievementsData,
         housing: housingData,
-        titles: titlesData  // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ
+        titles: titlesData,
+        tutorial: tutorialData  // 👈 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА
     }, { merge: true });
-    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData, titles: titlesData });
+    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData, titles: titlesData, tutorial: tutorialData });
 }
 
 export async function loadGameData(userId) {
@@ -150,6 +157,16 @@ export async function loadGameData(userId) {
             initTitlesData();
         }
         
+        // 👉 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА: загружаем данные туториала
+        if (data.tutorial) {
+            const { setTutorialData } = await import('./gameState.js');
+            setTutorialData(data.tutorial);
+            console.log('💡 Загружены данные туториала:', data.tutorial);
+        } else {
+            // Если данных нет, они останутся дефолтными (tutorialEnabled = true, все флаги = false)
+            console.log('💡 Данные туториала не найдены, используются дефолтные значения');
+        }
+        
         updateUI();
         console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication });
     } else {
@@ -186,6 +203,9 @@ export async function loadGameData(userId) {
         // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ: инициализируем данные титулов для нового игрока
         const { initTitlesData } = await import('./gameState.js');
         initTitlesData();
+        
+        // 👉 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА: для нового игрока всё остаётся по умолчанию (tutorialEnabled = true, все флаги = false)
+        console.log('💡 Новый игрок: туториал включён по умолчанию');
         
         gameState.updateUI();
         
