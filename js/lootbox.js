@@ -62,7 +62,7 @@ const lootPools = {
 };
 
 // ========== ВЫБОР НАГРАДЫ С ИНДЕКСОМ ==========
-function selectReward(boxType) {
+export function selectReward(boxType) {
     const pool = lootPools[boxType];
     if (!pool) return null;
     
