@@ -8,14 +8,14 @@ import { showMessage } from './utils.js';
 const lootPools = {
     bronze_box: {
         rewards: [
-            { type: 'item', id: 'bread', count: 2, weight: 20, label: '🍞 2 хлеба' },
-            { type: 'item', id: 'water', count: 2, weight: 20, label: '💧 2 воды' },
-            { type: 'item', id: 'medkit', count: 1, weight: 15, label: '💊 Аптечка' },
-            { type: 'item', id: 'cigarettes', count: 2, weight: 15, label: '🚬 2 сигареты' },
-            { type: 'money', amount: [50, 150], weight: 15, label: '💰 50-150₽' },
-            { type: 'item', id: 'gold_chain', count: 1, weight: 8, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 5, label: '💍 Кольцо' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 2, label: '🎖️ Легендарка' },
+            { type: 'item', id: 'bread', count: 2, weight: 20, label: '🍞 2 хлеба', icon: '🍞' },
+            { type: 'item', id: 'water', count: 2, weight: 20, label: '💧 2 воды', icon: '💧' },
+            { type: 'item', id: 'medkit', count: 1, weight: 15, label: '💊 Аптечка', icon: '💊' },
+            { type: 'item', id: 'cigarettes', count: 2, weight: 15, label: '🚬 2 сигареты', icon: '🚬' },
+            { type: 'money', amount: [50, 150], weight: 15, label: '💰 50-150₽', icon: '💰' },
+            { type: 'item', id: 'gold_chain', count: 1, weight: 8, label: '⛓️ Золотая цепь', icon: '⛓️' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 5, label: '💍 Кольцо', icon: '💍' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 2, label: '🎖️ Легендарка', icon: '🎖️' },
         ],
         color: '#cd7f32',
         title: '📦 БРОНЗОВЫЙ ЯЩИК'
@@ -23,15 +23,15 @@ const lootPools = {
     
     silver_box: {
         rewards: [
-            { type: 'item', id: 'medkit', count: 2, weight: 15, label: '💊 2 аптечки' },
-            { type: 'item', id: 'vodka', count: 2, weight: 15, label: '🍾 2 водки' },
-            { type: 'item', id: 'cigarettes', count: 3, weight: 15, label: '🚬 3 сигареты' },
-            { type: 'money', amount: [300, 800], weight: 18, label: '💰 300-800₽' },
-            { type: 'money', amount: [1000, 2000], weight: 15, label: '💰 1000-2000₽' },
-            { type: 'item', id: 'gold_chain', count: 1, weight: 8, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 6, label: '💍 Кольцо' },
-            { type: 'item', id: 'leather_jacket', count: 1, weight: 4, label: '🧥 Кожаная куртка' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 4, label: '🎖️ Легендарка' },
+            { type: 'item', id: 'medkit', count: 2, weight: 15, label: '💊 2 аптечки', icon: '💊' },
+            { type: 'item', id: 'vodka', count: 2, weight: 15, label: '🍾 2 водки', icon: '🍾' },
+            { type: 'item', id: 'cigarettes', count: 3, weight: 15, label: '🚬 3 сигареты', icon: '🚬' },
+            { type: 'money', amount: [300, 800], weight: 18, label: '💰 300-800₽', icon: '💰' },
+            { type: 'money', amount: [1000, 2000], weight: 15, label: '💰 1000-2000₽', icon: '💰' },
+            { type: 'item', id: 'gold_chain', count: 1, weight: 8, label: '⛓️ Золотая цепь', icon: '⛓️' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 6, label: '💍 Кольцо', icon: '💍' },
+            { type: 'item', id: 'leather_jacket', count: 1, weight: 4, label: '🧥 Кожаная куртка', icon: '🧥' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 4, label: '🎖️ Легендарка', icon: '🎖️' },
         ],
         color: '#c0c0c0',
         title: '🎁 СЕРЕБРЯНЫЙ ЯЩИК'
@@ -39,23 +39,23 @@ const lootPools = {
     
     gold_box: {
         rewards: [
-            { type: 'item', id: 'medkit', count: 3, weight: 10, label: '💊 3 аптечки' },
-            { type: 'item', id: 'vodka', count: 3, weight: 10, label: '🍾 3 водки' },
-            { type: 'item', id: 'energetic', count: 3, weight: 10, label: '⚡ 3 энергетика' },
-            { type: 'money', amount: [1000, 3000], weight: 15, label: '💰 1000-3000₽' },
-            { type: 'money', amount: [5000, 10000], weight: 12, label: '💰 5000-10000₽' },
-            { type: 'item', id: 'gold_chain', count: 1, weight: 10, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 8, label: '💍 Кольцо' },
-            { type: 'item', id: 'leather_jacket', count: 1, weight: 8, label: '🧥 Кожаная куртка' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 10, label: '🎖️ Легендарка' },
-            { type: 'item', id: 'legendary_medal', count: 2, weight: 7, label: '🎖️ 2 Легендарки' },
+            { type: 'item', id: 'medkit', count: 3, weight: 10, label: '💊 3 аптечки', icon: '💊' },
+            { type: 'item', id: 'vodka', count: 3, weight: 10, label: '🍾 3 водки', icon: '🍾' },
+            { type: 'item', id: 'energetic', count: 3, weight: 10, label: '⚡ 3 энергетика', icon: '⚡' },
+            { type: 'money', amount: [1000, 3000], weight: 15, label: '💰 1000-3000₽', icon: '💰' },
+            { type: 'money', amount: [5000, 10000], weight: 12, label: '💰 5000-10000₽', icon: '💰' },
+            { type: 'item', id: 'gold_chain', count: 1, weight: 10, label: '⛓️ Золотая цепь', icon: '⛓️' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 8, label: '💍 Кольцо', icon: '💍' },
+            { type: 'item', id: 'leather_jacket', count: 1, weight: 8, label: '🧥 Кожаная куртка', icon: '🧥' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 10, label: '🎖️ Легендарка', icon: '🎖️' },
+            { type: 'item', id: 'legendary_medal', count: 2, weight: 7, label: '🎖️ 2 Легендарки', icon: '🎖️' },
         ],
         color: '#ffd700',
         title: '👑 ЗОЛОТОЙ ЯЩИК'
     }
 };
 
-// ========== ВЫБОР НАГРАДЫ С ИНДЕКСОМ ==========
+// ========== ВЫБОР НАГРАДЫ ==========
 function selectReward(boxType) {
     const pool = lootPools[boxType];
     if (!pool) return null;
@@ -63,20 +63,13 @@ function selectReward(boxType) {
     const totalWeight = pool.rewards.reduce((sum, r) => sum + r.weight, 0);
     let random = Math.random() * totalWeight;
     
-    for (let i = 0; i < pool.rewards.length; i++) {
-        random -= pool.rewards[i].weight;
+    for (const reward of pool.rewards) {
+        random -= reward.weight;
         if (random <= 0) {
-            return {
-                reward: pool.rewards[i],
-                index: i
-            };
+            return reward;
         }
     }
-    
-    return {
-        reward: pool.rewards[0],
-        index: 0
-    };
+    return pool.rewards[0];
 }
 
 // ========== ВЫДАЧА НАГРАДЫ ==========
@@ -118,27 +111,25 @@ export function openLootBox(boxType) {
         return;
     }
     
-    const result = selectReward(boxType);
-    if (!result) {
+    const reward = selectReward(boxType);
+    if (!reward) {
         showMessage('❌ Ошибка при открытии ящика', '#e74c3c');
         return;
     }
     
-    const { reward, index } = result;
-    
-    showWheelOfFortune(pool, reward, index, boxType, () => {
+    showSlotMachine(pool, reward, boxType, () => {
         giveReward(reward, boxType);
     });
 }
 
-// ========== КОЛЕСО ФОРТУНЫ ==========
-function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComplete) {
-    // Удаляем старую рулетку, если есть
-    const oldWheel = document.getElementById('wheelOfFortuneContainer');
-    if (oldWheel) oldWheel.remove();
+// ========== НОВАЯ МЕХАНИКА: СЛОТ-МАШИНА (бегущая строка) ==========
+function showSlotMachine(pool, selectedReward, boxType, onComplete) {
+    // Удаляем старую, если есть
+    const old = document.getElementById('slotMachineContainer');
+    if (old) old.remove();
     
     const container = document.createElement('div');
-    container.id = 'wheelOfFortuneContainer';
+    container.id = 'slotMachineContainer';
     container.style.cssText = `
         position: fixed;
         top: 0;
@@ -166,16 +157,56 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
     `;
     container.appendChild(title);
     
-    // Canvas для колеса (увеличил до 500px)
-    const canvas = document.createElement('canvas');
-    canvas.width = 500;
-    canvas.height = 500;
-    canvas.style.cssText = `
-        border-radius: 50%;
-        box-shadow: 0 0 60px ${pool.color}60;
+    // Контейнер с полосой прокрутки
+    const trackContainer = document.createElement('div');
+    trackContainer.style.cssText = `
+        position: relative;
+        width: 80%;
+        max-width: 700px;
+        height: 180px;
+        background: rgba(0,0,0,0.6);
+        border-radius: 20px;
+        border: 3px solid ${pool.color};
+        overflow: hidden;
+        box-shadow: 0 0 40px ${pool.color}40;
         margin-bottom: 20px;
     `;
-    container.appendChild(canvas);
+    
+    // Зона выделения (рамка в центре)
+    const highlight = document.createElement('div');
+    highlight.style.cssText = `
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 160px;
+        border: 4px solid #ffd700;
+        border-radius: 16px;
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), inset 0 0 30px rgba(255, 215, 0, 0.1);
+        z-index: 10;
+        pointer-events: none;
+        animation: slotPulse 1s ease infinite;
+    `;
+    trackContainer.appendChild(highlight);
+    
+    // Бегущая строка
+    const track = document.createElement('div');
+    track.id = 'slotTrack';
+    track.style.cssText = `
+        display: flex;
+        gap: 10px;
+        padding: 10px 20px;
+        height: 100%;
+        align-items: center;
+        transition: none;
+        will-change: transform;
+        position: relative;
+        left: 0;
+    `;
+    trackContainer.appendChild(track);
+    
+    container.appendChild(trackContainer);
     
     // Кнопка "Крутить!"
     const spinBtn = document.createElement('button');
@@ -215,91 +246,71 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
     
     document.body.appendChild(container);
     
-    // Рисуем колесо
-    const ctx = canvas.getContext('2d');
-    const rewards = pool.rewards;
-    const segmentCount = rewards.length;
-    const anglePerSegment = (2 * Math.PI) / segmentCount;
-    
-    function drawWheel(rotation = 0) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const radius = canvas.width / 2 - 10;
-        
-        for (let i = 0; i < segmentCount; i++) {
-            const startAngle = i * anglePerSegment + rotation;
-            const endAngle = startAngle + anglePerSegment;
-            
-            const hue = (i * 360 / segmentCount) % 360;
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-            ctx.closePath();
-            ctx.fillStyle = `hsl(${hue}, 70%, 60%)`;
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Текст
-            ctx.save();
-            ctx.translate(centerX, centerY);
-            ctx.rotate(startAngle + anglePerSegment / 2);
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 14px Arial';
-            ctx.shadowColor = 'rgba(0,0,0,0.8)';
-            ctx.shadowBlur = 4;
-            
-            const label = rewards[i].label;
-            // Обрезаем длинные названия
-            const displayLabel = label.length > 12 ? label.slice(0, 10) + '…' : label;
-            ctx.fillText(displayLabel, radius * 0.65, 0);
-            ctx.restore();
+    // 👇 Формируем список для отображения (дублируем для бесконечности)
+    const allRewards = pool.rewards;
+    const displayItems = [];
+    // Берём 3 копии подряд, чтобы было много для прокрутки
+    for (let rep = 0; rep < 3; rep++) {
+        for (const r of allRewards) {
+            displayItems.push(r);
         }
-        
-        // Центральный круг
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, 25, 0, 2 * Math.PI);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        
-        // Стрелка (сверху, более заметная)
-        ctx.beginPath();
-        ctx.moveTo(centerX, 15);
-        ctx.lineTo(centerX - 20, 5);
-        ctx.lineTo(centerX + 20, 5);
-        ctx.closePath();
-        ctx.fillStyle = '#ff0000';
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Тень под стрелкой
-        ctx.shadowColor = 'rgba(255, 0, 0, 0.5)';
-        ctx.shadowBlur = 15;
-        ctx.beginPath();
-        ctx.moveTo(centerX, 15);
-        ctx.lineTo(centerX - 20, 5);
-        ctx.lineTo(centerX + 20, 5);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
-        ctx.fill();
-        ctx.shadowBlur = 0;
     }
     
-    drawWheel(0);
+    // Рендерим элементы
+    function renderItems() {
+        track.innerHTML = '';
+        displayItems.forEach((item, idx) => {
+            const div = document.createElement('div');
+            div.style.cssText = `
+                flex: 0 0 120px;
+                height: 140px;
+                background: rgba(255,255,255,0.08);
+                border-radius: 12px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                border: 1px solid rgba(255,255,255,0.1);
+                transition: all 0.3s;
+            `;
+            div.innerHTML = `
+                <div style="font-size: 3rem;">${item.icon || '🎁'}</div>
+                <div style="font-size: 0.7rem; color: #ccc; text-align: center; margin-top: 4px;">${item.label}</div>
+            `;
+            track.appendChild(div);
+        });
+    }
+    renderItems();
+    
+    // Находим индекс выигравшего предмета в displayItems
+    function findRewardIndex(reward) {
+        // Сначала ищем по точному совпадению (для уникальных)
+        for (let i = 0; i < displayItems.length; i++) {
+            const item = displayItems[i];
+            if (item.type === reward.type && item.id === reward.id && 
+                item.count === reward.count && item.label === reward.label) {
+                return i;
+            }
+        }
+        // Если не нашли — ищем по label
+        for (let i = 0; i < displayItems.length; i++) {
+            if (displayItems[i].label === reward.label) {
+                return i;
+            }
+        }
+        return 0;
+    }
+    
+    const targetIndex = findRewardIndex(selectedReward);
+    // Смещаем так, чтобы целевой элемент оказался в центре (на позиции highlight)
+    const itemWidth = 130; // 120 + 10 gap
+    const containerWidth = trackContainer.offsetWidth || 700;
+    const centerOffset = (containerWidth / 2) - (itemWidth / 2);
+    const targetPosition = -(targetIndex * itemWidth - centerOffset);
     
     let isSpinning = false;
     let isFinished = false;
     
-    // 👇 ИСПРАВЛЕННАЯ ЛОГИКА ВРАЩЕНИЯ
     spinBtn.addEventListener('click', () => {
         if (isSpinning || isFinished) return;
         isSpinning = true;
@@ -308,92 +319,61 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
         resultDiv.textContent = '🌀 Колесо крутится...';
         resultDiv.style.color = '#ffd966';
         
-        // Случайное количество оборотов (5-8)
-        const extraSpins = 5 + Math.random() * 3;
+        // Случайный сдвиг вперёд (минимум 3 полных прохода)
+        const extraOffset = (Math.floor(Math.random() * 10) + 5) * itemWidth;
+        const finalPosition = targetPosition - extraOffset;
         
-        // 👇 ГЛАВНОЕ ИСПРАВЛЕНИЕ: учитываем положение стрелки (сверху)
-        const arrowOffset = -Math.PI / 2; // Стрелка в 12 часов
-        const targetAngle = selectedIndex * anglePerSegment + anglePerSegment / 2 + arrowOffset;
-        const totalRotation = extraSpins * 2 * Math.PI + targetAngle;
+        track.style.transition = `transform ${4 + Math.random() * 1}s cubic-bezier(0.1, 0.7, 0.1, 1)`;
+        track.style.transform = `translateX(${finalPosition}px)`;
         
-        const startTime = Date.now();
-        const duration = 4000 + Math.random() * 1000;
-        
-        function animate() {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            const currentRotation = totalRotation * eased;
+        setTimeout(() => {
+            isSpinning = false;
+            isFinished = true;
+            spinBtn.disabled = false;
             
-            drawWheel(currentRotation);
+            spinBtn.textContent = '✅ ЗАКРЫТЬ';
+            spinBtn.style.background = '#4caf50';
+            spinBtn.style.boxShadow = '0 4px 20px rgba(76, 175, 80, 0.6)';
             
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                isSpinning = false;
-                isFinished = true;
-                spinBtn.disabled = false;
-                
-                spinBtn.textContent = '✅ ЗАКРЫТЬ';
-                spinBtn.style.background = '#4caf50';
-                spinBtn.style.boxShadow = '0 4px 20px rgba(76, 175, 80, 0.6)';
-                
-                // 👇 ПОДСВЕТКА ВЫИГРАВШЕГО СЕГМЕНТА
-                highlightWinningSegment(selectedIndex, currentRotation);
-                
-                resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
-                resultDiv.style.color = '#4caf50';
-                
-                spinBtn.onclick = () => {
-                    if (container && container.remove) container.remove();
-                };
-                
-                onComplete();
-            }
-        }
-        animate();
+            resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
+            resultDiv.style.color = '#4caf50';
+            
+            // Подсвечиваем выигравший элемент
+            const allItems = track.querySelectorAll('div');
+            allItems.forEach((el, idx) => {
+                if (idx === targetIndex) {
+                    el.style.border = '3px solid #ffd700';
+                    el.style.boxShadow = '0 0 30px rgba(255, 215, 0, 0.6)';
+                    el.style.background = 'rgba(255, 215, 0, 0.15)';
+                }
+            });
+            
+            spinBtn.onclick = () => {
+                if (container && container.remove) container.remove();
+            };
+            
+            onComplete();
+        }, 4500 + Math.random() * 1000);
     });
     
-    // 👇 ЗАКРЫТИЕ ТОЛЬКО ПОСЛЕ ВРАЩЕНИЯ
+    // Закрытие только после вращения
     container.addEventListener('click', (e) => {
         if (e.target === container && isFinished) {
             container.remove();
         }
     });
-}
-
-// ========== ПОДСВЕТКА ВЫИГРАВШЕГО СЕГМЕНТА ==========
-function highlightWinningSegment(index, rotation) {
-    // Находим canvas
-    const canvas = document.querySelector('canvas');
-    if (!canvas) return;
     
-    const ctx = canvas.getContext('2d');
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = canvas.width / 2 - 10;
-    
-    // Получаем pool.rewards из замыкания
-    // Используем глобальную переменную или передаём через замыкание
-    const rewards = window._wheelRewards || [];
-    const segmentCount = rewards.length;
-    const anglePerSegment = (2 * Math.PI) / segmentCount;
-    
-    const startAngle = index * anglePerSegment + rotation;
-    const endAngle = startAngle + anglePerSegment;
-    
-    ctx.save();
-    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
-    ctx.shadowBlur = 30;
-    
-    ctx.beginPath();
-    ctx.moveTo(centerX, centerY);
-    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
-    ctx.fill();
-    ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-    ctx.restore();
+    // Добавляем стили для анимации
+    if (!document.getElementById('slotMachineStyles')) {
+        const style = document.createElement('style');
+        style.id = 'slotMachineStyles';
+        style.textContent = `
+            @keyframes slotPulse {
+                0% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.05); }
+                50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8), inset 0 0 50px rgba(255, 215, 0, 0.1); }
+                100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.05); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
 }
