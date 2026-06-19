@@ -72,10 +72,13 @@ export function selectReward(boxType) {
     for (let i = 0; i < pool.rewards.length; i++) {
         random -= pool.rewards[i].weight;
         if (random <= 0) {
-            return {
+            const result = {
                 reward: pool.rewards[i],
                 index: i
             };
+            // 👇 ДОБАВЬ ЭТО
+            console.log('🎯 selectReward выбрал:', result.reward.label, 'индекс:', i);
+            return result;
         }
     }
     
@@ -139,6 +142,18 @@ export function openLootBox(boxType) {
 
 // ========== КОЛЕСО ФОРТУНЫ ==========
 function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComplete) {
+
+ 
+
+    console.log('🎡 showWheelOfFortune вызван!');
+    console.log('📦 boxType:', boxType);
+    console.log('🎯 selectedReward:', selectedReward);
+    console.log('🔢 selectedIndex:', selectedIndex, 'тип:', typeof selectedIndex);
+    console.log('📊 pool.rewards:', pool.rewards.map((r, i) => `${i}: ${r.label}`).join(', '));
+    console.log('✅ Совпадает?', pool.rewards[selectedIndex]?.label === selectedReward.label);
+
+
+    
     const oldWheel = document.getElementById('wheelOfFortuneContainer');
     if (oldWheel) oldWheel.remove();
     
