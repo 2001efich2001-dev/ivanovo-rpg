@@ -1,3 +1,4 @@
+// js/locations.js
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction, showTutorialTip } from './utils.js';
@@ -12,25 +13,26 @@ function playClick() {
 
 // Стоимость энергии для разных действий
 const energyCosts = {
-    beg: 10,      // попросить подаяние
-    search: 15,   // поискать вещи
-    trade: 5,     // обменять бутылки
-    steal: 20,    // украсть еду
-    scavenge: 15, // покопаться в мусоре
-    pray: 5,      // помолиться
-    get_food: 10, // попросить еду
-    drink: 5,     // выпить водку
-    fight: 25,    // подраться
-    eat: 5,       // поесть в столовой
-    sleep: 0,     // сон (восстанавливает энергию, не тратит)
-    fishing: 15,  // рыбалка
-    relax: 0,     // отдых
-    collect_water: 5, // набор воды
-    darts: 10,    // дротики
-    slot_machine: 0, // однорукий бандит (не тратит энергию)
-    rest_dump: 0, // отдых на помойке
-    storage: 0,   // открытие хранилища (не тратит энергию)
-    talk: 0       // разговор с NPC (не тратит энергию)
+    beg: 10,
+    search: 15,
+    trade: 5,
+    steal: 20,
+    scavenge: 15,
+    pray: 5,
+    get_food: 10,
+    drink: 5,
+    fight: 25,
+    eat: 5,
+    sleep: 0,
+    fishing: 15,
+    relax: 0,
+    collect_water: 5,
+    darts: 10,
+    slot_machine: 0,
+    rest_dump: 0,
+    storage: 0,
+    talk: 0,
+    zombie_shooter: 20  // 👈 ДОБАВЛЕНО
 };
 
 // ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ КВЕСТОВ ==========
@@ -90,15 +92,17 @@ export const locationsDB = {
     market: {
         id: "market",
         name: "Рынок",
-        description: "Оживлённое место, можно обменять вещи или украсть еду.",
+        description: "Оживлённое место, можно обменять вещи или украсть еду. А ещё здесь есть тир!",
         bgImage: "images/market_bg.jpg",
         zones: [
             { id: "trade_zone", name: "Прилавок", description: "Обменять пустые бутылки: 5-15₽", cx: 200, cy: 150, r: 50, actionId: "trade" },
-            { id: "steal_zone", name: "Лотки с едой", description: "Украсть еду: +1 хлеб (риск 50%)", cx: 450, cy: 200, r: 55, actionId: "steal" }
+            { id: "steal_zone", name: "Лотки с едой", description: "Украсть еду: +1 хлеб (риск 50%)", cx: 450, cy: 200, r: 55, actionId: "steal" },
+            { id: "zombie_zone", name: "🧟 Зомби-тир", description: "Стреляй по зомби и зарабатывай очки! (тратит 20⚡)", cx: 600, cy: 150, r: 50, actionId: "zombie_shooter" }
         ],
         actions: [
             { id: "trade", name: "Обменять пустые бутылки", desc: "Требуется пустая бутылка", needsItem: "empty_bottle", effect: { money: [5, 15] }, risk: 0 },
-            { id: "steal", name: "Украсть еду", desc: "Риск: 50% поймают", effect: { items: ["bread"] }, risk: 50, riskEffect: { money: -30, health: -15 } }
+            { id: "steal", name: "Украсть еду", desc: "Риск: 50% поймают", effect: { items: ["bread"] }, risk: 50, riskEffect: { money: -30, health: -15 } },
+            { id: "zombie_shooter", name: "🧟 Зомби-тир", desc: "Стреляй по зомби и зарабатывай очки! (тратит 20⚡)", effect: {}, cost: 0, risk: 0 }
         ]
     },
     shelter: {
@@ -643,6 +647,36 @@ async function executeAction(locationId, action) {
         await saveGameData();
         showMessage("💧 Вы набрали бутылку свежей воды!", "#4caf50");
         logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - +1 бутылка воды`, 'item');
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
+    
+    // ===== ЗОМБИ-ШУТЕР =====
+    if (action.id === 'zombie_shooter') {
+        await showActionTip('shown_zombie_shooter', '🧟 Добро пожаловать в зомби-тир! Стреляй по зомби, зарабатывай очки и получай награду. Чем сложнее режим — тем больше награда!');
+        
+        const energyCost = energyCosts.zombie_shooter || 20;
+        if (!hasEnoughEnergy(energyCost)) {
+            showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+            return;
+        }
+        
+        if (!canPerformAction(action.name)) {
+            return;
+        }
+        
+        spendEnergy(energyCost);
+        
+        try {
+            const { openZombieGame } = await import('./minigameZombie.js');
+            await openZombieGame();
+            logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - зомби-тир`, 'location');
+        } catch (error) {
+            console.error('Ошибка открытия зомби-тира:', error);
+            showMessage("❌ Ошибка запуска игры. Попробуйте позже.", "#e74c3c");
+            setEnergy(Math.min(100, energy + energyCost));
+        }
+        
         document.getElementById('locationModal').style.display = 'none';
         return;
     }
