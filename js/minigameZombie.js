@@ -66,9 +66,9 @@ let gameState = {
     canvas: null,
     ctx: null,
     currentEscalationLevel: 0,
-    waveStartTime: 0,
-    totalWaves: 0,
-    maxKillsReached: 0
+    maxKillsReached: 0,
+    bgImage: null,
+    iconImage: null
 };
 
 // ========== ГЛАВНАЯ ФУНКЦИЯ ОТКРЫТИЯ ==========
@@ -85,7 +85,47 @@ export async function openZombieGame() {
     }
     
     gameStateMain.spendEnergy(20);
+    
+    // Загружаем картинки перед показом меню
+    await loadImages();
     showDifficultyMenu();
+}
+
+// ========== ЗАГРУЗКА КАРТИНОК ==========
+function loadImages() {
+    return new Promise((resolve) => {
+        let loaded = 0;
+        const total = 2;
+        
+        // Фон игры
+        const bgImg = new Image();
+        bgImg.src = 'images/zombie_bg.jpg';
+        bgImg.onload = () => {
+            gameState.bgImage = bgImg;
+            loaded++;
+            if (loaded >= total) resolve();
+        };
+        bgImg.onerror = () => {
+            loaded++;
+            if (loaded >= total) resolve();
+        };
+        
+        // Иконка для меню
+        const iconImg = new Image();
+        iconImg.src = 'images/zombie_icon.png';
+        iconImg.onload = () => {
+            gameState.iconImage = iconImg;
+            loaded++;
+            if (loaded >= total) resolve();
+        };
+        iconImg.onerror = () => {
+            loaded++;
+            if (loaded >= total) resolve();
+        };
+        
+        // Таймаут на всякий случай
+        setTimeout(resolve, 3000);
+    });
 }
 
 // ========== МЕНЮ ВЫБОРА СЛОЖНОСТИ ==========
@@ -107,9 +147,13 @@ function showDifficultyMenu() {
         align-items: center;
     `;
     
+    const iconHtml = gameState.iconImage 
+        ? `<img src="images/zombie_icon.png" style="width: 80px; height: 80px; object-fit: contain; margin-bottom: 10px;">`
+        : `<div style="font-size: 4rem;">🧟</div>`;
+    
     modal.innerHTML = `
         <div style="text-align: center; color: white; margin-bottom: 40px;">
-            <div style="font-size: 4rem;">🧟</div>
+            ${iconHtml}
             <h1 style="font-size: 3rem; color: #ffd966; margin: 10px 0;">ЗОМБИ-ШУТЕР</h1>
             <p style="color: #aaa; font-size: 1.1rem;">Выбери сложность и уничтожай зомби!</p>
             <p style="color: #666; font-size: 0.8rem; margin-top: 8px;">Тратит 20⚡ энергии</p>
@@ -304,6 +348,13 @@ function drawBackground() {
     const w = canvas.width;
     const h = canvas.height;
     
+    // Если фон загружен — рисуем его
+    if (gameState.bgImage) {
+        ctx.drawImage(gameState.bgImage, 0, 0, w, h);
+        return;
+    }
+    
+    // Fallback: рисуем градиент если картинка не загрузилась
     const gradient = ctx.createLinearGradient(0, 0, 0, h);
     gradient.addColorStop(0, '#1a1a2e');
     gradient.addColorStop(0.5, '#2d2d44');
@@ -319,32 +370,6 @@ function drawBackground() {
     ctx.arc(w * 0.8, 80, 30, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255, 255, 200, 0.5)';
     ctx.fill();
-    
-    ctx.fillStyle = 'rgba(40, 40, 60, 0.6)';
-    const buildings = [
-        { x: 0.05, w: 0.12, h: 0.5 },
-        { x: 0.2, w: 0.1, h: 0.7 },
-        { x: 0.35, w: 0.15, h: 0.4 },
-        { x: 0.55, w: 0.08, h: 0.6 },
-        { x: 0.7, w: 0.12, h: 0.45 },
-        { x: 0.85, w: 0.1, h: 0.65 }
-    ];
-    buildings.forEach(b => {
-        const x = b.x * w;
-        const width = b.w * w;
-        const height = b.h * h;
-        const y = h - height;
-        ctx.fillRect(x, y, width, height);
-        ctx.fillStyle = 'rgba(255, 200, 100, 0.1)';
-        for (let row = 0; row < 3; row++) {
-            for (let col = 0; col < 2; col++) {
-                const wx = x + width * 0.1 + col * width * 0.35;
-                const wy = y + height * 0.1 + row * height * 0.25;
-                ctx.fillRect(wx, wy, width * 0.15, height * 0.1);
-            }
-        }
-        ctx.fillStyle = 'rgba(40, 40, 60, 0.6)';
-    });
 }
 
 // ========== СОЗДАНИЕ UI ==========
@@ -423,10 +448,8 @@ function updateEscalation() {
         gameState.currentEscalationLevel = newLevel;
         const level = ESCALATION_LEVELS[newLevel];
         
-        // Показываем уведомление о повышении сложности
         showMessage(`⚡ ${level.label}!`, '#ffd966');
         
-        // Обновляем спавн с новыми параметрами
         if (gameState.spawnTimer) {
             clearTimeout(gameState.spawnTimer);
             startSpawning();
@@ -441,7 +464,6 @@ function startSpawning() {
     const config = gameState.difficultyConfig;
     const level = ESCALATION_LEVELS[gameState.currentEscalationLevel] || ESCALATION_LEVELS[0];
     
-    // Применяем эскалацию
     const maxZombies = Math.floor(config.baseMaxZombies + level.maxZombiesBonus);
     const baseMin = config.baseSpawnInterval[0];
     const baseMax = config.baseSpawnInterval[1];
@@ -469,7 +491,6 @@ function createZombie() {
     const w = canvas.width;
     const h = canvas.height;
     
-    // Шанс появления бомбы (10-25% в зависимости от эскалации)
     const bombChance = 0.10 + (gameState.currentEscalationLevel * 0.03);
     const isBomb = Math.random() < Math.min(bombChance, 0.30);
     
@@ -509,7 +530,6 @@ function gameLoop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
     
-    // Проверяем эскалацию
     updateEscalation();
     
     const now = Date.now();
@@ -518,12 +538,10 @@ function gameLoop() {
     gameState.zombies.forEach(zombie => {
         if (!zombie.active) return;
         
-        // Анимация пульсации для бомбы
         if (zombie.isBomb) {
             zombie.bombPulse += 0.05;
         }
         
-        // Проверяем таймаут
         if (!zombie.isBomb && now - zombie.spawnTime > killTime) {
             zombie.active = false;
             loseLife();
@@ -573,7 +591,6 @@ function drawZombie(ctx, zombie, now) {
     if (zombie.isBomb) {
         drawBomb(ctx, x, y, size);
     } else {
-        // Свечение вокруг зомби
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, size * 0.8);
         gradient.addColorStop(0, 'rgba(255, 0, 0, 0.15)');
         gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
@@ -590,7 +607,6 @@ function drawBomb(ctx, x, y, size) {
     const s = size / 2;
     const pulse = Math.sin(Date.now() / 300) * 0.1 + 0.9;
     
-    // Свечение
     const gradient = ctx.createRadialGradient(x, y, 0, x, y, size * 1.2 * pulse);
     gradient.addColorStop(0, 'rgba(255, 50, 0, 0.4)');
     gradient.addColorStop(0.5, 'rgba(255, 20, 0, 0.2)');
@@ -600,7 +616,6 @@ function drawBomb(ctx, x, y, size) {
     ctx.arc(x, y, size * 1.2 * pulse, 0, Math.PI * 2);
     ctx.fill();
     
-    // Тело бомбы
     ctx.shadowColor = 'rgba(255, 50, 0, 0.5)';
     ctx.shadowBlur = 20;
     ctx.fillStyle = '#1a1a1a';
@@ -608,12 +623,10 @@ function drawBomb(ctx, x, y, size) {
     ctx.arc(x, y, s * 0.8, 0, Math.PI * 2);
     ctx.fill();
     
-    // Красный пояс
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#cc0000';
     ctx.fillRect(x - s * 0.7, y - s * 0.1, s * 1.4, s * 0.2);
     
-    // Анимация мигания
     if (Math.sin(Date.now() / 400) > 0.3) {
         ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
         ctx.beginPath();
@@ -621,7 +634,6 @@ function drawBomb(ctx, x, y, size) {
         ctx.fill();
     }
     
-    // Иконка 💣
     ctx.shadowBlur = 0;
     ctx.font = `${s * 0.8}px Arial`;
     ctx.textAlign = 'center';
@@ -681,7 +693,6 @@ function drawZombieBody(ctx, x, y, size, color) {
 
 // ========== ВЗРЫВ БОМБЫ ==========
 function explodeBomb(bomb) {
-    // Находим всех активных зомби (кроме самой бомбы)
     const targets = gameState.zombies.filter(z => 
         z.active && !z.isDying && z.id !== bomb.id
     );
@@ -691,13 +702,10 @@ function explodeBomb(bomb) {
         target.isDying = true;
         target.deathTime = Date.now();
         killed++;
-        
-        // Начисляем очки за каждого убитого
         const config = gameState.difficultyConfig;
         gameState.score += config.pointsPerKill;
     }
     
-    // Бонус за массовое уничтожение
     if (killed > 0) {
         const bonus = killed * 5;
         gameState.score += bonus;
@@ -705,12 +713,9 @@ function explodeBomb(bomb) {
         
         showMessage(`💥 ВЗРЫВ! Уничтожено ${killed} зомби! +${bonus} бонусных очков!`, '#ff6b35');
         addLogEntry(`💥 Взрыв бомбы: уничтожено ${killed} зомби`, 'combat');
-        
-        // Эффект взрыва
         createBigExplosion(bomb.x, bomb.y);
     }
     
-    // Удаляем бомбу
     bomb.active = false;
 }
 
@@ -718,7 +723,6 @@ function explodeBomb(bomb) {
 function createBigExplosion(x, y) {
     const container = gameState.container;
     
-    // Вспышка
     const flash = document.createElement('div');
     flash.style.cssText = `
         position: absolute;
@@ -735,7 +739,6 @@ function createBigExplosion(x, y) {
     container.appendChild(flash);
     setTimeout(() => flash.remove(), 600);
     
-    // Частицы взрыва
     for (let i = 0; i < 50; i++) {
         const el = document.createElement('div');
         const angle = Math.random() * Math.PI * 2;
@@ -796,12 +799,10 @@ function handleShoot(e) {
         const target = gameState.zombies[hitIndex];
         
         if (target.isBomb) {
-            // Взрываем бомбу!
             explodeBomb(target);
             createHitEffect(target.x, target.y);
             updateZombieUI();
         } else {
-            // Обычное попадание по зомби
             target.isDying = true;
             target.deathTime = Date.now();
             
@@ -811,8 +812,6 @@ function handleShoot(e) {
             
             createHitEffect(target.x, target.y);
             updateZombieUI();
-            
-            // Проверяем эскалацию
             updateEscalation();
         }
     } else {
@@ -1051,7 +1050,7 @@ function showResultScreen(won, moneyReward, expReward, survivalBonus, escalation
     });
 }
 
-// ========== ДОБАВЛЯЕМ СТИЛИ ДЛЯ ВЗРЫВА ==========
+// ========== ДОБАВЛЯЕМ СТИЛИ ==========
 if (!document.getElementById('zombieExplosionStyles')) {
     const style = document.createElement('style');
     style.id = 'zombieExplosionStyles';
