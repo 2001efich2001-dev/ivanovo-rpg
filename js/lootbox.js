@@ -121,10 +121,9 @@ export function openLootBox(boxType) {
         giveReward(reward, boxType);
     });
 }
-
-// ========== НОВАЯ МЕХАНИКА: СЛОТ-МАШИНА (бегущая строка) ==========
+ 
+// ========== НОВАЯ МЕХАНИКА: СЛОТ-МАШИНА ==========
 function showSlotMachine(pool, selectedReward, boxType, onComplete) {
-    // Удаляем старую, если есть
     const old = document.getElementById('slotMachineContainer');
     if (old) old.remove();
     
@@ -145,7 +144,6 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
         flex-direction: column;
     `;
     
-    // Заголовок
     const title = document.createElement('div');
     title.textContent = pool.title;
     title.style.cssText = `
@@ -157,7 +155,6 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
     `;
     container.appendChild(title);
     
-    // Контейнер с полосой прокрутки
     const trackContainer = document.createElement('div');
     trackContainer.style.cssText = `
         position: relative;
@@ -172,7 +169,6 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
         margin-bottom: 20px;
     `;
     
-    // Зона выделения (рамка в центре)
     const highlight = document.createElement('div');
     highlight.style.cssText = `
         position: absolute;
@@ -190,7 +186,6 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
     `;
     trackContainer.appendChild(highlight);
     
-    // Бегущая строка
     const track = document.createElement('div');
     track.id = 'slotTrack';
     track.style.cssText = `
@@ -205,10 +200,8 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
         left: 0;
     `;
     trackContainer.appendChild(track);
-    
     container.appendChild(trackContainer);
     
-    // Кнопка "Крутить!"
     const spinBtn = document.createElement('button');
     spinBtn.textContent = '🎰 КРУТИТЬ!';
     spinBtn.style.cssText = `
@@ -228,7 +221,6 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
     spinBtn.onmouseleave = () => spinBtn.style.transform = 'scale(1)';
     container.appendChild(spinBtn);
     
-    // Результат
     const resultDiv = document.createElement('div');
     resultDiv.style.cssText = `
         font-size: 1.5rem;
@@ -243,23 +235,60 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
     `;
     resultDiv.textContent = 'Нажми "Крутить!"';
     container.appendChild(resultDiv);
-    
     document.body.appendChild(container);
     
-    // 👇 Формируем список для отображения (дублируем для бесконечности)
+    // ========== ФОРМИРУЕМ СПИСОК ДЛЯ ОТОБРАЖЕНИЯ ==========
     const allRewards = pool.rewards;
+    const itemWidth = 130; // 120 + 10 gap
+    
+    // 👇 ДЕЛАЕМ ТАК, ЧТОБЫ КАЖДЫЙ ПРЕДМЕТ БЫЛ УНИКАЛЬНЫМ В DISPLAY
+    // Добавляем каждому предмету уникальный ID для поиска
     const displayItems = [];
-    // Берём 3 копии подряд, чтобы было много для прокрутки
+    let uidCounter = 0;
+    
+    // Сначала добавляем все награды с уникальными ID
     for (let rep = 0; rep < 3; rep++) {
         for (const r of allRewards) {
-            displayItems.push(r);
+            displayItems.push({
+                ...r,
+                _uid: uidCounter++,
+                _label: r.label // сохраняем оригинальный label
+            });
         }
     }
     
-    // Рендерим элементы
+    // Запоминаем, где находится выигравший предмет (по совпадению label + id + count)
+    let targetIndex = 0;
+    for (let i = 0; i < displayItems.length; i++) {
+        const item = displayItems[i];
+        // Сравниваем по ключевым полям
+        if (item.type === selectedReward.type &&
+            item.id === selectedReward.id &&
+            item.count === selectedReward.count &&
+            item.label === selectedReward.label) {
+            targetIndex = i;
+            break;
+        }
+    }
+    
+    // Если не нашли — ищем по label
+    if (targetIndex === 0) {
+        for (let i = 0; i < displayItems.length; i++) {
+            if (displayItems[i].label === selectedReward.label) {
+                targetIndex = i;
+                break;
+            }
+        }
+    }
+    
+    console.log('🎯 Выигравший предмет:', selectedReward.label);
+    console.log('🎯 Индекс в displayItems:', targetIndex);
+    console.log('📊 Всего элементов в displayItems:', displayItems.length);
+    
+    // Рендерим
     function renderItems() {
         track.innerHTML = '';
-        displayItems.forEach((item, idx) => {
+        displayItems.forEach((item) => {
             const div = document.createElement('div');
             div.style.cssText = `
                 flex: 0 0 120px;
@@ -271,39 +300,19 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
                 justify-content: center;
                 align-items: center;
                 border: 1px solid rgba(255,255,255,0.1);
-                transition: all 0.3s;
             `;
             div.innerHTML = `
                 <div style="font-size: 3rem;">${item.icon || '🎁'}</div>
                 <div style="font-size: 0.7rem; color: #ccc; text-align: center; margin-top: 4px;">${item.label}</div>
             `;
+            // Сохраняем _uid для поиска
+            div.dataset.uid = item._uid;
             track.appendChild(div);
         });
     }
     renderItems();
     
-    // Находим индекс выигравшего предмета в displayItems
-    function findRewardIndex(reward) {
-        // Сначала ищем по точному совпадению (для уникальных)
-        for (let i = 0; i < displayItems.length; i++) {
-            const item = displayItems[i];
-            if (item.type === reward.type && item.id === reward.id && 
-                item.count === reward.count && item.label === reward.label) {
-                return i;
-            }
-        }
-        // Если не нашли — ищем по label
-        for (let i = 0; i < displayItems.length; i++) {
-            if (displayItems[i].label === reward.label) {
-                return i;
-            }
-        }
-        return 0;
-    }
-    
-    const targetIndex = findRewardIndex(selectedReward);
-    // Смещаем так, чтобы целевой элемент оказался в центре (на позиции highlight)
-    const itemWidth = 130; // 120 + 10 gap
+    // Считаем смещение для центрирования
     const containerWidth = trackContainer.offsetWidth || 700;
     const centerOffset = (containerWidth / 2) - (itemWidth / 2);
     const targetPosition = -(targetIndex * itemWidth - centerOffset);
@@ -319,11 +328,15 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
         resultDiv.textContent = '🌀 Колесо крутится...';
         resultDiv.style.color = '#ffd966';
         
-        // Случайный сдвиг вперёд (минимум 3 полных прохода)
-        const extraOffset = (Math.floor(Math.random() * 10) + 5) * itemWidth;
+        // Случайный сдвиг вперёд (4-8 полных проходов)
+        const totalItems = displayItems.length;
+        const extraOffset = (Math.floor(Math.random() * 5) + 4) * totalItems * itemWidth;
         const finalPosition = targetPosition - extraOffset;
         
-        track.style.transition = `transform ${4 + Math.random() * 1}s cubic-bezier(0.1, 0.7, 0.1, 1)`;
+        console.log('🎡 Финальная позиция:', finalPosition);
+        console.log('🎯 targetIndex:', targetIndex, 'itemWidth:', itemWidth);
+        
+        track.style.transition = `transform ${4 + Math.random() * 1.5}s cubic-bezier(0.1, 0.7, 0.1, 1)`;
         track.style.transform = `translateX(${finalPosition}px)`;
         
         setTimeout(() => {
@@ -340,8 +353,11 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
             
             // Подсвечиваем выигравший элемент
             const allItems = track.querySelectorAll('div');
+            // Находим элемент с нужным _uid
             allItems.forEach((el, idx) => {
-                if (idx === targetIndex) {
+                const uid = parseInt(el.dataset.uid);
+                // Проверяем, совпадает ли uid с выигравшим
+                if (displayItems[idx] && displayItems[idx]._uid === displayItems[targetIndex]._uid) {
                     el.style.border = '3px solid #ffd700';
                     el.style.boxShadow = '0 0 30px rgba(255, 215, 0, 0.6)';
                     el.style.background = 'rgba(255, 215, 0, 0.15)';
@@ -356,24 +372,9 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
         }, 4500 + Math.random() * 1000);
     });
     
-    // Закрытие только после вращения
     container.addEventListener('click', (e) => {
         if (e.target === container && isFinished) {
             container.remove();
         }
     });
-    
-    // Добавляем стили для анимации
-    if (!document.getElementById('slotMachineStyles')) {
-        const style = document.createElement('style');
-        style.id = 'slotMachineStyles';
-        style.textContent = `
-            @keyframes slotPulse {
-                0% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.05); }
-                50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8), inset 0 0 50px rgba(255, 215, 0, 0.1); }
-                100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.05); }
-            }
-        `;
-        document.head.appendChild(style);
-    }
 }
