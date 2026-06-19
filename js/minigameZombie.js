@@ -1,8 +1,7 @@
 // js/minigameZombie.js
 import { showMessage } from './utils.js';
 import { saveGameData } from './firestore.js';
-import { money, setStats, addExperience, addLogEntry, health, maxHealth } from './gameState.js';
-// updateUI не нужен — он уже есть в locations.js
+import { money, setStats, addExperience, addLogEntry, health, maxHealth, updateUI } from './gameState.js';
 
 // ========== НАСТРОЙКИ РЕЖИМОВ ==========
 const DIFFICULTY = {
@@ -391,7 +390,7 @@ function createUI() {
 }
 
 // ========== ОБНОВЛЕНИЕ UI ==========
-function updateUI() {
+function updateZombieUI() {
     const livesEl = document.getElementById('zombieLives');
     const scoreEl = document.getElementById('zombieScore');
     const killsEl = document.getElementById('zombieKills');
@@ -497,10 +496,8 @@ function gameLoop() {
     // Удаляем мёртвых зомби
     gameState.zombies = gameState.zombies.filter(z => z.active || z.isDying);
     
-    // Обновляем UI
- // Вместо updateUI() используем:
-const gameState = await import('./gameState.js');
-gameState.updateUI();
+    // Обновляем UI игры
+    updateZombieUI();
     
     // Следующий кадр
     gameState.gameLoop = requestAnimationFrame(gameLoop);
@@ -644,8 +641,8 @@ function handleShoot(e) {
         // Эффект попадания
         createHitEffect(zombie.x, zombie.y);
         
-        // Обновляем UI
-        updateUI();
+        // Обновляем UI игры
+        updateZombieUI();
         
     } else {
         // Промах — эффект
@@ -737,7 +734,7 @@ function createMissEffect(x, y) {
 // ========== ПОТЕРЯ ЖИЗНИ ==========
 function loseLife() {
     gameState.lives--;
-    updateUI();
+    updateZombieUI();
     
     // Эффект потери жизни
     const container = gameState.container;
@@ -865,11 +862,11 @@ function showResultScreen(won, moneyReward, expReward) {
     
     container.appendChild(resultDiv);
     
-    // Начисляем награду
+    // Начисляем награду и обновляем основной UI игры
     const newMoney = money + moneyReward;
     setStats(null, null, null, newMoney);
     addExperience(expReward);
-    updateUI();
+    updateUI(); // обновляем основной интерфейс игры
     saveGameData();
     addLogEntry(`🧟 Зомби-шутер: ${gameState.score} очков, ${gameState.kills} убийств (+${moneyReward}₽, +${expReward} опыта)`, 'system');
     
