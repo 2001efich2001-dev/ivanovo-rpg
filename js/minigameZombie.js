@@ -1,7 +1,8 @@
 // js/minigameZombie.js
 import { showMessage } from './utils.js';
 import { saveGameData } from './firestore.js';
-import { money, setStats, addExperience, updateUI, addLogEntry, health, maxHealth } from './gameState.js';
+import { money, setStats, addExperience, addLogEntry, health, maxHealth } from './gameState.js';
+// updateUI не нужен — он уже есть в locations.js
 
 // ========== НАСТРОЙКИ РЕЖИМОВ ==========
 const DIFFICULTY = {
@@ -497,7 +498,9 @@ function gameLoop() {
     gameState.zombies = gameState.zombies.filter(z => z.active || z.isDying);
     
     // Обновляем UI
-    updateUI();
+ // Вместо updateUI() используем:
+const gameState = await import('./gameState.js');
+gameState.updateUI();
     
     // Следующий кадр
     gameState.gameLoop = requestAnimationFrame(gameLoop);
