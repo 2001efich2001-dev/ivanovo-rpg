@@ -117,6 +117,7 @@ export let tutorialFlags = {
     shown_random_event: false,     // Случайное событие
     shown_estate_buy: false,       // Покупка с доски
     shown_shop_buy: false,         // Покупка в магазине
+    shown_zombie_shooter: false,   // Зомби-тир
 };
 
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
