@@ -849,6 +849,24 @@ async function useItem(itemId) {
         window._usingItem = false;
         return;
     }
+
+    // В useItem() в inventory.js, после проверки на junk:
+
+// ===== ЛУТБОКСЫ =====
+if (itemData.type === 'lootbox') {
+    const { openLootBox } = await import('./lootbox.js');
+    // Удаляем предмет из инвентаря
+    if (inventory[itemIndex].count === 1) {
+        inventory.splice(itemIndex, 1);
+    } else {
+        inventory[itemIndex].count--;
+    }
+    updateUI();
+    await saveGameData();
+    openLootBox(itemId);
+    window._usingItem = false;
+    return;
+}
     
     // ===== ОСТАЛЬНОЙ КОД (еда, лекарства, алкоголь и т.д.) =====
     let effText = "";
