@@ -4,7 +4,7 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
 
-// ========== ПУЛЫ НАГРАД ДЛЯ КАЖДОГО ТИПА БОКСА ==========
+// ========== ПУЛЫ НАГРАД ==========
 const lootPools = {
     bronze_box: {
         rewards: [
@@ -16,8 +16,8 @@ const lootPools = {
             { type: 'money', amount: [50, 150], weight: 15, label: '💰 50-150₽' },
             { type: 'money', amount: [200, 500], weight: 10, label: '💰 200-500₽' },
             { type: 'item', id: 'gold_chain', count: 1, weight: 5, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 3, label: '💍 Крутое Кольцо' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 2, label: '🎖️ МЕГА медаль' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 3, label: '💍 Кольцо с бриллиантом' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 2, label: '🎖️ Легендарная медаль' },
         ],
         color: '#cd7f32',
         title: '📦 БРОНЗОВЫЙ ЯЩИК'
@@ -33,9 +33,9 @@ const lootPools = {
             { type: 'money', amount: [300, 800], weight: 15, label: '💰 300-800₽' },
             { type: 'money', amount: [1000, 2000], weight: 15, label: '💰 1000-2000₽' },
             { type: 'item', id: 'gold_chain', count: 1, weight: 6, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 5, label: '💍 Крутое Кольцо' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 5, label: '💍 Кольцо с бриллиантом' },
             { type: 'item', id: 'leather_jacket', count: 1, weight: 4, label: '🧥 Кожаная куртка' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 15, label: '🎖️ МЕГА медаль' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 15, label: '🎖️ Легендарная медаль' },
         ],
         color: '#c0c0c0',
         title: '🎁 СЕРЕБРЯНЫЙ ЯЩИК'
@@ -51,17 +51,17 @@ const lootPools = {
             { type: 'money', amount: [5000, 10000], weight: 8, label: '💰 5000-10000₽' },
             { type: 'money', amount: [15000, 25000], weight: 5, label: '💰 15000-25000₽' },
             { type: 'item', id: 'gold_chain', count: 1, weight: 7, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 6, label: '💍 Крутое Кольцо' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 6, label: '💍 Кольцо с бриллиантом' },
             { type: 'item', id: 'leather_jacket', count: 1, weight: 6, label: '🧥 Кожаная куртка' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 6, label: '🎖️ МЕГА медаль' },
-            { type: 'item', id: 'legendary_medal', count: 2, weight: 30, label: '🎖️ 2 МЕГА медали' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 6, label: '🎖️ Легендарная медаль' },
+            { type: 'item', id: 'legendary_medal', count: 2, weight: 30, label: '🎖️ 2 легендарные медали' },
         ],
         color: '#ffd700',
         title: '👑 ЗОЛОТОЙ ЯЩИК'
     }
 };
 
-// ========== ВЫБОР НАГРАДЫ С УЧЁТОМ ВЕСА ==========
+// ========== ВЫБОР НАГРАДЫ С ИНДЕКСОМ ==========
 function selectReward(boxType) {
     const pool = lootPools[boxType];
     if (!pool) return null;
@@ -69,13 +69,20 @@ function selectReward(boxType) {
     const totalWeight = pool.rewards.reduce((sum, r) => sum + r.weight, 0);
     let random = Math.random() * totalWeight;
     
-    for (const reward of pool.rewards) {
-        random -= reward.weight;
+    for (let i = 0; i < pool.rewards.length; i++) {
+        random -= pool.rewards[i].weight;
         if (random <= 0) {
-            return reward;
+            return {
+                reward: pool.rewards[i],
+                index: i
+            };
         }
     }
-    return pool.rewards[0];
+    
+    return {
+        reward: pool.rewards[0],
+        index: 0
+    };
 }
 
 // ========== ВЫДАЧА НАГРАДЫ ==========
@@ -102,7 +109,6 @@ function giveReward(reward, boxType) {
         showMessage(`💰 Вы получили ${rewardText}`, '#4caf50');
     }
     
-    // 👇 ЗАПИСЬ В ЛОГ
     const boxName = lootPools[boxType]?.title || boxType;
     addLogEntry(`🎁 Открыт ${boxName}: получено ${rewardText}`, 'item');
     
@@ -118,20 +124,21 @@ export function openLootBox(boxType) {
         return;
     }
     
-    const reward = selectReward(boxType);
-    if (!reward) {
+    const result = selectReward(boxType);
+    if (!result) {
         showMessage('❌ Ошибка при открытии ящика', '#e74c3c');
         return;
     }
     
-    showWheelOfFortune(pool, reward, boxType, () => {
+    const { reward, index } = result;
+    
+    showWheelOfFortune(pool, reward, index, boxType, () => {
         giveReward(reward, boxType);
     });
 }
 
 // ========== КОЛЕСО ФОРТУНЫ ==========
-function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
-    // Удаляем старую рулетку, если есть
+function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComplete) {
     const oldWheel = document.getElementById('wheelOfFortuneContainer');
     if (oldWheel) oldWheel.remove();
     
@@ -152,7 +159,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
         flex-direction: column;
     `;
     
-    // Заголовок
     const title = document.createElement('div');
     title.textContent = pool.title;
     title.style.cssText = `
@@ -164,7 +170,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
     `;
     container.appendChild(title);
     
-    // Canvas для колеса
     const canvas = document.createElement('canvas');
     canvas.width = 400;
     canvas.height = 400;
@@ -175,7 +180,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
     `;
     container.appendChild(canvas);
     
-    // Кнопка "Крутить!"
     const spinBtn = document.createElement('button');
     spinBtn.textContent = '🎰 КРУТИТЬ!';
     spinBtn.style.cssText = `
@@ -195,7 +199,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
     spinBtn.onmouseleave = () => spinBtn.style.transform = 'scale(1)';
     container.appendChild(spinBtn);
     
-    // Результат (показывается после вращения)
     const resultDiv = document.createElement('div');
     resultDiv.style.cssText = `
         font-size: 1.5rem;
@@ -213,12 +216,10 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
     
     document.body.appendChild(container);
     
-    // Рисуем колесо
     const ctx = canvas.getContext('2d');
     const rewards = pool.rewards;
     const segmentCount = rewards.length;
     const anglePerSegment = (2 * Math.PI) / segmentCount;
-    const selectedIndex = rewards.indexOf(selectedReward);
     
     function drawWheel(rotation = 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -254,7 +255,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
             ctx.restore();
         }
         
-        // Центральный круг
         ctx.beginPath();
         ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
         ctx.fillStyle = '#fff';
@@ -263,7 +263,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
         ctx.lineWidth = 3;
         ctx.stroke();
         
-        // Стрелка (сверху)
         ctx.beginPath();
         ctx.moveTo(centerX, 20);
         ctx.lineTo(centerX - 15, 5);
@@ -281,7 +280,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
     let isSpinning = false;
     let isFinished = false;
     
-    // 👇 КНОПКА СПИНА
     spinBtn.addEventListener('click', () => {
         if (isSpinning || isFinished) return;
         isSpinning = true;
@@ -312,7 +310,6 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
                 isFinished = true;
                 spinBtn.disabled = false;
                 
-                // 👇 КНОПКА "ЗАКРЫТЬ" ВМЕСТО "ЕЩЁ РАЗ"
                 spinBtn.textContent = '✅ ЗАКРЫТЬ';
                 spinBtn.style.background = '#4caf50';
                 spinBtn.style.boxShadow = '0 4px 20px rgba(76, 175, 80, 0.6)';
@@ -320,19 +317,16 @@ function showWheelOfFortune(pool, selectedReward, boxType, onComplete) {
                 resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
                 resultDiv.style.color = '#4caf50';
                 
-                // 👇 НОВЫЙ ОБРАБОТЧИК ДЛЯ КНОПКИ "ЗАКРЫТЬ"
                 spinBtn.onclick = () => {
                     if (container && container.remove) container.remove();
                 };
                 
-                // Выдаём награду
                 onComplete();
             }
         }
         animate();
     });
     
-    // 👇 ЗАПРЕТ ЗАКРЫТИЯ ПО КЛИКУ НА ФОН (ТОЛЬКО ПОСЛЕ ВРАЩЕНИЯ)
     container.addEventListener('click', (e) => {
         if (e.target === container && isFinished) {
             container.remove();
