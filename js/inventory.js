@@ -72,7 +72,15 @@ export const itemsDB = {
     rusty_can: { id: "rusty_can", name: "Ржавая банка", type: "junk", icon: "🥫", image: "images/items/rusty_can.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
     torn_net: { id: "torn_net", name: "Рваная сеть", type: "junk", icon: "🕸️", image: "images/items/torn_net.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
     plastic_bottle: { id: "plastic_bottle", name: "Пластиковая бутылка", type: "junk", icon: "🍾", image: "images/items/plastic_bottle.png", effect: {}, price: 0, slot: null, description: "Можно сдать на переработку? Нет, это просто мусор" },
-    dirty_rag: { id: "dirty_rag", name: "Грязная тряпка", type: "junk", icon: "🧽", image: "images/items/dirty_rag.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" }
+    dirty_rag: { id: "dirty_rag", name: "Грязная тряпка", type: "junk", icon: "🧽", image: "images/items/dirty_rag.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
+
+   bronze_box: { id: "bronze_box", name: "Бронзовый ящик", type: "lootbox", icon: "📦", image: "images/items/bronze_box.png", effect: {}, price: 1000, slot: null, description: "🎁 Бронзовый ящик. Шанс на легендарку: 5%" },
+silver_box: { id: "silver_box", name: "Серебряный ящик", type: "lootbox", icon: "🎁", image: "images/items/silver_box.png", effect: {}, price: 5000, slot: null, description: "🎁 Серебряный ящик. Шанс на легендарку: 15%" },
+gold_box: { id: "gold_box", name: "Золотой ящик", type: "lootbox", icon: "👑", image: "images/items/gold_box.png", effect: {}, price: 20000, slot: null, description: "👑 Золотой ящик. Шанс на легендарку: 30%" },
+    gold_chain: { id: "gold_chain", name: "Золотая цепь", type: "accessory", icon: "⛓️", image: "images/items/gold_chain.png", effect: { cold: 5, health: 5 }, price: 0, slot: null, description: "🔥 Эксклюзив! Даёт +5 к теплу и здоровью" },
+leather_jacket: { id: "leather_jacket", name: "Кожаная куртка", type: "clothes", icon: "🧥", image: "images/items/leather_jacket.png", effect: { cold: 20, health: 10 }, price: 0, slot: "body", description: "🔥 Эксклюзив! +20 тепла, +10 здоровья" },
+diamond_ring: { id: "diamond_ring", name: "Кольцо с бриллиантом", type: "accessory", icon: "💍", image: "images/items/diamond_ring.png", effect: { health: 15 }, price: 0, slot: null, description: "💎 Эксклюзив! +15 здоровья" },
+legendary_medal: { id: "legendary_medal", name: "Легендарная медаль", type: "accessory", icon: "🎖️", image: "images/items/legendary_medal.png", effect: { cold: 10, health: 10, hunger: 10 }, price: 0, slot: null, description: "🏆 Эксклюзив! +10 ко всем характеристикам" }
 };
 
 // Функция для получения цены продажи
