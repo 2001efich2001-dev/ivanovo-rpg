@@ -8,16 +8,14 @@ import { showMessage } from './utils.js';
 const lootPools = {
     bronze_box: {
         rewards: [
-            { type: 'item', id: 'bread', count: 1, weight: 15, label: '🍞 Хлеб' },
-            { type: 'item', id: 'water', count: 1, weight: 15, label: '💧 Вода' },
-            { type: 'item', id: 'cigarettes', count: 1, weight: 10, label: '🚬 Сигареты' },
-            { type: 'item', id: 'medkit', count: 1, weight: 10, label: '💊 Аптечка' },
-            { type: 'item', id: 'empty_bottle', count: 3, weight: 10, label: '🍾 3 пустых бутылки' },
+            { type: 'item', id: 'bread', count: 2, weight: 20, label: '🍞 2 хлеба' },
+            { type: 'item', id: 'water', count: 2, weight: 20, label: '💧 2 воды' },
+            { type: 'item', id: 'medkit', count: 1, weight: 15, label: '💊 Аптечка' },
+            { type: 'item', id: 'cigarettes', count: 2, weight: 15, label: '🚬 2 сигареты' },
             { type: 'money', amount: [50, 150], weight: 15, label: '💰 50-150₽' },
-            { type: 'money', amount: [200, 500], weight: 10, label: '💰 200-500₽' },
-            { type: 'item', id: 'gold_chain', count: 1, weight: 5, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 3, label: '💍 Кольцо с бриллиантом' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 2, label: '🎖️ Легендарная медаль' },
+            { type: 'item', id: 'gold_chain', count: 1, weight: 8, label: '⛓️ Золотая цепь' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 5, label: '💍 Кольцо' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 2, label: '🎖️ Легендарка' },
         ],
         color: '#cd7f32',
         title: '📦 БРОНЗОВЫЙ ЯЩИК'
@@ -25,17 +23,15 @@ const lootPools = {
     
     silver_box: {
         rewards: [
-            { type: 'item', id: 'bread', count: 2, weight: 8, label: '🍞 2 хлеба' },
-            { type: 'item', id: 'water', count: 2, weight: 8, label: '💧 2 воды' },
-            { type: 'item', id: 'medkit', count: 2, weight: 8, label: '💊 2 аптечки' },
-            { type: 'item', id: 'cigarettes', count: 3, weight: 8, label: '🚬 3 сигареты' },
-            { type: 'item', id: 'vodka', count: 2, weight: 8, label: '🍾 2 водки' },
-            { type: 'money', amount: [300, 800], weight: 15, label: '💰 300-800₽' },
+            { type: 'item', id: 'medkit', count: 2, weight: 15, label: '💊 2 аптечки' },
+            { type: 'item', id: 'vodka', count: 2, weight: 15, label: '🍾 2 водки' },
+            { type: 'item', id: 'cigarettes', count: 3, weight: 15, label: '🚬 3 сигареты' },
+            { type: 'money', amount: [300, 800], weight: 18, label: '💰 300-800₽' },
             { type: 'money', amount: [1000, 2000], weight: 15, label: '💰 1000-2000₽' },
-            { type: 'item', id: 'gold_chain', count: 1, weight: 6, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 5, label: '💍 Кольцо с бриллиантом' },
+            { type: 'item', id: 'gold_chain', count: 1, weight: 8, label: '⛓️ Золотая цепь' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 6, label: '💍 Кольцо' },
             { type: 'item', id: 'leather_jacket', count: 1, weight: 4, label: '🧥 Кожаная куртка' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 15, label: '🎖️ Легендарная медаль' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 4, label: '🎖️ Легендарка' },
         ],
         color: '#c0c0c0',
         title: '🎁 СЕРЕБРЯНЫЙ ЯЩИК'
@@ -43,18 +39,16 @@ const lootPools = {
     
     gold_box: {
         rewards: [
-            { type: 'item', id: 'medkit', count: 3, weight: 5, label: '💊 3 аптечки' },
-            { type: 'item', id: 'vodka', count: 3, weight: 5, label: '🍾 3 водки' },
-            { type: 'item', id: 'cigarettes', count: 5, weight: 5, label: '🚬 5 сигарет' },
-            { type: 'item', id: 'energetic', count: 3, weight: 5, label: '⚡ 3 энергетика' },
-            { type: 'money', amount: [1000, 3000], weight: 12, label: '💰 1000-3000₽' },
-            { type: 'money', amount: [5000, 10000], weight: 8, label: '💰 5000-10000₽' },
-            { type: 'money', amount: [15000, 25000], weight: 5, label: '💰 15000-25000₽' },
-            { type: 'item', id: 'gold_chain', count: 1, weight: 7, label: '⛓️ Золотая цепь' },
-            { type: 'item', id: 'diamond_ring', count: 1, weight: 6, label: '💍 Кольцо с бриллиантом' },
-            { type: 'item', id: 'leather_jacket', count: 1, weight: 6, label: '🧥 Кожаная куртка' },
-            { type: 'item', id: 'legendary_medal', count: 1, weight: 6, label: '🎖️ Легендарная медаль' },
-            { type: 'item', id: 'legendary_medal', count: 2, weight: 30, label: '🎖️ 2 легендарные медали' },
+            { type: 'item', id: 'medkit', count: 3, weight: 10, label: '💊 3 аптечки' },
+            { type: 'item', id: 'vodka', count: 3, weight: 10, label: '🍾 3 водки' },
+            { type: 'item', id: 'energetic', count: 3, weight: 10, label: '⚡ 3 энергетика' },
+            { type: 'money', amount: [1000, 3000], weight: 15, label: '💰 1000-3000₽' },
+            { type: 'money', amount: [5000, 10000], weight: 12, label: '💰 5000-10000₽' },
+            { type: 'item', id: 'gold_chain', count: 1, weight: 10, label: '⛓️ Золотая цепь' },
+            { type: 'item', id: 'diamond_ring', count: 1, weight: 8, label: '💍 Кольцо' },
+            { type: 'item', id: 'leather_jacket', count: 1, weight: 8, label: '🧥 Кожаная куртка' },
+            { type: 'item', id: 'legendary_medal', count: 1, weight: 10, label: '🎖️ Легендарка' },
+            { type: 'item', id: 'legendary_medal', count: 2, weight: 7, label: '🎖️ 2 Легендарки' },
         ],
         color: '#ffd700',
         title: '👑 ЗОЛОТОЙ ЯЩИК'
@@ -62,7 +56,7 @@ const lootPools = {
 };
 
 // ========== ВЫБОР НАГРАДЫ С ИНДЕКСОМ ==========
-export function selectReward(boxType) {
+function selectReward(boxType) {
     const pool = lootPools[boxType];
     if (!pool) return null;
     
@@ -72,13 +66,10 @@ export function selectReward(boxType) {
     for (let i = 0; i < pool.rewards.length; i++) {
         random -= pool.rewards[i].weight;
         if (random <= 0) {
-            const result = {
+            return {
                 reward: pool.rewards[i],
                 index: i
             };
-            // 👇 ДОБАВЬ ЭТО
-            console.log('🎯 selectReward выбрал:', result.reward.label, 'индекс:', i);
-            return result;
         }
     }
     
@@ -142,18 +133,7 @@ export function openLootBox(boxType) {
 
 // ========== КОЛЕСО ФОРТУНЫ ==========
 function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComplete) {
-
- 
-
-    console.log('🎡 showWheelOfFortune вызван!');
-    console.log('📦 boxType:', boxType);
-    console.log('🎯 selectedReward:', selectedReward);
-    console.log('🔢 selectedIndex:', selectedIndex, 'тип:', typeof selectedIndex);
-    console.log('📊 pool.rewards:', pool.rewards.map((r, i) => `${i}: ${r.label}`).join(', '));
-    console.log('✅ Совпадает?', pool.rewards[selectedIndex]?.label === selectedReward.label);
-
-
-    
+    // Удаляем старую рулетку, если есть
     const oldWheel = document.getElementById('wheelOfFortuneContainer');
     if (oldWheel) oldWheel.remove();
     
@@ -174,6 +154,7 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
         flex-direction: column;
     `;
     
+    // Заголовок
     const title = document.createElement('div');
     title.textContent = pool.title;
     title.style.cssText = `
@@ -185,9 +166,10 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
     `;
     container.appendChild(title);
     
+    // Canvas для колеса (увеличил до 500px)
     const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 400;
+    canvas.width = 500;
+    canvas.height = 500;
     canvas.style.cssText = `
         border-radius: 50%;
         box-shadow: 0 0 60px ${pool.color}60;
@@ -195,6 +177,7 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
     `;
     container.appendChild(canvas);
     
+    // Кнопка "Крутить!"
     const spinBtn = document.createElement('button');
     spinBtn.textContent = '🎰 КРУТИТЬ!';
     spinBtn.style.cssText = `
@@ -214,6 +197,7 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
     spinBtn.onmouseleave = () => spinBtn.style.transform = 'scale(1)';
     container.appendChild(spinBtn);
     
+    // Результат
     const resultDiv = document.createElement('div');
     resultDiv.style.cssText = `
         font-size: 1.5rem;
@@ -231,6 +215,7 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
     
     document.body.appendChild(container);
     
+    // Рисуем колесо
     const ctx = canvas.getContext('2d');
     const rewards = pool.rewards;
     const segmentCount = rewards.length;
@@ -257,37 +242,56 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
             ctx.lineWidth = 2;
             ctx.stroke();
             
+            // Текст
             ctx.save();
             ctx.translate(centerX, centerY);
             ctx.rotate(startAngle + anglePerSegment / 2);
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 12px Arial';
+            ctx.font = 'bold 14px Arial';
             ctx.shadowColor = 'rgba(0,0,0,0.8)';
             ctx.shadowBlur = 4;
-            ctx.fillText(rewards[i].label, radius * 0.65, 0);
+            
+            const label = rewards[i].label;
+            // Обрезаем длинные названия
+            const displayLabel = label.length > 12 ? label.slice(0, 10) + '…' : label;
+            ctx.fillText(displayLabel, radius * 0.65, 0);
             ctx.restore();
         }
         
+        // Центральный круг
         ctx.beginPath();
-        ctx.arc(centerX, centerY, 20, 0, 2 * Math.PI);
+        ctx.arc(centerX, centerY, 25, 0, 2 * Math.PI);
         ctx.fillStyle = '#fff';
         ctx.fill();
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 3;
         ctx.stroke();
         
+        // Стрелка (сверху, более заметная)
         ctx.beginPath();
-        ctx.moveTo(centerX, 20);
-        ctx.lineTo(centerX - 15, 5);
-        ctx.lineTo(centerX + 15, 5);
+        ctx.moveTo(centerX, 15);
+        ctx.lineTo(centerX - 20, 5);
+        ctx.lineTo(centerX + 20, 5);
         ctx.closePath();
         ctx.fillStyle = '#ff0000';
         ctx.fill();
         ctx.strokeStyle = '#fff';
         ctx.lineWidth = 2;
         ctx.stroke();
+        
+        // Тень под стрелкой
+        ctx.shadowColor = 'rgba(255, 0, 0, 0.5)';
+        ctx.shadowBlur = 15;
+        ctx.beginPath();
+        ctx.moveTo(centerX, 15);
+        ctx.lineTo(centerX - 20, 5);
+        ctx.lineTo(centerX + 20, 5);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+        ctx.fill();
+        ctx.shadowBlur = 0;
     }
     
     drawWheel(0);
@@ -295,6 +299,7 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
     let isSpinning = false;
     let isFinished = false;
     
+    // 👇 ИСПРАВЛЕННАЯ ЛОГИКА ВРАЩЕНИЯ
     spinBtn.addEventListener('click', () => {
         if (isSpinning || isFinished) return;
         isSpinning = true;
@@ -303,8 +308,12 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
         resultDiv.textContent = '🌀 Колесо крутится...';
         resultDiv.style.color = '#ffd966';
         
+        // Случайное количество оборотов (5-8)
         const extraSpins = 5 + Math.random() * 3;
-        const targetAngle = selectedIndex * anglePerSegment + anglePerSegment / 2;
+        
+        // 👇 ГЛАВНОЕ ИСПРАВЛЕНИЕ: учитываем положение стрелки (сверху)
+        const arrowOffset = -Math.PI / 2; // Стрелка в 12 часов
+        const targetAngle = selectedIndex * anglePerSegment + anglePerSegment / 2 + arrowOffset;
         const totalRotation = extraSpins * 2 * Math.PI + targetAngle;
         
         const startTime = Date.now();
@@ -329,6 +338,9 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
                 spinBtn.style.background = '#4caf50';
                 spinBtn.style.boxShadow = '0 4px 20px rgba(76, 175, 80, 0.6)';
                 
+                // 👇 ПОДСВЕТКА ВЫИГРАВШЕГО СЕГМЕНТА
+                highlightWinningSegment(selectedIndex, currentRotation);
+                
                 resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
                 resultDiv.style.color = '#4caf50';
                 
@@ -342,9 +354,46 @@ function showWheelOfFortune(pool, selectedReward, selectedIndex, boxType, onComp
         animate();
     });
     
+    // 👇 ЗАКРЫТИЕ ТОЛЬКО ПОСЛЕ ВРАЩЕНИЯ
     container.addEventListener('click', (e) => {
         if (e.target === container && isFinished) {
             container.remove();
         }
     });
+}
+
+// ========== ПОДСВЕТКА ВЫИГРАВШЕГО СЕГМЕНТА ==========
+function highlightWinningSegment(index, rotation) {
+    // Находим canvas
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = canvas.width / 2 - 10;
+    
+    // Получаем pool.rewards из замыкания
+    // Используем глобальную переменную или передаём через замыкание
+    const rewards = window._wheelRewards || [];
+    const segmentCount = rewards.length;
+    const anglePerSegment = (2 * Math.PI) / segmentCount;
+    
+    const startAngle = index * anglePerSegment + rotation;
+    const endAngle = startAngle + anglePerSegment;
+    
+    ctx.save();
+    ctx.shadowColor = 'rgba(255, 215, 0, 0.8)';
+    ctx.shadowBlur = 30;
+    
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.4)';
+    ctx.fill();
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
 }
