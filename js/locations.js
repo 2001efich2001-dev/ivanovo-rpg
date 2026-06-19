@@ -97,7 +97,7 @@ export const locationsDB = {
         zones: [
             { id: "trade_zone", name: "Прилавок", description: "Обменять пустые бутылки: 5-15₽", cx: 200, cy: 150, r: 50, actionId: "trade" },
             { id: "steal_zone", name: "Лотки с едой", description: "Украсть еду: +1 хлеб (риск 50%)", cx: 450, cy: 200, r: 55, actionId: "steal" },
-            { id: "zombie_zone", name: "🧟 Зомби-тир", description: "Стреляй по зомби и зарабатывай очки! (тратит 20⚡)", cx: 600, cy: 150, r: 50, actionId: "zombie_shooter" }
+            { id: "zombie_zone", name: "🧟 Зомби-тир", description: "Стреляй по зомби и зарабатывай очки! (тратит 20⚡)", cx: 800, cy: -50, r: 50, actionId: "zombie_shooter" }
         ],
         actions: [
             { id: "trade", name: "Обменять пустые бутылки", desc: "Требуется пустая бутылка", needsItem: "empty_bottle", effect: { money: [5, 15] }, risk: 0 },
