@@ -117,26 +117,26 @@ export function openLootBox(boxType) {
         return;
     }
     
-    showSlotMachine(pool, reward, boxType, () => {
+    showCards(pool, reward, boxType, () => {
         giveReward(reward, boxType);
     });
 }
- 
-// ========== НОВАЯ МЕХАНИКА: СЛОТ-МАШИНА ==========
-// ========== НОВАЯ МЕХАНИКА: СЛОТ-МАШИНА ==========
-function showSlotMachine(pool, selectedReward, boxType, onComplete) {
-    const old = document.getElementById('slotMachineContainer');
+
+// ========== НОВАЯ МЕХАНИКА: КАРТОЧКИ ==========
+function showCards(pool, selectedReward, boxType, onComplete) {
+    // Удаляем старую, если есть
+    const old = document.getElementById('cardsContainer');
     if (old) old.remove();
     
     const container = document.createElement('div');
-    container.id = 'slotMachineContainer';
+    container.id = 'cardsContainer';
     container.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.85);
+        background: rgba(0, 0, 0, 0.88);
         backdrop-filter: blur(8px);
         z-index: 99999;
         display: flex;
@@ -145,272 +145,299 @@ function showSlotMachine(pool, selectedReward, boxType, onComplete) {
         flex-direction: column;
     `;
     
+    // Заголовок
     const title = document.createElement('div');
     title.textContent = pool.title;
     title.style.cssText = `
         color: ${pool.color};
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: bold;
-        margin-bottom: 20px;
-        text-shadow: 0 0 20px ${pool.color}40;
+        margin-bottom: 25px;
+        text-shadow: 0 0 30px ${pool.color}50;
+        letter-spacing: 2px;
     `;
     container.appendChild(title);
     
-    const trackContainer = document.createElement('div');
-    trackContainer.style.cssText = `
-        position: relative;
-        width: 80%;
-        max-width: 700px;
-        height: 180px;
-        background: rgba(0,0,0,0.6);
-        border-radius: 20px;
-        border: 3px solid ${pool.color};
-        overflow: hidden;
-        box-shadow: 0 0 40px ${pool.color}40;
-        margin-bottom: 20px;
-    `;
-    
-    const highlight = document.createElement('div');
-    highlight.style.cssText = `
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 120px;
-        height: 160px;
-        border: 4px solid #ffd700;
-        border-radius: 16px;
-        box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), inset 0 0 30px rgba(255, 215, 0, 0.1);
-        z-index: 10;
-        pointer-events: none;
-        animation: slotPulse 1s ease infinite;
-    `;
-    trackContainer.appendChild(highlight);
-    
-    const track = document.createElement('div');
-    track.id = 'slotTrack';
-    track.style.cssText = `
+    // Контейнер с карточками
+    const cardContainer = document.createElement('div');
+    cardContainer.style.cssText = `
         display: flex;
-        gap: 10px;
-        padding: 10px 20px;
-        height: 100%;
-        align-items: center;
-        transition: none;
-        will-change: transform;
-        position: relative;
-        left: 0;
+        gap: 16px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0 20px;
     `;
-    trackContainer.appendChild(track);
-    container.appendChild(trackContainer);
     
-    const spinBtn = document.createElement('button');
-    spinBtn.textContent = '🎰 КРУТИТЬ!';
-    spinBtn.style.cssText = `
+    // Берём 5 случайных наград + выигравшая на последнем месте
+    const allRewards = pool.rewards;
+    const shuffled = [...allRewards];
+    // Перемешиваем
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    // Берём первые 4 из перемешанных
+    const selectedCards = shuffled.slice(0, 4);
+    // Добавляем выигравшую на 5-е место
+    selectedCards.push(selectedReward);
+    
+    // Перемешиваем финальный порядок (чтобы выигрышная не всегда была последней)
+    for (let i = selectedCards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [selectedCards[i], selectedCards[j]] = [selectedCards[j], selectedCards[i]];
+    }
+    
+    // Запоминаем, где находится выигрышная карта
+    let winningIndex = 0;
+    for (let i = 0; i < selectedCards.length; i++) {
+        if (selectedCards[i].label === selectedReward.label &&
+            selectedCards[i].id === selectedReward.id) {
+            winningIndex = i;
+            break;
+        }
+    }
+    
+    const cards = [];
+    const cardElements = [];
+    
+    selectedCards.forEach((reward, index) => {
+        const isWinner = index === winningIndex;
+        
+        const card = document.createElement('div');
+        card.className = 'loot-card';
+        card.style.cssText = `
+            width: 110px;
+            height: 150px;
+            background: #2c3e50;
+            border-radius: 16px;
+            border: 2px solid #444;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            cursor: default;
+            transition: transform 0.5s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            transform-style: preserve-3d;
+            position: relative;
+            perspective: 600px;
+        `;
+        card.dataset.index = index;
+        card.dataset.isWinner = isWinner ? 'true' : 'false';
+        
+        // Лицевая сторона (рубашка)
+        const front = document.createElement('div');
+        front.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, #2c3e50, #1a2634);
+            border-radius: 16px;
+            border: 2px solid ${pool.color};
+            box-shadow: inset 0 0 30px ${pool.color}20;
+        `;
+        front.textContent = '🎁';
+        card.appendChild(front);
+        
+        // Оборотная сторона (награда)
+        const back = document.createElement('div');
+        back.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            transform: rotateY(180deg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: ${isWinner ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255,255,255,0.05)'};
+            border-radius: 16px;
+            border: 2px solid ${isWinner ? '#ffd700' : '#444'};
+            padding: 8px;
+            box-sizing: border-box;
+        `;
+        back.innerHTML = `
+            <div style="font-size: 2.8rem; margin-bottom: 4px;">${reward.icon || '🎁'}</div>
+            <div style="font-size: 0.6rem; color: ${isWinner ? '#ffd700' : '#ccc'}; text-align: center; font-weight: ${isWinner ? 'bold' : 'normal'}; line-height: 1.2; max-width: 90%;">
+                ${reward.label}
+                ${isWinner ? ' ⭐' : ''}
+            </div>
+        `;
+        card.appendChild(back);
+        
+        cardContainer.appendChild(card);
+        cards.push(card);
+        cardElements.push(card);
+    });
+    
+    container.appendChild(cardContainer);
+    
+    // Кнопка "Открыть"
+    const btn = document.createElement('button');
+    btn.textContent = '🎲 ОТКРЫТЬ КАРТЫ!';
+    btn.style.cssText = `
         padding: 16px 48px;
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         font-weight: bold;
         background: linear-gradient(135deg, ${pool.color}, ${pool.color}cc);
         border: none;
         border-radius: 60px;
         color: #fff;
         cursor: pointer;
-        box-shadow: 0 4px 20px ${pool.color}60;
-        transition: transform 0.2s;
+        box-shadow: 0 4px 25px ${pool.color}50;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         margin-bottom: 20px;
     `;
-    spinBtn.onmouseenter = () => spinBtn.style.transform = 'scale(1.05)';
-    spinBtn.onmouseleave = () => spinBtn.style.transform = 'scale(1)';
-    container.appendChild(spinBtn);
+    btn.onmouseenter = () => {
+        btn.style.transform = 'scale(1.05)';
+        btn.style.boxShadow = `0 6px 35px ${pool.color}70`;
+    };
+    btn.onmouseleave = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.boxShadow = `0 4px 25px ${pool.color}50`;
+    };
+    container.appendChild(btn);
     
+    // Результат
     const resultDiv = document.createElement('div');
     resultDiv.style.cssText = `
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         font-weight: bold;
         color: #ffd966;
-        min-height: 60px;
+        min-height: 50px;
         text-align: center;
-        padding: 10px 20px;
+        padding: 12px 24px;
         background: rgba(0,0,0,0.5);
         border-radius: 60px;
         border: 1px solid ${pool.color};
+        transition: all 0.3s ease;
     `;
-    resultDiv.textContent = 'Нажми "Крутить!"';
+    resultDiv.textContent = 'Нажми "Открыть карты!"';
     container.appendChild(resultDiv);
+    
     document.body.appendChild(container);
     
-    // ========== ФОРМИРУЕМ СПИСОК ДЛЯ ОТОБРАЖЕНИЯ ==========
-    const allRewards = pool.rewards;
-    const itemWidth = 130;
+    let isOpened = false;
     
-    // Делаем 4 копии для бесконечной прокрутки
-    const displayItems = [];
-    let uidCounter = 0;
-    
-    for (let rep = 0; rep < 4; rep++) {
-        for (const r of allRewards) {
-            displayItems.push({
-                ...r,
-                _uid: uidCounter++,
-                _label: r.label
-            });
-        }
-    }
-    
-    // Находим индекс выигравшего предмета (во второй копии, чтобы точно был в центре)
-    let targetIndex = 0;
-    const copyCount = 4;
-    const itemsPerCopy = allRewards.length;
-    const startOfSecondCopy = itemsPerCopy; // первая копия
-    const startOfThirdCopy = itemsPerCopy * 2; // вторая копия
-    
-    // Ищем во второй копии (чтобы было куда крутить)
-    for (let i = startOfSecondCopy; i < startOfThirdCopy; i++) {
-        const item = displayItems[i];
-        if (item.type === selectedReward.type &&
-            item.id === selectedReward.id &&
-            item.count === selectedReward.count &&
-            item.label === selectedReward.label) {
-            targetIndex = i;
-            break;
-        }
-    }
-    
-    // Если не нашли — ищем по label
-    if (targetIndex < startOfSecondCopy) {
-        for (let i = startOfSecondCopy; i < startOfThirdCopy; i++) {
-            if (displayItems[i].label === selectedReward.label) {
-                targetIndex = i;
-                break;
-            }
-        }
-    }
-    
-    console.log('🎯 Выигравший предмет:', selectedReward.label);
-    console.log('🎯 Индекс в displayItems:', targetIndex);
-    console.log('📊 Всего элементов:', displayItems.length);
-    
-    // Рендерим
-    function renderItems() {
-        track.innerHTML = '';
-        displayItems.forEach((item) => {
-            const div = document.createElement('div');
-            div.style.cssText = `
-                flex: 0 0 120px;
-                height: 140px;
-                background: rgba(255,255,255,0.08);
-                border-radius: 12px;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                border: 1px solid rgba(255,255,255,0.1);
-                transition: all 0.3s;
-            `;
-            div.innerHTML = `
-                <div style="font-size: 3rem;">${item.icon || '🎁'}</div>
-                <div style="font-size: 0.7rem; color: #ccc; text-align: center; margin-top: 4px;">${item.label}</div>
-            `;
-            div.dataset.uid = item._uid;
-            track.appendChild(div);
-        });
-    }
-    renderItems();
-    
-    // Считаем смещение для центрирования
-    const containerWidth = trackContainer.offsetWidth || 700;
-    const centerOffset = (containerWidth / 2) - (itemWidth / 2);
-    const targetPosition = -(targetIndex * itemWidth - centerOffset);
-    
-    // Ставим начальную позицию (сразу на нужное место, но без анимации)
-    track.style.transform = `translateX(${targetPosition}px)`;
-    
-    let isSpinning = false;
-    let isFinished = false;
-    
-    spinBtn.addEventListener('click', () => {
-        if (isSpinning || isFinished) return;
-        isSpinning = true;
-        spinBtn.disabled = true;
-        spinBtn.textContent = '🌀 КРУЧУ...';
-        resultDiv.textContent = '🌀 Колесо крутится...';
+    btn.addEventListener('click', () => {
+        if (isOpened) return;
+        isOpened = true;
+        btn.disabled = true;
+        btn.textContent = '🌀 ОТКРЫВАЮ...';
+        btn.style.opacity = '0.6';
+        resultDiv.textContent = '🌀 Карты переворачиваются...';
         resultDiv.style.color = '#ffd966';
         
-        // Случайное количество прокруток (5-10 полных проходов)
-        const totalItems = displayItems.length;
-        const extraOffset = (Math.floor(Math.random() * 6) + 5) * totalItems * itemWidth;
-        const finalPosition = targetPosition - extraOffset;
-        
-        console.log('🎡 Стартовая позиция:', targetPosition);
-        console.log('🎡 Финальная позиция:', finalPosition);
-        
-        // Анимация с ускорением и замедлением
-        const startTime = Date.now();
-        const duration = 4000 + Math.random() * 1500;
-        const startPos = targetPosition;
-        const distance = finalPosition - startPos;
-        
-        function animate() {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Easing: плавное замедление в конце
-            const eased = 1 - Math.pow(1 - progress, 3);
-            const currentPos = startPos + distance * eased;
-            
-            track.style.transform = `translateX(${currentPos}px)`;
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Финиш
-                isSpinning = false;
-                isFinished = true;
-                spinBtn.disabled = false;
+        // Переворачиваем карты одну за другой
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.transform = 'rotateY(180deg)';
+                card.style.borderColor = card.dataset.isWinner === 'true' ? '#ffd700' : '#555';
                 
-                spinBtn.textContent = '✅ ЗАКРЫТЬ';
-                spinBtn.style.background = '#4caf50';
-                spinBtn.style.boxShadow = '0 4px 20px rgba(76, 175, 80, 0.6)';
+                if (card.dataset.isWinner === 'true') {
+                    card.style.boxShadow = '0 0 40px rgba(255, 215, 0, 0.6)';
+                }
                 
-                resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
-                resultDiv.style.color = '#4caf50';
-                
-                // Подсвечиваем выигравший элемент
-                const allItems = track.querySelectorAll('div');
-                allItems.forEach((el) => {
-                    const uid = parseInt(el.dataset.uid);
-                    if (uid === displayItems[targetIndex]._uid) {
-                        el.style.border = '3px solid #ffd700';
-                        el.style.boxShadow = '0 0 30px rgba(255, 215, 0, 0.6)';
-                        el.style.background = 'rgba(255, 215, 0, 0.15)';
-                    }
-                });
-                
-                spinBtn.onclick = () => {
-                    if (container && container.remove) container.remove();
-                };
-                
-                onComplete();
-            }
-        }
-        animate();
+                // Последняя карта — показываем результат
+                if (index === cards.length - 1) {
+                    setTimeout(() => {
+                        // Конфетти
+                        createConfetti(pool.color);
+                        resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
+                        resultDiv.style.color = '#4caf50';
+                        resultDiv.style.borderColor = '#4caf50';
+                        
+                        btn.textContent = '✅ ЗАКРЫТЬ';
+                        btn.style.background = '#4caf50';
+                        btn.style.boxShadow = '0 4px 25px rgba(76, 175, 80, 0.5)';
+                        btn.style.opacity = '1';
+                        btn.disabled = false;
+                        
+                        btn.onclick = () => {
+                            container.remove();
+                            onComplete();
+                        };
+                    }, 500);
+                }
+            }, index * 350);
+        });
     });
     
+    // Закрытие только после открытия
     container.addEventListener('click', (e) => {
-        if (e.target === container && isFinished) {
+        if (e.target === container && isOpened) {
             container.remove();
+            onComplete();
         }
     });
+}
+
+// ========== КОНФЕТТИ ==========
+function createConfetti(mainColor = '#ffd700') {
+    const colors = [
+        '#ff0000', '#ff8800', '#ffff00', '#00ff00', '#0088ff', 
+        '#4400ff', '#ff00ff', '#ff0066', '#ffd700', mainColor,
+        '#ff6b35', '#00d4ff', '#7b68ee', '#ff1493', '#00fa9a'
+    ];
     
-    // Добавляем стили
-    if (!document.getElementById('slotMachineStyles')) {
-        const style = document.createElement('style');
-        style.id = 'slotMachineStyles';
-        style.textContent = `
-            @keyframes slotPulse {
-                0% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.05); }
-                50% { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8), inset 0 0 50px rgba(255, 215, 0, 0.1); }
-                100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.05); }
-            }
+    const container = document.getElementById('cardsContainer') || document.body;
+    
+    for (let i = 0; i < 120; i++) {
+        const el = document.createElement('div');
+        const size = 6 + Math.random() * 10;
+        const isCircle = Math.random() > 0.5;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const left = Math.random() * 100;
+        const delay = Math.random() * 0.5;
+        const duration = 2 + Math.random() * 2;
+        const rotation = Math.random() * 720;
+        
+        el.style.cssText = `
+            position: fixed;
+            width: ${size}px;
+            height: ${size}px;
+            background: ${color};
+            left: ${left}%;
+            top: -20px;
+            border-radius: ${isCircle ? '50%' : '2px'};
+            z-index: 100000;
+            pointer-events: none;
+            animation: confettiFall ${duration}s ease-in forwards;
+            animation-delay: ${delay}s;
+            transform: rotate(${rotation}deg);
+            box-shadow: 0 0 6px ${color}40;
         `;
-        document.head.appendChild(style);
+        container.appendChild(el);
+        setTimeout(() => el.remove(), (duration + delay) * 1000 + 200);
     }
+}
+
+// ========== ДОБАВЛЯЕМ СТИЛИ (если ещё нет) ==========
+if (!document.getElementById('lootboxStyles')) {
+    const style = document.createElement('style');
+    style.id = 'lootboxStyles';
+    style.textContent = `
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(0) rotate(0deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotate(720deg) scale(0.5);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
 }
