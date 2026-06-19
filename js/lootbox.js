@@ -66,6 +66,14 @@ function selectReward(boxType) {
     for (const reward of pool.rewards) {
         random -= reward.weight;
         if (random <= 0) {
+            if (reward.type === 'money') {
+                const amount = Math.floor(Math.random() * (reward.amount[1] - reward.amount[0] + 1)) + reward.amount[0];
+                return {
+                    ...reward,
+                    generatedAmount: amount,
+                    label: `💰 ${amount}₽`
+                };
+            }
             return reward;
         }
     }
@@ -89,7 +97,7 @@ function giveReward(reward, boxType) {
     }
     
     if (reward.type === 'money') {
-        const amount = Math.floor(Math.random() * (reward.amount[1] - reward.amount[0] + 1)) + reward.amount[0];
+        const amount = reward.generatedAmount || 0;
         const newMoney = money + amount;
         setStats(health, hunger, cold, newMoney);
         rewardText = `${amount}₽`;
@@ -122,265 +130,15 @@ export function openLootBox(boxType) {
     });
 }
 
-// ========== НОВАЯ МЕХАНИКА: КАРТОЧКИ ==========
-function showCards(pool, selectedReward, boxType, onComplete) {
-    // Удаляем старую, если есть
-    const old = document.getElementById('cardsContainer');
-    if (old) old.remove();
-    
-    const container = document.createElement('div');
-    container.id = 'cardsContainer';
-    container.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.88);
-        backdrop-filter: blur(8px);
-        z-index: 99999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-    `;
-    
-    // Заголовок
-    const title = document.createElement('div');
-    title.textContent = pool.title;
-    title.style.cssText = `
-        color: ${pool.color};
-        font-size: 2.2rem;
-        font-weight: bold;
-        margin-bottom: 25px;
-        text-shadow: 0 0 30px ${pool.color}50;
-        letter-spacing: 2px;
-    `;
-    container.appendChild(title);
-    
-    // Контейнер с карточками
-    const cardContainer = document.createElement('div');
-    cardContainer.style.cssText = `
-        display: flex;
-        gap: 16px;
-        margin-bottom: 30px;
-        flex-wrap: wrap;
-        justify-content: center;
-        padding: 0 20px;
-    `;
-    
-    // Берём 5 случайных наград + выигравшая на последнем месте
-    const allRewards = pool.rewards;
-    const shuffled = [...allRewards];
-    // Перемешиваем
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+// ========== ЗВУК ПОБЕДЫ ==========
+function playWinSound() {
+    try {
+        const audio = new Audio('sounds/small_win.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Звук не загрузился:', e));
+    } catch (e) {
+        console.log('Ошибка воспроизведения звука:', e);
     }
-    
-    // Берём первые 4 из перемешанных
-    const selectedCards = shuffled.slice(0, 4);
-    // Добавляем выигравшую на 5-е место
-    selectedCards.push(selectedReward);
-    
-    // Перемешиваем финальный порядок (чтобы выигрышная не всегда была последней)
-    for (let i = selectedCards.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [selectedCards[i], selectedCards[j]] = [selectedCards[j], selectedCards[i]];
-    }
-    
-    // Запоминаем, где находится выигрышная карта
-    let winningIndex = 0;
-    for (let i = 0; i < selectedCards.length; i++) {
-        if (selectedCards[i].label === selectedReward.label &&
-            selectedCards[i].id === selectedReward.id) {
-            winningIndex = i;
-            break;
-        }
-    }
-    
-    const cards = [];
-    const cardElements = [];
-    
-    selectedCards.forEach((reward, index) => {
-        const isWinner = index === winningIndex;
-        
-        const card = document.createElement('div');
-        card.className = 'loot-card';
-        card.style.cssText = `
-            width: 110px;
-            height: 150px;
-            background: #2c3e50;
-            border-radius: 16px;
-            border: 2px solid #444;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 3rem;
-            cursor: default;
-            transition: transform 0.5s ease, border-color 0.3s ease, box-shadow 0.3s ease;
-            transform-style: preserve-3d;
-            position: relative;
-            perspective: 600px;
-        `;
-        card.dataset.index = index;
-        card.dataset.isWinner = isWinner ? 'true' : 'false';
-        
-        // Лицевая сторона (рубашка)
-        const front = document.createElement('div');
-        front.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 3.5rem;
-            background: linear-gradient(135deg, #2c3e50, #1a2634);
-            border-radius: 16px;
-            border: 2px solid ${pool.color};
-            box-shadow: inset 0 0 30px ${pool.color}20;
-        `;
-        front.textContent = '🎁';
-        card.appendChild(front);
-        
-        // Оборотная сторона (награда)
-        const back = document.createElement('div');
-        back.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            transform: rotateY(180deg);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: ${isWinner ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255,255,255,0.05)'};
-            border-radius: 16px;
-            border: 2px solid ${isWinner ? '#ffd700' : '#444'};
-            padding: 8px;
-            box-sizing: border-box;
-        `;
-        back.innerHTML = `
-            <div style="font-size: 2.8rem; margin-bottom: 4px;">${reward.icon || '🎁'}</div>
-            <div style="font-size: 0.6rem; color: ${isWinner ? '#ffd700' : '#ccc'}; text-align: center; font-weight: ${isWinner ? 'bold' : 'normal'}; line-height: 1.2; max-width: 90%;">
-                ${reward.label}
-                ${isWinner ? ' ⭐' : ''}
-            </div>
-        `;
-        card.appendChild(back);
-        
-        cardContainer.appendChild(card);
-        cards.push(card);
-        cardElements.push(card);
-    });
-    
-    container.appendChild(cardContainer);
-    
-    // Кнопка "Открыть"
-    const btn = document.createElement('button');
-    btn.textContent = '🎲 ОТКРЫТЬ КАРТЫ!';
-    btn.style.cssText = `
-        padding: 16px 48px;
-        font-size: 1.3rem;
-        font-weight: bold;
-        background: linear-gradient(135deg, ${pool.color}, ${pool.color}cc);
-        border: none;
-        border-radius: 60px;
-        color: #fff;
-        cursor: pointer;
-        box-shadow: 0 4px 25px ${pool.color}50;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        margin-bottom: 20px;
-    `;
-    btn.onmouseenter = () => {
-        btn.style.transform = 'scale(1.05)';
-        btn.style.boxShadow = `0 6px 35px ${pool.color}70`;
-    };
-    btn.onmouseleave = () => {
-        btn.style.transform = 'scale(1)';
-        btn.style.boxShadow = `0 4px 25px ${pool.color}50`;
-    };
-    container.appendChild(btn);
-    
-    // Результат
-    const resultDiv = document.createElement('div');
-    resultDiv.style.cssText = `
-        font-size: 1.4rem;
-        font-weight: bold;
-        color: #ffd966;
-        min-height: 50px;
-        text-align: center;
-        padding: 12px 24px;
-        background: rgba(0,0,0,0.5);
-        border-radius: 60px;
-        border: 1px solid ${pool.color};
-        transition: all 0.3s ease;
-    `;
-    resultDiv.textContent = 'Нажми "Открыть карты!"';
-    container.appendChild(resultDiv);
-    
-    document.body.appendChild(container);
-    
-    let isOpened = false;
-    
-    btn.addEventListener('click', () => {
-        if (isOpened) return;
-        isOpened = true;
-        btn.disabled = true;
-        btn.textContent = '🌀 ОТКРЫВАЮ...';
-        btn.style.opacity = '0.6';
-        resultDiv.textContent = '🌀 Карты переворачиваются...';
-        resultDiv.style.color = '#ffd966';
-        
-        // Переворачиваем карты одну за другой
-        cards.forEach((card, index) => {
-            setTimeout(() => {
-                card.style.transform = 'rotateY(180deg)';
-                card.style.borderColor = card.dataset.isWinner === 'true' ? '#ffd700' : '#555';
-                
-                if (card.dataset.isWinner === 'true') {
-                    card.style.boxShadow = '0 0 40px rgba(255, 215, 0, 0.6)';
-                }
-                
-                // Последняя карта — показываем результат
-                if (index === cards.length - 1) {
-                    setTimeout(() => {
-                        // Конфетти
-                        createConfetti(pool.color);
-                        resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
-                        resultDiv.style.color = '#4caf50';
-                        resultDiv.style.borderColor = '#4caf50';
-                        
-                        btn.textContent = '✅ ЗАКРЫТЬ';
-                        btn.style.background = '#4caf50';
-                        btn.style.boxShadow = '0 4px 25px rgba(76, 175, 80, 0.5)';
-                        btn.style.opacity = '1';
-                        btn.disabled = false;
-                        
-                        btn.onclick = () => {
-                            container.remove();
-                            onComplete();
-                        };
-                    }, 500);
-                }
-            }, index * 350);
-        });
-    });
-    
-    // Закрытие только после открытия
-    container.addEventListener('click', (e) => {
-        if (e.target === container && isOpened) {
-            container.remove();
-            onComplete();
-        }
-    });
 }
 
 // ========== КОНФЕТТИ ==========
@@ -423,7 +181,252 @@ function createConfetti(mainColor = '#ffd700') {
     }
 }
 
-// ========== ДОБАВЛЯЕМ СТИЛИ (если ещё нет) ==========
+// ========== НОВАЯ МЕХАНИКА: КАРТОЧКИ ==========
+function showCards(pool, selectedReward, boxType, onComplete) {
+    const old = document.getElementById('cardsContainer');
+    if (old) old.remove();
+    
+    const container = document.createElement('div');
+    container.id = 'cardsContainer';
+    container.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.88);
+        backdrop-filter: blur(8px);
+        z-index: 99999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    `;
+    
+    const title = document.createElement('div');
+    title.textContent = pool.title;
+    title.style.cssText = `
+        color: ${pool.color};
+        font-size: 2.2rem;
+        font-weight: bold;
+        margin-bottom: 25px;
+        text-shadow: 0 0 30px ${pool.color}50;
+        letter-spacing: 2px;
+    `;
+    container.appendChild(title);
+    
+    const cardContainer = document.createElement('div');
+    cardContainer.style.cssText = `
+        display: flex;
+        gap: 16px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 0 20px;
+    `;
+    
+    const allRewards = pool.rewards;
+    const shuffled = [...allRewards];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    
+    const selectedCards = shuffled.slice(0, 4);
+    selectedCards.push(selectedReward);
+    
+    for (let i = selectedCards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [selectedCards[i], selectedCards[j]] = [selectedCards[j], selectedCards[i]];
+    }
+    
+    let winningIndex = 0;
+    for (let i = 0; i < selectedCards.length; i++) {
+        if (selectedCards[i].label === selectedReward.label &&
+            selectedCards[i].id === selectedReward.id) {
+            winningIndex = i;
+            break;
+        }
+    }
+    
+    const cards = [];
+    
+    selectedCards.forEach((reward, index) => {
+        const isWinner = index === winningIndex;
+        
+        const card = document.createElement('div');
+        card.className = 'loot-card';
+        card.style.cssText = `
+            width: 110px;
+            height: 150px;
+            background: #2c3e50;
+            border-radius: 16px;
+            border: 2px solid #444;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            cursor: default;
+            transition: transform 0.5s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            transform-style: preserve-3d;
+            position: relative;
+            perspective: 600px;
+        `;
+        card.dataset.index = index;
+        card.dataset.isWinner = isWinner ? 'true' : 'false';
+        
+        const front = document.createElement('div');
+        front.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, #2c3e50, #1a2634);
+            border-radius: 16px;
+            border: 2px solid ${pool.color};
+            box-shadow: inset 0 0 30px ${pool.color}20;
+        `;
+        front.textContent = '🎁';
+        card.appendChild(front);
+        
+        const back = document.createElement('div');
+        back.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            transform: rotateY(180deg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: ${isWinner ? 'rgba(255, 215, 0, 0.15)' : 'rgba(255,255,255,0.05)'};
+            border-radius: 16px;
+            border: 2px solid ${isWinner ? '#ffd700' : '#444'};
+            padding: 8px;
+            box-sizing: border-box;
+        `;
+        back.innerHTML = `
+            <div style="font-size: 2.8rem; margin-bottom: 4px;">${reward.icon || '🎁'}</div>
+            <div style="font-size: 0.6rem; color: ${isWinner ? '#ffd700' : '#ccc'}; text-align: center; font-weight: ${isWinner ? 'bold' : 'normal'}; line-height: 1.2; max-width: 90%;">
+                ${reward.label}
+                ${isWinner ? ' ⭐' : ''}
+            </div>
+        `;
+        card.appendChild(back);
+        
+        cardContainer.appendChild(card);
+        cards.push(card);
+    });
+    
+    container.appendChild(cardContainer);
+    
+    const btn = document.createElement('button');
+    btn.textContent = '🎲 ОТКРЫТЬ КАРТЫ!';
+    btn.style.cssText = `
+        padding: 16px 48px;
+        font-size: 1.3rem;
+        font-weight: bold;
+        background: linear-gradient(135deg, ${pool.color}, ${pool.color}cc);
+        border: none;
+        border-radius: 60px;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: 0 4px 25px ${pool.color}50;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        margin-bottom: 20px;
+    `;
+    btn.onmouseenter = () => {
+        btn.style.transform = 'scale(1.05)';
+        btn.style.boxShadow = `0 6px 35px ${pool.color}70`;
+    };
+    btn.onmouseleave = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.boxShadow = `0 4px 25px ${pool.color}50`;
+    };
+    container.appendChild(btn);
+    
+    const resultDiv = document.createElement('div');
+    resultDiv.style.cssText = `
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: #ffd966;
+        min-height: 50px;
+        text-align: center;
+        padding: 12px 24px;
+        background: rgba(0,0,0,0.5);
+        border-radius: 60px;
+        border: 1px solid ${pool.color};
+        transition: all 0.3s ease;
+    `;
+    resultDiv.textContent = 'Нажми "Открыть карты!"';
+    container.appendChild(resultDiv);
+    
+    document.body.appendChild(container);
+    
+    let isOpened = false;
+    
+    btn.addEventListener('click', () => {
+        if (isOpened) return;
+        isOpened = true;
+        btn.disabled = true;
+        btn.textContent = '🌀 ОТКРЫВАЮ...';
+        btn.style.opacity = '0.6';
+        resultDiv.textContent = '🌀 Карты переворачиваются...';
+        resultDiv.style.color = '#ffd966';
+        
+        // 👇 ЗВУК ПРИ ОТКРЫТИИ
+        playWinSound();
+        
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.transform = 'rotateY(180deg)';
+                card.style.borderColor = card.dataset.isWinner === 'true' ? '#ffd700' : '#555';
+                
+                if (card.dataset.isWinner === 'true') {
+                    card.style.boxShadow = '0 0 40px rgba(255, 215, 0, 0.6)';
+                }
+                
+                if (index === cards.length - 1) {
+                    setTimeout(() => {
+                        createConfetti(pool.color);
+                        resultDiv.textContent = `🎉 ВЫПАЛО: ${selectedReward.label}`;
+                        resultDiv.style.color = '#4caf50';
+                        resultDiv.style.borderColor = '#4caf50';
+                        
+                        btn.textContent = '✅ ЗАКРЫТЬ';
+                        btn.style.background = '#4caf50';
+                        btn.style.boxShadow = '0 4px 25px rgba(76, 175, 80, 0.5)';
+                        btn.style.opacity = '1';
+                        btn.disabled = false;
+                        
+                        btn.onclick = () => {
+                            container.remove();
+                            onComplete();
+                        };
+                    }, 500);
+                }
+            }, index * 350);
+        });
+    });
+    
+    container.addEventListener('click', (e) => {
+        if (e.target === container && isOpened) {
+            container.remove();
+            onComplete();
+        }
+    });
+}
+
+// ========== ДОБАВЛЯЕМ СТИЛИ ==========
 if (!document.getElementById('lootboxStyles')) {
     const style = document.createElement('style');
     style.id = 'lootboxStyles';
