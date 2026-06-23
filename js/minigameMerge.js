@@ -9,28 +9,26 @@ const ROWS = 10;
 const CELL_SIZE = 55;
 const PADDING = 4;
 
-// ========== РАСШИРЕННАЯ ЦЕПОЧКА НАПИТКОВ ==========
+// ========== ЦЕПОЧКА НАПИТКОВ (без Стакана) ==========
 const ITEMS = {
-    1: { id: 'glass', name: 'Стакан', icon: '🥃', next: 2, points: 5 },
-    2: { id: 'beer', name: 'Пиво', icon: '🍺', next: 3, points: 10 },
-    3: { id: 'wine', name: 'Вино', icon: '🍷', next: 4, points: 20 },
-    4: { id: 'vodka', name: 'Водка', icon: '🍾', next: 5, points: 35 },
-    5: { id: 'whiskey', name: 'Виски', icon: '🥃', next: 6, points: 50 },
-    6: { id: 'cocktail', name: 'Коктейль', icon: '🍸', next: 7, points: 70 },
-    7: { id: 'mojito', name: 'Мохито', icon: '🍹', next: 8, points: 90 },
-    8: { id: 'gold', name: 'Золотая бутылка', icon: '🏆', next: null, points: 120 }
+    1: { id: 'beer', name: 'Пиво', icon: '🍺', next: 2, points: 10 },
+    2: { id: 'wine', name: 'Вино', icon: '🍷', next: 3, points: 20 },
+    3: { id: 'vodka', name: 'Водка', icon: '🍾', next: 4, points: 35 },
+    4: { id: 'whiskey', name: 'Виски', icon: '🥃', next: 5, points: 50 },
+    5: { id: 'cocktail', name: 'Коктейль', icon: '🍸', next: 6, points: 70 },
+    6: { id: 'mojito', name: 'Мохито', icon: '🍹', next: 7, points: 90 },
+    7: { id: 'gold', name: 'Золотая бутылка', icon: '🏆', next: null, points: 120 }
 };
 
 // Шансы появления предметов (сумма = 100)
 const SPAWN_WEIGHTS = {
-    1: 35,  // Стакан
-    2: 25,  // Пиво
-    3: 18,  // Вино
-    4: 12,  // Водка
-    5: 6,   // Виски
-    6: 3,   // Коктейль
-    7: 1,   // Мохито
-    8: 0    // Золотая бутылка (не появляется сама)
+    1: 40,  // Пиво
+    2: 28,  // Вино
+    3: 18,  // Водка
+    4: 8,   // Виски
+    5: 4,   // Коктейль
+    6: 2,   // Мохито
+    7: 0    // Золотая бутылка (не появляется сама)
 };
 
 // ========== СОСТОЯНИЕ ИГРЫ ==========
@@ -99,10 +97,11 @@ function findMatches() {
                 const neighbor = gameState.grid[n.r][n.c];
                 if (!neighbor) continue;
                 
-                if (current.level === neighbor.level && current.level < 8) {
+                if (current.level === neighbor.level && current.level < 7) {
                     const nextLevel = current.level + 1;
                     const nextItem = ITEMS[nextLevel];
                     
+                    // Новый предмет появляется на месте СТАРОГО (current)
                     gameState.grid[row][col] = { level: nextLevel };
                     gameState.grid[n.r][n.c] = null;
                     
@@ -166,7 +165,7 @@ function updateMergeUI() {
     if (mergesEl) mergesEl.textContent = gameState.merges;
     if (levelEl) {
         const maxItem = ITEMS[gameState.maxLevelReached];
-        levelEl.textContent = maxItem ? maxItem.icon : '🥃';
+        levelEl.textContent = maxItem ? maxItem.icon : '🍺';
     }
 }
 
@@ -345,7 +344,6 @@ function startGame() {
 function createUI() {
     const container = gameState.container;
     
-    // Находим gameWrapper
     let gameWrapper = container.querySelector('.merge-game-wrapper');
     if (!gameWrapper) {
         gameWrapper = document.createElement('div');
@@ -361,7 +359,6 @@ function createUI() {
         container.appendChild(gameWrapper);
     }
     
-    // Находим canvasWrapper
     let canvasWrapper = gameWrapper.querySelector('.merge-canvas-wrapper');
     if (!canvasWrapper) {
         canvasWrapper = document.createElement('div');
@@ -377,7 +374,6 @@ function createUI() {
         if (canvas) canvasWrapper.appendChild(canvas);
     }
     
-    // ===== ЛЕГЕНДА =====
     let legend = gameWrapper.querySelector('.merge-legend');
     if (!legend) {
         legend = document.createElement('div');
@@ -419,11 +415,10 @@ function createUI() {
             `).join('')}
         </div>
         <div style="text-align: center; margin-top: 10px; font-size: 0.7rem; color: #666;">
-            ⭐ Текущий уровень: <span style="color: #ffd966;">${ITEMS[gameState.maxLevelReached]?.icon} ${ITEMS[gameState.maxLevelReached]?.name || '🥃'}</span>
+            ⭐ Текущий уровень: <span style="color: #ffd966;">${ITEMS[gameState.maxLevelReached]?.icon} ${ITEMS[gameState.maxLevelReached]?.name || '🍺'}</span>
         </div>
     `;
     
-    // Верхняя панель (поверх canvas)
     let panel = document.getElementById('mergeUI');
     if (!panel) {
         panel = document.createElement('div');
@@ -452,7 +447,7 @@ function createUI() {
         panel.innerHTML = `
             <div>🎯 Очки: <span id="mergeScore">0</span></div>
             <div>🔄 Объединений: <span id="mergeMerges">0</span></div>
-            <div>🏆 Уровень: <span id="mergeLevel">🥃</span></div>
+            <div>🏆 Уровень: <span id="mergeLevel">🍺</span></div>
         `;
         canvasWrapper.appendChild(panel);
     }
@@ -514,7 +509,7 @@ function showResultScreen(won, moneyReward, expReward) {
             🔄 Объединений: ${gameState.merges}
         </div>
         <div style="color: #aaa; margin-bottom: 10px;">
-            🏆 Макс. уровень: ${maxItem ? maxItem.icon : '🥃'} ${maxItem ? maxItem.name : ''}
+            🏆 Макс. уровень: ${maxItem ? maxItem.icon : '🍺'} ${maxItem ? maxItem.name : ''}
         </div>
         <div style="border-top: 1px solid #333; padding-top: 15px; margin-bottom: 20px;">
             <div style="color: #4caf50;">💰 +${moneyReward}₽</div>
@@ -617,7 +612,6 @@ export function openMergeGame() {
     `;
     container.appendChild(title);
     
-    // Основной контейнер для игры + легенды
     const gameWrapper = document.createElement('div');
     gameWrapper.className = 'merge-game-wrapper';
     gameWrapper.style.cssText = `
@@ -630,7 +624,6 @@ export function openMergeGame() {
     `;
     container.appendChild(gameWrapper);
     
-    // Контейнер для canvas
     const canvasWrapper = document.createElement('div');
     canvasWrapper.className = 'merge-canvas-wrapper';
     canvasWrapper.style.cssText = `
