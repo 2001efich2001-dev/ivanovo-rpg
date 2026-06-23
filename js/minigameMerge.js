@@ -345,45 +345,57 @@ function startGame() {
 function createUI() {
     const container = gameState.container;
     
-    // Основной контейнер для игры + легенды
-    const gameWrapper = document.createElement('div');
-    gameWrapper.style.cssText = `
-        display: flex;
-        gap: 30px;
-        align-items: flex-start;
-        justify-content: center;
-        flex-wrap: wrap;
-        padding: 10px;
-    `;
-    container.appendChild(gameWrapper);
+    // Находим gameWrapper
+    let gameWrapper = container.querySelector('.merge-game-wrapper');
+    if (!gameWrapper) {
+        gameWrapper = document.createElement('div');
+        gameWrapper.className = 'merge-game-wrapper';
+        gameWrapper.style.cssText = `
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 10px;
+        `;
+        container.appendChild(gameWrapper);
+    }
     
-    // Контейнер для canvas
-    const canvasWrapper = document.createElement('div');
-    canvasWrapper.style.cssText = `
-        position: relative;
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 0 40px rgba(0,0,0,0.6);
-    `;
-    gameWrapper.appendChild(canvasWrapper);
+    // Находим canvasWrapper
+    let canvasWrapper = gameWrapper.querySelector('.merge-canvas-wrapper');
+    if (!canvasWrapper) {
+        canvasWrapper = document.createElement('div');
+        canvasWrapper.className = 'merge-canvas-wrapper';
+        canvasWrapper.style.cssText = `
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 0 40px rgba(0,0,0,0.6);
+        `;
+        gameWrapper.appendChild(canvasWrapper);
+        const canvas = gameState.canvas;
+        if (canvas) canvasWrapper.appendChild(canvas);
+    }
     
-    // Переносим canvas в canvasWrapper
-    const canvas = gameState.canvas;
-    canvasWrapper.appendChild(canvas);
+    // ===== ЛЕГЕНДА =====
+    let legend = gameWrapper.querySelector('.merge-legend');
+    if (!legend) {
+        legend = document.createElement('div');
+        legend.className = 'merge-legend';
+        legend.style.cssText = `
+            background: rgba(0, 0, 0, 0.75);
+            border-radius: 16px;
+            padding: 16px 20px;
+            border: 1px solid rgba(255,215,0,0.2);
+            min-width: 140px;
+            color: white;
+            font-size: 0.9rem;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        `;
+        gameWrapper.appendChild(legend);
+    }
     
-    // ===== ЛЕГЕНДА (цепочка) =====
-    const legend = document.createElement('div');
-    legend.style.cssText = `
-        background: rgba(0, 0, 0, 0.75);
-        border-radius: 16px;
-        padding: 16px 20px;
-        border: 1px solid rgba(255,215,0,0.2);
-        min-width: 140px;
-        color: white;
-        font-size: 0.9rem;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 0 30px rgba(0,0,0,0.5);
-    `;
     legend.innerHTML = `
         <div style="text-align: center; font-weight: bold; color: #ffd966; margin-bottom: 12px; font-size: 1.1rem;">
             📋 ЦЕПОЧКА
@@ -410,38 +422,40 @@ function createUI() {
             ⭐ Текущий уровень: <span style="color: #ffd966;">${ITEMS[gameState.maxLevelReached]?.icon} ${ITEMS[gameState.maxLevelReached]?.name || '🥃'}</span>
         </div>
     `;
-    gameWrapper.appendChild(legend);
     
     // Верхняя панель (поверх canvas)
-    const panel = document.createElement('div');
-    panel.id = 'mergeUI';
-    panel.style.cssText = `
-        position: absolute;
-        top: -40px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 20px;
-        color: white;
-        font-size: 0.9rem;
-        font-weight: bold;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 6px 16px;
-        border-radius: 60px;
-        border: 1px solid rgba(255,255,255,0.1);
-        z-index: 10;
-        pointer-events: none;
-        flex-wrap: wrap;
-        justify-content: center;
-        white-space: nowrap;
-        backdrop-filter: blur(4px);
-    `;
-    panel.innerHTML = `
-        <div>🎯 Очки: <span id="mergeScore">0</span></div>
-        <div>🔄 Объединений: <span id="mergeMerges">0</span></div>
-        <div>🏆 Уровень: <span id="mergeLevel">🥃</span></div>
-    `;
-    canvasWrapper.appendChild(panel);
+    let panel = document.getElementById('mergeUI');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'mergeUI';
+        panel.style.cssText = `
+            position: absolute;
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 16px;
+            border-radius: 60px;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 10;
+            pointer-events: none;
+            flex-wrap: wrap;
+            justify-content: center;
+            white-space: nowrap;
+            backdrop-filter: blur(4px);
+        `;
+        panel.innerHTML = `
+            <div>🎯 Очки: <span id="mergeScore">0</span></div>
+            <div>🔄 Объединений: <span id="mergeMerges">0</span></div>
+            <div>🏆 Уровень: <span id="mergeLevel">🥃</span></div>
+        `;
+        canvasWrapper.appendChild(panel);
+    }
 }
 
 // ========== ЗАВЕРШЕНИЕ ИГРЫ ==========
@@ -605,6 +619,7 @@ export function openMergeGame() {
     
     // Основной контейнер для игры + легенды
     const gameWrapper = document.createElement('div');
+    gameWrapper.className = 'merge-game-wrapper';
     gameWrapper.style.cssText = `
         display: flex;
         gap: 30px;
@@ -617,6 +632,7 @@ export function openMergeGame() {
     
     // Контейнер для canvas
     const canvasWrapper = document.createElement('div');
+    canvasWrapper.className = 'merge-canvas-wrapper';
     canvasWrapper.style.cssText = `
         position: relative;
         border-radius: 16px;
@@ -642,78 +658,6 @@ export function openMergeGame() {
     gameState.ctx = canvas.getContext('2d');
     
     canvas.addEventListener('mousemove', handleMouseMove);
-    
-    // ===== ЛЕГЕНДА =====
-    const legend = document.createElement('div');
-    legend.style.cssText = `
-        background: rgba(0, 0, 0, 0.75);
-        border-radius: 16px;
-        padding: 16px 20px;
-        border: 1px solid rgba(255,215,0,0.2);
-        min-width: 140px;
-        color: white;
-        font-size: 0.9rem;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 0 30px rgba(0,0,0,0.5);
-    `;
-    legend.innerHTML = `
-        <div style="text-align: center; font-weight: bold; color: #ffd966; margin-bottom: 12px; font-size: 1.1rem;">
-            📋 ЦЕПОЧКА
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-            ${Object.entries(ITEMS).map(([level, item]) => `
-                <div style="
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    padding: 4px 8px;
-                    border-radius: 8px;
-                    background: ${parseInt(level) === gameState.maxLevelReached ? 'rgba(255,215,0,0.15)' : 'transparent'};
-                    border-left: ${parseInt(level) === gameState.maxLevelReached ? '3px solid #ffd700' : '3px solid transparent'};
-                ">
-                    <span style="font-size: 1.2rem;">${item.icon}</span>
-                    <span style="flex: 1; font-size: 0.8rem;">${item.name}</span>
-                    <span style="font-size: 0.65rem; color: #888;">+${item.points}</span>
-                    ${item.next ? `<span style="color: #555;">→</span>` : `<span style="color: #ffd700;">🏆</span>`}
-                </div>
-            `).join('')}
-        </div>
-        <div style="text-align: center; margin-top: 10px; font-size: 0.7rem; color: #666;">
-            ⭐ Текущий уровень: <span style="color: #ffd966;">${ITEMS[gameState.maxLevelReached]?.icon} ${ITEMS[gameState.maxLevelReached]?.name || '🥃'}</span>
-        </div>
-    `;
-    gameWrapper.appendChild(legend);
-    
-    // Верхняя панель (поверх canvas)
-    const panel = document.createElement('div');
-    panel.id = 'mergeUI';
-    panel.style.cssText = `
-        position: absolute;
-        top: -40px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 20px;
-        color: white;
-        font-size: 0.9rem;
-        font-weight: bold;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 6px 16px;
-        border-radius: 60px;
-        border: 1px solid rgba(255,255,255,0.1);
-        z-index: 10;
-        pointer-events: none;
-        flex-wrap: wrap;
-        justify-content: center;
-        white-space: nowrap;
-        backdrop-filter: blur(4px);
-    `;
-    panel.innerHTML = `
-        <div>🎯 Очки: <span id="mergeScore">0</span></div>
-        <div>🔄 Объединений: <span id="mergeMerges">0</span></div>
-        <div>🏆 Уровень: <span id="mergeLevel">🥃</span></div>
-    `;
-    canvasWrapper.appendChild(panel);
     
     startGame();
     
