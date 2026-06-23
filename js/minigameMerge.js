@@ -1,7 +1,7 @@
 // js/minigameMerge.js
 import { showMessage } from './utils.js';
 import { saveGameData } from './firestore.js';
-import { money, setStats, addExperience, updateUI, addLogEntry, hasEnoughEnergy, spendEnergy } from './gameState.js';
+import { money, setStats, addExperience, addLogEntry, hasEnoughEnergy, spendEnergy } from './gameState.js';
 
 // ========== НАСТРОЙКИ ==========
 const COLS = 8;
@@ -159,7 +159,7 @@ function checkGameOver() {
 }
 
 // ========== ОБНОВЛЕНИЕ UI ==========
-function updateUI() {
+function updateMergeUI() {
     const scoreEl = document.getElementById('mergeScore');
     const mergesEl = document.getElementById('mergeMerges');
     const levelEl = document.getElementById('mergeLevel');
@@ -261,7 +261,7 @@ function dropCurrentItem() {
         merged = findMatches();
         if (merged) {
             draw();
-            updateUI();
+            updateMergeUI();
         }
     }
     
@@ -294,7 +294,7 @@ function spawnNewItem() {
     };
     
     draw();
-    updateUI();
+    updateMergeUI();
     
     // Запускаем падение
     if (gameState.dropInterval) {
@@ -479,7 +479,12 @@ function showResultScreen(won, moneyReward, expReward) {
     const newMoney = money + moneyReward;
     setStats(null, null, null, newMoney);
     addExperience(expReward);
-    updateUI();
+    
+    // Обновляем UI через динамический импорт
+    import('./gameState.js').then(m => {
+        m.updateUI();
+    });
+    
     saveGameData();
     addLogEntry(`🔄 Объединялка: ${gameState.score} очков, ${gameState.merges} объединений (+${moneyReward}₽, +${expReward} опыта)`, 'system');
     
