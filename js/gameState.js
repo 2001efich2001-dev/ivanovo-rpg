@@ -118,6 +118,7 @@ export let tutorialFlags = {
     shown_estate_buy: false,       // Покупка с доски
     shown_shop_buy: false,         // Покупка в магазине
     shown_zombie_shooter: false,   // Зомби-тир
+    shown_merge_game: false,         // объеденялка
 };
 
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
