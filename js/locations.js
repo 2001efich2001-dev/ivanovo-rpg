@@ -134,11 +134,13 @@ export const locationsDB = {
             actionId: 'talk_hobo'
         },
         zones: [
-            { id: "scavenge_zone", name: "Куча мусора", description: "Покопаться: найти бутылку или старую шапку (риск 40%)", cx: 200, cy: 200, r: 70, actionId: "scavenge" }
+            { id: "scavenge_zone", name: "Куча мусора", description: "Покопаться: найти бутылку или старую шапку (риск 40%)", cx: 200, cy: 200, r: 70, actionId: "scavenge" },
+            { id: "merge_zone", name: "🔄 Объединялка", description: "Соединяй бутылки и получай награду! (тратит 15⚡)", cx: 400, cy: 350, r: 55, actionId: "merge_game" }
         ],
         actions: [
             { id: "scavenge", name: "Покопаться в мусоре", desc: "Риск: 40% получить инфекцию", effect: { items: ["empty_bottle", "old_hat"] }, risk: 40, riskEffect: { health: -15, hunger: -5 } },
-            { id: "talk_hobo", name: "🗑️ Поговорить с бомжом", desc: "Поговорить с местным жителем", effect: {}, cost: 0, risk: 0 }
+            { id: "talk_hobo", name: "🗑️ Поговорить с бомжом", desc: "Поговорить с местным жителем", effect: {}, cost: 0, risk: 0 },
+            { id: "merge_game", name: "🔄 Объединялка", desc: "Соединяй бутылки и получай награду! (тратит 15⚡)", effect: {}, cost: 0, risk: 0 }
         ]
     },
     church: {
@@ -524,6 +526,33 @@ async function executeAction(locationId, action) {
         document.getElementById('locationModal').style.display = 'none';
         return;
     }
+
+// ===== ОБЪЕДИНЯЛКА =====
+if (action.id === 'merge_game') {
+    await showActionTip('shown_merge_game', '🔄 Объединялка! Соединяй одинаковые бутылки, чтобы получать новые предметы и очки. Чем выше уровень — тем больше награда!');
+    
+    const energyCost = 15;
+    if (!hasEnoughEnergy(energyCost)) {
+        showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+        return;
+    }
+    
+    if (!canPerformAction(action.name)) {
+        return;
+    }
+    
+    try {
+        const { openMergeGame } = await import('./minigameMerge.js');
+        await openMergeGame();
+        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - объединялка`, 'location');
+    } catch (error) {
+        console.error('Ошибка открытия объединялки:', error);
+        showMessage("❌ Ошибка запуска игры. Попробуйте позже.", "#e74c3c");
+    }
+    
+    document.getElementById('locationModal').style.display = 'none';
+    return;
+}
     
     // ===== ДРОТИКИ =====
     if (action.id === 'darts') {
