@@ -48,26 +48,8 @@ let gameState = {
     mouseX: 0,
     startTime: 0,
     merges: 0,
-    maxLevelReached: 1,
-    bgImage: null
+    maxLevelReached: 1
 };
-
-// ========== ЗАГРУЗКА ФОНА ==========
-function loadBackground() {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.src = 'images/merge_bg.jpg';
-        img.onload = () => {
-            gameState.bgImage = img;
-            resolve();
-        };
-        img.onerror = () => {
-            console.log('⚠️ Фон для объединялки не загружен, используем градиент');
-            resolve();
-        };
-        setTimeout(resolve, 2000);
-    });
-}
 
 // ========== ИНИЦИАЛИЗАЦИЯ ПОЛЯ ==========
 function initGrid() {
@@ -197,20 +179,8 @@ function draw() {
     
     ctx.clearRect(0, 0, w, h);
     
-    // Фон (картинка или градиент)
-    if (gameState.bgImage) {
-        ctx.drawImage(gameState.bgImage, 0, 0, w, h);
-    } else {
-        const gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, '#1a1a2e');
-        gradient.addColorStop(0.5, '#2d2d44');
-        gradient.addColorStop(1, '#1a1a2e');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, w, h);
-    }
-    
-    // Полупрозрачная подложка под сетку
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    // Тёмный фон для сетки (непрозрачный)
+    ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, w, h);
     
     // Сетка
@@ -391,6 +361,9 @@ function createUI() {
     const canvasWrapper = document.createElement('div');
     canvasWrapper.style.cssText = `
         position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 0 40px rgba(0,0,0,0.6);
     `;
     gameWrapper.appendChild(canvasWrapper);
     
@@ -401,14 +374,15 @@ function createUI() {
     // ===== ЛЕГЕНДА (цепочка) =====
     const legend = document.createElement('div');
     legend.style.cssText = `
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.75);
         border-radius: 16px;
         padding: 16px 20px;
         border: 1px solid rgba(255,215,0,0.2);
         min-width: 140px;
         color: white;
         font-size: 0.9rem;
-        backdrop-filter: blur(4px);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 0 30px rgba(0,0,0,0.5);
     `;
     legend.innerHTML = `
         <div style="text-align: center; font-weight: bold; color: #ffd966; margin-bottom: 12px; font-size: 1.1rem;">
@@ -460,6 +434,7 @@ function createUI() {
         flex-wrap: wrap;
         justify-content: center;
         white-space: nowrap;
+        backdrop-filter: blur(4px);
     `;
     panel.innerHTML = `
         <div>🎯 Очки: <span id="mergeScore">0</span></div>
@@ -581,7 +556,7 @@ function showResultScreen(won, moneyReward, expReward) {
 }
 
 // ========== ОТКРЫТИЕ ИГРЫ ==========
-export async function openMergeGame() {
+export function openMergeGame() {
     if (!hasEnoughEnergy(15)) {
         showMessage('❌ Не хватает энергии! Нужно 15⚡', '#e74c3c');
         return;
@@ -594,9 +569,6 @@ export async function openMergeGame() {
     
     spendEnergy(15);
     
-    // Загружаем фон
-    await loadBackground();
-    
     const container = document.createElement('div');
     container.id = 'mergeGameContainer';
     container.style.cssText = `
@@ -605,7 +577,7 @@ export async function openMergeGame() {
         left: 0;
         width: 100%;
         height: 100%;
-        background: #0d0d1a;
+        background: url('images/merge_bg.jpg') center/cover no-repeat;
         z-index: 99998;
         display: flex;
         flex-direction: column;
@@ -623,10 +595,35 @@ export async function openMergeGame() {
         font-size: 1.5rem;
         font-weight: bold;
         margin-bottom: 15px;
-        text-shadow: 0 0 20px rgba(255,215,0,0.3);
+        text-shadow: 0 0 20px rgba(255,215,0,0.5), 0 0 40px rgba(0,0,0,0.8);
         letter-spacing: 2px;
+        background: rgba(0,0,0,0.3);
+        padding: 4px 20px;
+        border-radius: 60px;
     `;
     container.appendChild(title);
+    
+    // Основной контейнер для игры + легенды
+    const gameWrapper = document.createElement('div');
+    gameWrapper.style.cssText = `
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 10px;
+    `;
+    container.appendChild(gameWrapper);
+    
+    // Контейнер для canvas
+    const canvasWrapper = document.createElement('div');
+    canvasWrapper.style.cssText = `
+        position: relative;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    `;
+    gameWrapper.appendChild(canvasWrapper);
     
     const canvas = document.createElement('canvas');
     const totalWidth = COLS * CELL_SIZE + PADDING * 2;
@@ -634,16 +631,89 @@ export async function openMergeGame() {
     canvas.width = totalWidth;
     canvas.height = totalHeight;
     canvas.style.cssText = `
+        width: ${totalWidth}px;
+        height: ${totalHeight}px;
+        display: block;
         border-radius: 16px;
-        border: 2px solid rgba(255,215,0,0.3);
-        box-shadow: 0 0 40px rgba(255,215,0,0.1);
-        background: #1a1a2e;
+        border: 2px solid rgba(255,215,0,0.2);
     `;
-    container.appendChild(canvas);
+    canvasWrapper.appendChild(canvas);
     gameState.canvas = canvas;
     gameState.ctx = canvas.getContext('2d');
     
     canvas.addEventListener('mousemove', handleMouseMove);
+    
+    // ===== ЛЕГЕНДА =====
+    const legend = document.createElement('div');
+    legend.style.cssText = `
+        background: rgba(0, 0, 0, 0.75);
+        border-radius: 16px;
+        padding: 16px 20px;
+        border: 1px solid rgba(255,215,0,0.2);
+        min-width: 140px;
+        color: white;
+        font-size: 0.9rem;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    `;
+    legend.innerHTML = `
+        <div style="text-align: center; font-weight: bold; color: #ffd966; margin-bottom: 12px; font-size: 1.1rem;">
+            📋 ЦЕПОЧКА
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${Object.entries(ITEMS).map(([level, item]) => `
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 4px 8px;
+                    border-radius: 8px;
+                    background: ${parseInt(level) === gameState.maxLevelReached ? 'rgba(255,215,0,0.15)' : 'transparent'};
+                    border-left: ${parseInt(level) === gameState.maxLevelReached ? '3px solid #ffd700' : '3px solid transparent'};
+                ">
+                    <span style="font-size: 1.2rem;">${item.icon}</span>
+                    <span style="flex: 1; font-size: 0.8rem;">${item.name}</span>
+                    <span style="font-size: 0.65rem; color: #888;">+${item.points}</span>
+                    ${item.next ? `<span style="color: #555;">→</span>` : `<span style="color: #ffd700;">🏆</span>`}
+                </div>
+            `).join('')}
+        </div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.7rem; color: #666;">
+            ⭐ Текущий уровень: <span style="color: #ffd966;">${ITEMS[gameState.maxLevelReached]?.icon} ${ITEMS[gameState.maxLevelReached]?.name || '🥃'}</span>
+        </div>
+    `;
+    gameWrapper.appendChild(legend);
+    
+    // Верхняя панель (поверх canvas)
+    const panel = document.createElement('div');
+    panel.id = 'mergeUI';
+    panel.style.cssText = `
+        position: absolute;
+        top: -40px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+        color: white;
+        font-size: 0.9rem;
+        font-weight: bold;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 6px 16px;
+        border-radius: 60px;
+        border: 1px solid rgba(255,255,255,0.1);
+        z-index: 10;
+        pointer-events: none;
+        flex-wrap: wrap;
+        justify-content: center;
+        white-space: nowrap;
+        backdrop-filter: blur(4px);
+    `;
+    panel.innerHTML = `
+        <div>🎯 Очки: <span id="mergeScore">0</span></div>
+        <div>🔄 Объединений: <span id="mergeMerges">0</span></div>
+        <div>🏆 Уровень: <span id="mergeLevel">🥃</span></div>
+    `;
+    canvasWrapper.appendChild(panel);
     
     startGame();
     
