@@ -9,28 +9,34 @@ const ROWS = 10;
 const CELL_SIZE = 55;
 const PADDING = 4;
 
-// Предметы (уровни)
+// ========== РАСШИРЕННАЯ ЦЕПОЧКА НАПИТКОВ ==========
 const ITEMS = {
     1: { id: 'glass', name: 'Стакан', icon: '🥃', next: 2, points: 5 },
     2: { id: 'beer', name: 'Пиво', icon: '🍺', next: 3, points: 10 },
     3: { id: 'wine', name: 'Вино', icon: '🍷', next: 4, points: 20 },
     4: { id: 'vodka', name: 'Водка', icon: '🍾', next: 5, points: 35 },
-    5: { id: 'gold', name: 'Золотая бутылка', icon: '🏆', next: null, points: 60 }
+    5: { id: 'whiskey', name: 'Виски', icon: '🥃', next: 6, points: 50 },
+    6: { id: 'cocktail', name: 'Коктейль', icon: '🍸', next: 7, points: 70 },
+    7: { id: 'mojito', name: 'Мохито', icon: '🍹', next: 8, points: 90 },
+    8: { id: 'gold', name: 'Золотая бутылка', icon: '🏆', next: null, points: 120 }
 };
 
 // Шансы появления предметов (сумма = 100)
 const SPAWN_WEIGHTS = {
-    1: 40,  // Стакан
-    2: 30,  // Пиво
-    3: 20,  // Вино
-    4: 8,   // Водка
-    5: 2    // Золотая бутылка (редко)
+    1: 35,  // Стакан
+    2: 25,  // Пиво
+    3: 18,  // Вино
+    4: 12,  // Водка
+    5: 6,   // Виски
+    6: 3,   // Коктейль
+    7: 1,   // Мохито
+    8: 0    // Золотая бутылка (не появляется сама)
 };
 
 // ========== СОСТОЯНИЕ ИГРЫ ==========
 let gameState = {
     grid: [],
-    currentItem: null,     // { level, col, row }
+    currentItem: null,
     score: 0,
     isRunning: false,
     isSpawning: false,
@@ -42,8 +48,26 @@ let gameState = {
     mouseX: 0,
     startTime: 0,
     merges: 0,
-    maxLevelReached: 1
+    maxLevelReached: 1,
+    bgImage: null
 };
+
+// ========== ЗАГРУЗКА ФОНА ==========
+function loadBackground() {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = 'images/merge_bg.jpg';
+        img.onload = () => {
+            gameState.bgImage = img;
+            resolve();
+        };
+        img.onerror = () => {
+            console.log('⚠️ Фон для объединялки не загружен, используем градиент');
+            resolve();
+        };
+        setTimeout(resolve, 2000);
+    });
+}
 
 // ========== ИНИЦИАЛИЗАЦИЯ ПОЛЯ ==========
 function initGrid() {
@@ -83,7 +107,6 @@ function findMatches() {
             const current = gameState.grid[row][col];
             if (!current) continue;
             
-            // Проверяем соседей (вправо и вниз)
             const neighbors = [
                 { r: row, c: col + 1 },
                 { r: row + 1, c: col }
@@ -94,28 +117,22 @@ function findMatches() {
                 const neighbor = gameState.grid[n.r][n.c];
                 if (!neighbor) continue;
                 
-                // Если одинаковый уровень и есть следующий уровень
-                if (current.level === neighbor.level && current.level < 5) {
+                if (current.level === neighbor.level && current.level < 8) {
                     const nextLevel = current.level + 1;
                     const nextItem = ITEMS[nextLevel];
                     
-                    // Объединяем
                     gameState.grid[row][col] = { level: nextLevel };
                     gameState.grid[n.r][n.c] = null;
                     
-                    // Начисляем очки
                     gameState.score += nextItem.points;
                     gameState.merges++;
                     if (nextLevel > gameState.maxLevelReached) {
                         gameState.maxLevelReached = nextLevel;
                     }
                     
-                    // Показываем уведомление
                     showMergeEffect(row, col, nextItem);
                     
                     merged = true;
-                    
-                    // Рекурсивно проверяем новое объединение
                     findMatches();
                     return true;
                 }
@@ -149,7 +166,6 @@ function showMergeEffect(row, col, item) {
 
 // ========== ПРОВЕРКА GAME OVER ==========
 function checkGameOver() {
-    // Если в верхней строке есть предметы — Game Over
     for (let col = 0; col < COLS; col++) {
         if (gameState.grid[0][col] !== null) {
             return true;
@@ -181,8 +197,20 @@ function draw() {
     
     ctx.clearRect(0, 0, w, h);
     
-    // Фон
-    ctx.fillStyle = '#1a1a2e';
+    // Фон (картинка или градиент)
+    if (gameState.bgImage) {
+        ctx.drawImage(gameState.bgImage, 0, 0, w, h);
+    } else {
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, '#1a1a2e');
+        gradient.addColorStop(0.5, '#2d2d44');
+        gradient.addColorStop(1, '#1a1a2e');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+    }
+    
+    // Полупрозрачная подложка под сетку
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
     ctx.fillRect(0, 0, w, h);
     
     // Сетка
@@ -220,7 +248,6 @@ function draw() {
         const size = CELL_SIZE - PADDING * 2;
         const data = ITEMS[item.level];
         
-        // Подсветка
         ctx.shadowColor = 'rgba(255,215,0,0.5)';
         ctx.shadowBlur = 15;
         ctx.fillStyle = 'rgba(255,215,0,0.1)';
@@ -244,18 +271,15 @@ function dropCurrentItem() {
     const item = gameState.currentItem;
     const nextRow = item.row + 1;
     
-    // Проверяем, может ли упасть ниже
     if (nextRow < ROWS && gameState.grid[nextRow][item.col] === null) {
         item.row = nextRow;
         draw();
         return;
     }
     
-    // Не может упасть — закрепляем
     gameState.grid[item.row][item.col] = { level: item.level };
     gameState.currentItem = null;
     
-    // Проверяем объединения
     let merged = true;
     while (merged) {
         merged = findMatches();
@@ -265,13 +289,11 @@ function dropCurrentItem() {
         }
     }
     
-    // Проверяем Game Over
     if (checkGameOver()) {
         endGame(false);
         return;
     }
     
-    // Создаём новый предмет
     setTimeout(() => spawnNewItem(), 300);
 }
 
@@ -296,7 +318,6 @@ function spawnNewItem() {
     draw();
     updateMergeUI();
     
-    // Запускаем падение
     if (gameState.dropInterval) {
         clearInterval(gameState.dropInterval);
     }
@@ -314,10 +335,8 @@ function handleMouseMove(e) {
     const col = Math.floor(mouseX / CELL_SIZE);
     const newCol = Math.max(0, Math.min(COLS - 1, col));
     
-    // Проверяем, свободна ли ячейка в текущей строке
     const currentRow = gameState.currentItem.row;
     if (gameState.grid[currentRow][newCol] !== null) {
-        // Если ячейка занята — пробуем соседние
         for (let offset = 1; offset < COLS; offset++) {
             const left = newCol - offset;
             const right = newCol + offset;
@@ -356,33 +375,98 @@ function startGame() {
 function createUI() {
     const container = gameState.container;
     
+    // Основной контейнер для игры + легенды
+    const gameWrapper = document.createElement('div');
+    gameWrapper.style.cssText = `
+        display: flex;
+        gap: 30px;
+        align-items: flex-start;
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 10px;
+    `;
+    container.appendChild(gameWrapper);
+    
+    // Контейнер для canvas
+    const canvasWrapper = document.createElement('div');
+    canvasWrapper.style.cssText = `
+        position: relative;
+    `;
+    gameWrapper.appendChild(canvasWrapper);
+    
+    // Переносим canvas в canvasWrapper
+    const canvas = gameState.canvas;
+    canvasWrapper.appendChild(canvas);
+    
+    // ===== ЛЕГЕНДА (цепочка) =====
+    const legend = document.createElement('div');
+    legend.style.cssText = `
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: 16px;
+        padding: 16px 20px;
+        border: 1px solid rgba(255,215,0,0.2);
+        min-width: 140px;
+        color: white;
+        font-size: 0.9rem;
+        backdrop-filter: blur(4px);
+    `;
+    legend.innerHTML = `
+        <div style="text-align: center; font-weight: bold; color: #ffd966; margin-bottom: 12px; font-size: 1.1rem;">
+            📋 ЦЕПОЧКА
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${Object.entries(ITEMS).map(([level, item]) => `
+                <div style="
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 4px 8px;
+                    border-radius: 8px;
+                    background: ${parseInt(level) === gameState.maxLevelReached ? 'rgba(255,215,0,0.15)' : 'transparent'};
+                    border-left: ${parseInt(level) === gameState.maxLevelReached ? '3px solid #ffd700' : '3px solid transparent'};
+                ">
+                    <span style="font-size: 1.2rem;">${item.icon}</span>
+                    <span style="flex: 1; font-size: 0.8rem;">${item.name}</span>
+                    <span style="font-size: 0.65rem; color: #888;">+${item.points}</span>
+                    ${item.next ? `<span style="color: #555;">→</span>` : `<span style="color: #ffd700;">🏆</span>`}
+                </div>
+            `).join('')}
+        </div>
+        <div style="text-align: center; margin-top: 10px; font-size: 0.7rem; color: #666;">
+            ⭐ Текущий уровень: <span style="color: #ffd966;">${ITEMS[gameState.maxLevelReached]?.icon} ${ITEMS[gameState.maxLevelReached]?.name || '🥃'}</span>
+        </div>
+    `;
+    gameWrapper.appendChild(legend);
+    
+    // Верхняя панель (поверх canvas)
     const panel = document.createElement('div');
     panel.id = 'mergeUI';
     panel.style.cssText = `
         position: absolute;
-        top: 10px;
+        top: -40px;
         left: 50%;
         transform: translateX(-50%);
         display: flex;
         gap: 20px;
         color: white;
-        font-size: 1rem;
+        font-size: 0.9rem;
         font-weight: bold;
-        background: rgba(0, 0, 0, 0.6);
-        padding: 8px 16px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 6px 16px;
         border-radius: 60px;
         border: 1px solid rgba(255,255,255,0.1);
         z-index: 10;
         pointer-events: none;
         flex-wrap: wrap;
         justify-content: center;
+        white-space: nowrap;
     `;
     panel.innerHTML = `
         <div>🎯 Очки: <span id="mergeScore">0</span></div>
         <div>🔄 Объединений: <span id="mergeMerges">0</span></div>
         <div>🏆 Уровень: <span id="mergeLevel">🥃</span></div>
     `;
-    container.appendChild(panel);
+    canvasWrapper.appendChild(panel);
 }
 
 // ========== ЗАВЕРШЕНИЕ ИГРЫ ==========
@@ -395,7 +479,6 @@ function endGame(won = false) {
         gameState.dropInterval = null;
     }
     
-    // Рассчитываем награду
     const baseMoney = Math.floor(gameState.score / 2);
     const bonusMoney = gameState.merges * 5;
     const levelBonus = (gameState.maxLevelReached - 1) * 20;
@@ -475,12 +558,10 @@ function showResultScreen(won, moneyReward, expReward) {
     
     container.appendChild(resultDiv);
     
-    // Начисляем награду
     const newMoney = money + moneyReward;
     setStats(null, null, null, newMoney);
     addExperience(expReward);
     
-    // Обновляем UI через динамический импорт
     import('./gameState.js').then(m => {
         m.updateUI();
     });
@@ -500,8 +581,7 @@ function showResultScreen(won, moneyReward, expReward) {
 }
 
 // ========== ОТКРЫТИЕ ИГРЫ ==========
-export function openMergeGame() {
-    // Проверяем энергию
+export async function openMergeGame() {
     if (!hasEnoughEnergy(15)) {
         showMessage('❌ Не хватает энергии! Нужно 15⚡', '#e74c3c');
         return;
@@ -514,7 +594,9 @@ export function openMergeGame() {
     
     spendEnergy(15);
     
-    // Создаём контейнер
+    // Загружаем фон
+    await loadBackground();
+    
     const container = document.createElement('div');
     container.id = 'mergeGameContainer';
     container.style.cssText = `
@@ -534,20 +616,18 @@ export function openMergeGame() {
     document.body.appendChild(container);
     gameState.container = container;
     
-    // Заголовок
     const title = document.createElement('div');
     title.textContent = '🔄 ОБЪЕДИНЯЛКА';
     title.style.cssText = `
         color: #ffd966;
         font-size: 1.5rem;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
         text-shadow: 0 0 20px rgba(255,215,0,0.3);
         letter-spacing: 2px;
     `;
     container.appendChild(title);
     
-    // Canvas
     const canvas = document.createElement('canvas');
     const totalWidth = COLS * CELL_SIZE + PADDING * 2;
     const totalHeight = ROWS * CELL_SIZE + PADDING * 2;
@@ -563,13 +643,10 @@ export function openMergeGame() {
     gameState.canvas = canvas;
     gameState.ctx = canvas.getContext('2d');
     
-    // Управление мышкой
     canvas.addEventListener('mousemove', handleMouseMove);
     
-    // Запускаем игру
     startGame();
     
-    // Обработка закрытия по Escape
     const closeHandler = (e) => {
         if (e.key === 'Escape' && gameState.isRunning) {
             endGame(false);
