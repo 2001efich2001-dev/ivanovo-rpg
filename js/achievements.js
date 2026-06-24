@@ -104,14 +104,51 @@ export let achievements = {
 // Флаг для отслеживания загрузки
 let isInitialLoad = true;
 
-// Установка данных при загрузке
-export function setAchievementsData(data) {
-    if (data) {
+// ========== УСТАНОВКА ДАННЫХ С ПАРАМЕТРОМ FORCE ==========
+export function setAchievementsData(data, force = false) {
+    if (!data) {
+        console.log('⚠️ Нет данных для загрузки ачивок');
+        return;
+    }
+    
+    // Если force=true — полностью перезаписываем
+    if (force) {
         achievements.completed = data.completed || {};
         achievements.stats = { ...achievements.stats, ...(data.stats || {}) };
+        console.log('🏆 Ачивки принудительно перезаписаны:', achievements);
+    } else {
+        // Если данных нет или они пустые — используем мерж
+        if (Object.keys(achievements.completed).length === 0 && Object.keys(achievements.stats).every(k => achievements.stats[k] === 0)) {
+            // Если локальные данные пустые — загружаем из Firestore
+            achievements.completed = data.completed || {};
+            achievements.stats = { ...achievements.stats, ...(data.stats || {}) };
+            console.log('🏆 Ачивки загружены (локальные данные пустые):', achievements);
+        } else {
+            // Мержим данные: новые дополняют существующие
+            const mergedCompleted = { ...achievements.completed, ...(data.completed || {}) };
+            const mergedStats = { ...achievements.stats, ...(data.stats || {}) };
+            
+            // Проверяем, есть ли реальные изменения
+            const hasChanges = JSON.stringify(mergedCompleted) !== JSON.stringify(achievements.completed) ||
+                              JSON.stringify(mergedStats) !== JSON.stringify(achievements.stats);
+            
+            if (hasChanges) {
+                achievements.completed = mergedCompleted;
+                achievements.stats = mergedStats;
+                console.log('🏆 Ачивки обновлены (мерж):', achievements);
+            } else {
+                console.log('🏆 Ачивки уже актуальны, мерж не требуется');
+            }
+        }
     }
-    console.log('🏆 Загружены достижения:', achievements);
+    
     isInitialLoad = false;
+    
+    // Обновляем вкладку ачивок, если она открыта
+    const achievementsTab = document.getElementById('achievementsTab');
+    if (achievementsTab && achievementsTab.style.display !== 'none') {
+        renderAchievementsTab();
+    }
 }
 
 // Получение данных для сохранения
