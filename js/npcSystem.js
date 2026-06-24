@@ -4,8 +4,9 @@ import { money, inventory, setStats, updateUI, addLogEntry } from './gameState.j
 import { saveGameData, db } from './firestore.js';
 import { doc, getDoc, setDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 
-// ========== БАЗА ДАННЫХ NPC (только статика) ==========
+// ========== БАЗА ДАННЫХ NPC ==========
 export const npcDB = {
+    // ===== БОМЖ СЕМЁН =====
     dump_hobo: {
         id: 'dump_hobo',
         name: '🗑️ Бомж Семён',
@@ -81,6 +82,87 @@ export const npcDB = {
                 description: 'Семён простудился. Принеси ему аптечку.',
                 requirement: { item: 'medkit', count: 1 },
                 reward: { money: 80, exp: 25, item: 'cigarettes' },
+                cooldown: 24 * 60 * 60 * 1000
+            }
+        ]
+    },
+
+    // ===== ОЛЕГ ТАКСИСТ (НОВЫЙ NPC) =====
+    railway_taxi: {
+        id: 'railway_taxi',
+        name: '🚕 Олег Таксист',
+        location: 'railway',
+        description: 'Местный таксист. Всегда на подхвате. Может подбросить до места или рассказать новости города.',
+        avatar: 'images/npc/taxi.png',
+        position: { x: 420, y: 250 },
+        width: 300,
+        height: 300,
+        actionId: 'talk_taxi',
+        
+        dialogues: [
+            {
+                id: 'greeting',
+                text: 'Привет, братан! Куда путь держишь? На такси? Или просто поговорить?',
+                options: [
+                    { text: '🚕 Ты кто такой?', action: 'who_are_you' },
+                    { text: '📰 Что нового в городе?', action: 'news' },
+                    { text: '💰 Хочешь продать что-то?', action: 'shop_buy' },
+                    { text: '📜 Есть работа?', action: 'quest' },
+                    { text: '👋 Пока, Олег', action: 'goodbye' }
+                ]
+            },
+            {
+                id: 'who_are_you',
+                text: 'Я Олег. Таксую здесь уже 5 лет. Знаю каждый уголок Иваново. Если нужно куда-то добраться — я всегда помогу. За скромную плату, конечно.',
+                options: [
+                    { text: '🔙 Назад', action: 'greeting' }
+                ]
+            },
+            {
+                id: 'news',
+                text: 'Новости? Ну, слышал, на рынке появился какой-то тип с контрабандными товарами. А ещё говорят, в администрации готовят новый проект. Или тебя что-то конкретное интересует?',
+                options: [
+                    { text: '🔙 Назад', action: 'greeting' }
+                ]
+            }
+        ],
+        
+        shop_items: [
+            { id: 'water', price: 15, stock: 10, maxStock: 10 },
+            { id: 'cigarettes', price: 20, stock: 5, maxStock: 5 },
+            { id: 'medkit', price: 50, stock: 3, maxStock: 3 },
+            { id: 'energetic', price: 100, stock: 5, maxStock: 5 }
+        ],
+        
+        buy_items: [
+            { id: 'empty_bottle', price: 3 },
+            { id: 'old_boot', price: 2 },
+            { id: 'plastic_bottle', price: 1 }
+        ],
+        
+        quests: [
+            {
+                id: 'taxi_delivery',
+                name: 'Срочная доставка',
+                description: 'Олегу нужно передать пакет на рынок. Принеси 3 сигареты для клиента.',
+                requirement: { item: 'cigarettes', count: 3 },
+                reward: { money: 100, exp: 20 },
+                cooldown: 24 * 60 * 60 * 1000
+            },
+            {
+                id: 'taxi_medkit',
+                name: 'Аптечка для такси',
+                description: 'В аптечке закончились лекарства. Принеси аптечку для такси.',
+                requirement: { item: 'medkit', count: 1 },
+                reward: { money: 80, exp: 25, item: 'energetic' },
+                cooldown: 24 * 60 * 60 * 1000
+            },
+            {
+                id: 'taxi_info',
+                name: 'Сбор информации',
+                description: 'Олег хочет знать, что творится в городе. Посети все локации и вернись с отчётом.',
+                requirement: { item: 'water', count: 5 },
+                reward: { money: 150, exp: 30 },
                 cooldown: 24 * 60 * 60 * 1000
             }
         ]
@@ -293,6 +375,8 @@ export async function handleNpcChoice(npcId, choiceAction, userId) {
             return getDialog(npcId, 'who_are_you');
         case 'info':
             return getDialog(npcId, 'info');
+        case 'news':
+            return getDialog(npcId, 'news');
         case 'shop_buy':
             return { type: 'shop', mode: 'buy' };
         case 'shop_sell':
