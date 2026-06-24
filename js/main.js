@@ -156,33 +156,6 @@ function updatePlayerTitle() {
     }
 }
 
-// ========== ПОКАЗ ОПЫТА ПРИ НАВЕДЕНИИ НА УРОВЕНЬ ==========
-function setupLevelTooltip() {
-    const levelEl = document.getElementById('levelValue');
-    if (!levelEl) return;
-    
-    // Удаляем старый тултип если есть
-    const oldTooltip = levelEl.querySelector('.level-tooltip');
-    if (oldTooltip) oldTooltip.remove();
-    
-    // Создаём тултип
-    const tooltip = document.createElement('span');
-    tooltip.className = 'level-tooltip';
-    
-    // Функция обновления тултипа
-    const updateTooltip = () => {
-        const exp = document.getElementById('expValue')?.textContent || '0';
-        const required = document.getElementById('expRequired')?.textContent || '100';
-        tooltip.textContent = `Опыт: ${exp} / ${required}`;
-    };
-    
-    // Обновляем при наведении
-    levelEl.addEventListener('mouseenter', updateTooltip);
-    
-    // Добавляем тултип в DOM
-    levelEl.appendChild(tooltip);
-}
-
 // ========== УПРАВЛЕНИЕ ТУТОРИАЛОМ ==========
 async function handleToggleTutorial() {
     const btn = document.getElementById('toggleTutorialBtn');
@@ -1129,7 +1102,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gameContainer) gameContainer.classList.add('game-container-hidden');
     if (authContainer) authContainer.style.display = 'block';
     initDOM();
-setTimeout(setupLevelTooltip, 500);
     const loginFormDiv = document.getElementById('loginForm');
     const registerFormDiv = document.getElementById('registerForm');
     const playerNickSpan = document.getElementById('playerNick');
@@ -1220,7 +1192,6 @@ setTimeout(setupLevelTooltip, 500);
         renderLogPanel();
         updateUI();
         updatePlayerTitle();
-        setupLevelTooltip();
         
         // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
         await updatePlayerStats();
