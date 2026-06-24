@@ -75,20 +75,31 @@ function applyIntoxicationToDamage(originalDamage, intoxicationLevel, isSuccess 
 
 // База локаций с фонами, зонами и действиями
 export const locationsDB = {
-    railway: {
-        id: "railway",
-        name: "Вокзал",
-        description: "Шум, люди, поезда. Можно попросить подаяние или поискать забытые вещи.",
-        bgImage: "images/railway_bg.jpg",
-        zones: [
-            { id: "beg_zone", name: "Площадь у вокзала", description: "Попросить подаяние: получить 10-50₽ (риск 30%)", cx: 150, cy: 200, r: 50, actionId: "beg" },
-            { id: "search_zone", name: "Зал ожидания", description: "Поискать вещи: хлеб или вода (риск 20%)", cx: 400, cy: 180, r: 45, actionId: "search" }
-        ],
-        actions: [
-            { id: "beg", name: "Попросить подаяние", desc: "Риск: 30% получить отказ", effect: { money: [10, 50] }, risk: 30, riskEffect: { money: -10, health: -5 } },
-            { id: "search", name: "Поискать забытые вещи", desc: "Риск: 20% найти мусор", effect: { items: ["bread", "water"] }, risk: 20, riskEffect: { health: -10, hunger: -5 } }
-        ]
+   railway: {
+    id: "railway",
+    name: "Вокзал",
+    description: "Шум, люди, поезда. Можно попросить подаяние или поискать забытые вещи. А ещё здесь работает таксист Олег.",
+    bgImage: "images/railway_bg.jpg",
+    npc: {
+        id: 'railway_taxi',
+        name: '🚕 Олег Таксист',
+        avatar: 'images/npc/taxi.png',
+        position: { x: 420, y: 250 },
+        width: 300,
+        height: 300,
+        actionId: 'talk_taxi'
     },
+    zones: [
+        { id: "beg_zone", name: "Площадь у вокзала", description: "Попросить подаяние: получить 10-50₽ (риск 30%)", cx: 150, cy: 200, r: 50, actionId: "beg" },
+        { id: "search_zone", name: "Зал ожидания", description: "Поискать вещи: хлеб или вода (риск 20%)", cx: 400, cy: 180, r: 45, actionId: "search" },
+        { id: "taxi_zone", name: "🚕 Стоянка такси", description: "Поговорить с Олегом Таксистом", cx: 650, cy: 250, r: 50, actionId: "talk_taxi" }
+    ],
+    actions: [
+        { id: "beg", name: "Попросить подаяние", desc: "Риск: 30% получить отказ", effect: { money: [10, 50] }, risk: 30, riskEffect: { money: -10, health: -5 } },
+        { id: "search", name: "Поискать забытые вещи", desc: "Риск: 20% найти мусор", effect: { items: ["bread", "water"] }, risk: 20, riskEffect: { health: -10, hunger: -5 } },
+        { id: "talk_taxi", name: "🚕 Поговорить с Олегом", desc: "Поговорить с таксистом", effect: {}, cost: 0, risk: 0 }
+    ]
+},
     market: {
         id: "market",
         name: "Рынок",
@@ -477,25 +488,26 @@ async function executeAction(locationId, action) {
         await showActionTip('shown_zone_click', '🟢 Зелёные круги — места для действий. Нажми на них, чтобы сделать что-то.');
     }
     
-    // ===== РАЗГОВОР С NPC =====
-    if (action.id === 'talk_hobo' || action.id.startsWith('talk_')) {
-        await showActionTip('shown_npc', '💬 Диалоги с NPC могут открыть новые квесты, магазины и информацию.');
-        try {
-            const { openNpcDialog } = await import('./npcSystemUI.js');
-            const loc = locationsDB[locationId];
-            if (loc && loc.npc) {
-                await openNpcDialog(loc.npc.id);
-                logAction(`В локации "${locationsDB[locationId]?.name}": разговор с NPC`, 'location');
-            } else {
-                showMessage('NPC не найден в этой локации', '#e74c3c');
-            }
-        } catch (error) {
-            console.error('Ошибка открытия NPC:', error);
-            showMessage("❌ Ошибка диалога. Попробуйте позже.", "#e74c3c");
+  
+// ===== РАЗГОВОР С NPC =====
+if (action.id === 'talk_hobo' || action.id === 'talk_taxi' || action.id.startsWith('talk_')) {
+    await showActionTip('shown_npc', '💬 Диалоги с NPC могут открыть новые квесты, магазины и информацию.');
+    try {
+        const { openNpcDialog } = await import('./npcSystemUI.js');
+        const loc = locationsDB[locationId];
+        if (loc && loc.npc) {
+            await openNpcDialog(loc.npc.id);
+            logAction(`В локации "${locationsDB[locationId]?.name}": разговор с NPC`, 'location');
+        } else {
+            showMessage('NPC не найден в этой локации', '#e74c3c');
         }
-        document.getElementById('locationModal').style.display = 'none';
-        return;
+    } catch (error) {
+        console.error('Ошибка открытия NPC:', error);
+        showMessage("❌ Ошибка диалога. Попробуйте позже.", "#e74c3c");
     }
+    document.getElementById('locationModal').style.display = 'none';
+    return;
+}
     
     // ===== ОТКРЫТЬ ХРАНИЛИЩЕ =====
     if (action.id === 'storage_open' || action.id === 'garage_storage') {
