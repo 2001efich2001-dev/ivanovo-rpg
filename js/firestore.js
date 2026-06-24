@@ -128,15 +128,16 @@ export async function loadGameData(userId) {
         const { setDailyBonusData } = await import('./dailyBonus.js');
         setDailyBonusData(data.dailyBonusLastClaim ?? null, data.dailyBonusStreak ?? 0);
         
-        if (data.achievements) {
-            try {
-                const { setAchievementsData } = await import('./achievements.js');
-                setAchievementsData(data.achievements);
-                console.log('🏆 Загружены данные достижений');
-            } catch (err) {
-                console.warn('Модуль ачивок не загружен');
-            }
-        }
+      if (data.achievements) {
+    try {
+        const { setAchievementsData } = await import('./achievements.js');
+        // 👇 ДОБАВЛЯЕМ force=true
+        setAchievementsData(data.achievements, true);
+        console.log('🏆 Загружены данные достижений (принудительно)');
+    } catch (err) {
+        console.warn('Модуль ачивок не загружен');
+    }
+}
         
         if (data.housing) {
             const { setHousingData } = await import('./gameState.js');
