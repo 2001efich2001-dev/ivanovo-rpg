@@ -37,7 +37,7 @@
 
     <!-- Игровой контейнер (две колонки) -->
     <div id="gameContainer" class="game-container">
-        <!-- Левая колонка -->
+        <!-- Левая колонка (локация) - стала шире -->
         <div class="game-left" id="locationContainer">
             <div class="location-bg" id="locationBg">
                 <img id="locationBgImg" src="images/church_bg.jpg" alt="Фон локации">
@@ -51,13 +51,12 @@
             <!-- Аватар -->
             <img class="avatar-gif" id="avatarGif" src="images/hero2.png" alt="Персонаж"> 
             
-            <!-- Ник + уровень + титул -->
-            <div class="player-nick-container">
-                <div id="playerTitle" class="player-title"></div>
-                <div class="player-nick-row">
-                    <div id="playerNick" class="player-nick">Игрок</div>
-                    <span class="player-level-inline" id="levelValue" title="Наведи для опыта">⭐1</span>
-                </div>
+            <!-- Ник + титул + уровень + опыт в одну строку -->
+            <div class="player-header-row">
+                <div id="playerTitle" class="player-title-inline"></div>
+                <div id="playerNick" class="player-nick">Игрок</div>
+                <span class="player-level-text">Уровень: <span id="levelValue">1</span></span>
+                <span class="player-exp-text">(<span id="expValue">0</span>/<span id="expRequired">100</span> опыта)</span>
             </div>
             
             <!-- Погода -->
@@ -120,25 +119,25 @@
                 <button class="action-btn" id="mapBtn">🗺️ Карта</button>
                 <button class="action-btn" id="shopBtn">🏪 Магазин</button>
                 <button class="action-btn" id="questsBtn">📜 Квесты</button>
-                <button class="action-btn" id="realEstateMarketBtn">📢 Агентство недвижимости "Авит0"</button>
+                <button class="action-btn" id="realEstateMarketBtn">📢 Авит0</button>
                 <button class="action-btn" id="myOffersBtn">
                     💼 Мои предложения
                     <span id="tradeNotification" class="trade-notification" style="display: none;">
                         <span class="trade-count"></span>!
                     </span>
                 </button>
-                <button class="action-btn" id="topPlayersBtn">🏆 Топ игроков</button>
+                <button class="action-btn" id="topPlayersBtn">🏆 Топ</button>
                 <button class="action-btn" id="handbookBtn">📖 Справочник</button>
                 <button class="action-btn" id="logoutMenuBtn">🚪 Выйти</button>
             </div>
 
-            <!-- Настройки -->
-            <div class="settings-item">
+            <!-- Настройки в одну строку -->
+            <div class="settings-row">
                 <button id="themeToggle" class="reset-btn">🌓 Тема</button>
-                <button id="musicToggle" class="reset-btn">🎵 Музыка Вкл</button>
-                <button id="changeNickBtn" class="reset-btn" style="background: #e67e22;">✏️ Сменить ник</button>
-                <button id="toggleTutorialBtn" class="reset-btn" style="background: #2c3e50;">💡 Подсказки: Вкл</button>
-                <button id="resetTutorialBtn" class="reset-btn" style="background: #8e44ad;">🔄 Сбросить подсказки</button>
+                <button id="musicToggle" class="reset-btn">🎵 Музыка</button>
+                <button id="changeNickBtn" class="reset-btn" style="background:#e67e22;">✏️ Ник</button>
+                <button id="toggleTutorialBtn" class="reset-btn" style="background:#2c3e50;">💡 Подсказки</button>
+                <button id="resetTutorialBtn" class="reset-btn" style="background:#8e44ad;">🔄 Сброс</button>
             </div>
         </div>
     </div>
