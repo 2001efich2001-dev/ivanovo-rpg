@@ -2291,30 +2291,30 @@ body {
 .stats-compact {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     background: var(--panel-bg);
     border-radius: 24px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     margin: 4px 0;
 }
 
 .stat-compact {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 0.8rem;
+    gap: 4px;
+    font-size: 0.75rem;
 }
 
 .stat-label {
-    width: 24px;
+    width: 20px;
     text-align: center;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     flex-shrink: 0;
 }
 
 .stat-bar-compact {
     flex: 1;
-    height: 8px;
+    height: 6px;
     background: var(--stat-bg);
     border-radius: 10px;
     overflow: hidden;
@@ -2327,12 +2327,13 @@ body {
 }
 
 .stat-value {
-    width: 32px;
+    width: 45px;
     text-align: right;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: bold;
     color: var(--text-secondary);
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
 }
 
 /* ===== НАСТРОЙКИ В ОДНУ СТРОКУ ===== */
