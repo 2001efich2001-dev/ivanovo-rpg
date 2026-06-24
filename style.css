@@ -2163,12 +2163,13 @@ body {
 
 /* Значение стата */
 .stat-value {
-    width: 32px;
+    width: 45px; /* Было 32px — увеличили */
     text-align: right;
-    font-size: 0.7rem;
+    font-size: 0.65rem; /* Было 0.7rem — чуть уменьшили */
     font-weight: bold;
     color: var(--text-secondary);
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums; /* Моноширинные цифры для ровности */
 }
 
 /* Ник + уровень в одну строку */
