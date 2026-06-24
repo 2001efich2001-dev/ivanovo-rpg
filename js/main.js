@@ -1295,6 +1295,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const changeNickBtn = document.getElementById('changeNickBtn');
     const sendTradeBtn = document.getElementById('sendTradeBtn');
     
+    // 👇 НОВАЯ КНОПКА СПРАВОЧНИКА
+    const handbookBtn = document.getElementById('handbookBtn');
+    
     if (loginBtn) loginBtn.addEventListener('click', () => { playClick(); showSplash(); });
     if (registerBtn) registerBtn.addEventListener('click', () => { playClick(); showSplash(); });
     
@@ -1447,6 +1450,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (authContainer) authContainer.style.display = 'block';
             hideSplash();
             if (tradeNotificationInterval) clearInterval(tradeNotificationInterval);
+        });
+    }
+    
+    // 👇 ОБРАБОТЧИК ДЛЯ КНОПКИ СПРАВОЧНИКА
+    if (handbookBtn) {
+        handbookBtn.addEventListener('click', () => {
+            playClick();
+            import('./handbook.js').then(module => {
+                module.openHandbook();
+            });
         });
     }
     
