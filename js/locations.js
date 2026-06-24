@@ -84,9 +84,9 @@ export const locationsDB = {
         id: 'railway_taxi',
         name: '🚕 Олег Таксист',
         avatar: 'images/npc/taxi.png',
-        position: { x: 420, y: 250 },
-        width: 300,
-        height: 300,
+        position: { x: 620, y: 550 },
+        width: 500,
+        height: 500,
         actionId: 'talk_taxi'
     },
     zones: [
