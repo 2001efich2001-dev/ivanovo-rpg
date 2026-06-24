@@ -2163,7 +2163,7 @@ body {
 
 /* Значение стата */
 .stat-value {
-    width: 45px; /* Было 32px — увеличили */
+    width: 55px; /* Было 32px — увеличили */
     text-align: right;
     font-size: 0.65rem; /* Было 0.7rem — чуть уменьшили */
     font-weight: bold;
