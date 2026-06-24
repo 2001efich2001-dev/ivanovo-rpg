@@ -135,10 +135,26 @@ async function showNpcShop(mode) {
     }
     
     // ✅ ЗАГРУЖАЕМ СВЕЖИЕ ДАННЫЕ ИЗ FIRESTORE (с проверкой 24ч)
-    const state = await getCurrentNpcState(user.uid);
+    let state = await getCurrentNpcState(user.uid);
     if (!state) {
-        showMessage('❌ Ошибка загрузки данных', '#e74c3c');
-        return;
+        state = {};
+    }
+    
+    // 👇 НОВЫЙ БЛОК: создаём состояние для NPC, если его нет
+    if (!state[currentNpcId]) {
+        state[currentNpcId] = {
+            shopStock: {},
+            questCooldowns: {},
+            lastRestock: 0
+        };
+        const npcData = npcDB[currentNpcId];
+        if (npcData && npcData.shop_items) {
+            npcData.shop_items.forEach(item => {
+                state[currentNpcId].shopStock[item.id] = item.stock;
+            });
+        }
+        await saveNpcStateToFirestore(user.uid, state);
+        console.log(`✅ Состояние для NPC ${currentNpcId} создано автоматически`);
     }
     
     const npcState = state[currentNpcId] || { shopStock: {} };
