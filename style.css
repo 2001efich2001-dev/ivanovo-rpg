@@ -2228,3 +2228,178 @@ body {
 .exp-panel {
     display: none !important;
 }
+
+/* ===== НОВАЯ СТРОКА С НИКОМ, ТИТУЛОМ, УРОВНЕМ И ОПЫТОМ ===== */
+.player-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    padding: 4px 0;
+    background: var(--panel-bg);
+    border-radius: 40px;
+    padding: 6px 16px;
+    margin: 4px 0;
+}
+
+.player-title-inline {
+    font-size: 0.7rem;
+    background: linear-gradient(135deg, rgba(255,217,102,0.25), rgba(255,217,102,0.1));
+    border: 1px solid #ffd966;
+    border-radius: 40px;
+    padding: 2px 12px;
+    color: #ffd966;
+    font-weight: bold;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.player-nick {
+    font-size: 1rem;
+    font-weight: bold;
+    color: var(--text-primary);
+    background: transparent;
+    padding: 0;
+}
+
+.player-level-text {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--accent-gold);
+    white-space: nowrap;
+}
+
+.player-level-text #levelValue {
+    color: var(--accent-gold);
+}
+
+.player-exp-text {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.player-exp-text #expValue,
+.player-exp-text #expRequired {
+    color: var(--accent-gold);
+    font-weight: bold;
+}
+
+/* ===== КОМПАКТНЫЕ СТАТЫ ===== */
+.stats-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--panel-bg);
+    border-radius: 24px;
+    padding: 10px 14px;
+    margin: 4px 0;
+}
+
+.stat-compact {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+}
+
+.stat-label {
+    width: 24px;
+    text-align: center;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.stat-bar-compact {
+    flex: 1;
+    height: 8px;
+    background: var(--stat-bg);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.stat-bar-compact .stat-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease;
+}
+
+.stat-value {
+    width: 32px;
+    text-align: right;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+/* ===== НАСТРОЙКИ В ОДНУ СТРОКУ ===== */
+.settings-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+.settings-row .reset-btn {
+    padding: 4px 10px;
+    font-size: 0.6rem;
+    border-radius: 30px;
+    white-space: nowrap;
+}
+
+/* ===== УВЕЛИЧЕННАЯ ЛЕВАЯ КОЛОНКА (ЛОКАЦИЯ) ===== */
+.game-left {
+    flex: 2.2 !important; /* Было 2, стало 2.2 — шире на ~10% */
+    min-width: 400px !important; /* Было 300px, стало 400px */
+}
+
+/* ===== СКРЫВАЕМ СТАРУЮ ПАНЕЛЬ ОПЫТА ===== */
+.exp-panel {
+    display: none !important;
+}
+
+/* ===== АДАПТАЦИЯ ===== */
+@media (max-width: 1100px) {
+    .game-left {
+        flex: 1.8 !important;
+        min-width: 300px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .player-header-row {
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        padding: 4px 10px;
+    }
+    
+    .player-title-inline {
+        font-size: 0.6rem;
+        padding: 1px 8px;
+    }
+    
+    .player-nick {
+        font-size: 0.85rem;
+    }
+    
+    .player-level-text {
+        font-size: 0.7rem;
+    }
+    
+    .player-exp-text {
+        font-size: 0.6rem;
+    }
+    
+    .settings-row .reset-btn {
+        font-size: 0.5rem;
+        padding: 3px 8px;
+    }
+    
+    .game-left {
+        flex: 1 !important;
+        min-width: 200px !important;
+    }
+}
