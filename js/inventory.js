@@ -1,4 +1,5 @@
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
+// js/inventory.js
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle, markTutorialShown, isTutorialShown, tutorialEnabled, recalcColdFloor } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction, showTutorialTip } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -74,13 +75,13 @@ export const itemsDB = {
     plastic_bottle: { id: "plastic_bottle", name: "Пластиковая бутылка", type: "junk", icon: "🍾", image: "images/items/plastic_bottle.png", effect: {}, price: 0, slot: null, description: "Можно сдать на переработку? Нет, это просто мусор" },
     dirty_rag: { id: "dirty_rag", name: "Грязная тряпка", type: "junk", icon: "🧽", image: "images/items/dirty_rag.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
 
-   bronze_box: { id: "bronze_box", name: "Бронзовый ящик", type: "lootbox", icon: "📦", image: "images/items/bronze_box.png", effect: {}, price: 1000, slot: null, description: "🎁 Бронзовый ящик. Шанс на легендарку: 5%" },
-silver_box: { id: "silver_box", name: "Серебряный ящик", type: "lootbox", icon: "🎁", image: "images/items/silver_box.png", effect: {}, price: 5000, slot: null, description: "🎁 Серебряный ящик. Шанс на легендарку: 15%" },
-gold_box: { id: "gold_box", name: "Золотой ящик", type: "lootbox", icon: "👑", image: "images/items/gold_box.png", effect: {}, price: 20000, slot: null, description: "👑 Золотой ящик. Шанс на легендарку: 30%" },
+    bronze_box: { id: "bronze_box", name: "Бронзовый ящик", type: "lootbox", icon: "📦", image: "images/items/bronze_box.png", effect: {}, price: 1000, slot: null, description: "🎁 Бронзовый ящик. Шанс на легендарку: 5%" },
+    silver_box: { id: "silver_box", name: "Серебряный ящик", type: "lootbox", icon: "🎁", image: "images/items/silver_box.png", effect: {}, price: 5000, slot: null, description: "🎁 Серебряный ящик. Шанс на легендарку: 15%" },
+    gold_box: { id: "gold_box", name: "Золотой ящик", type: "lootbox", icon: "👑", image: "images/items/gold_box.png", effect: {}, price: 20000, slot: null, description: "👑 Золотой ящик. Шанс на легендарку: 30%" },
     gold_chain: { id: "gold_chain", name: "Золотая цепь", type: "accessory", icon: "⛓️", image: "images/items/gold_chain.png", effect: { cold: 5, health: 5 }, price: 0, slot: null, description: "🔥 Эксклюзив! Даёт +5 к теплу и здоровью" },
-leather_jacket: { id: "leather_jacket", name: "Кожаная куртка", type: "clothes", icon: "🧥", image: "images/items/leather_jacket.png", effect: { cold: 20, health: 10 }, price: 0, slot: "body", description: "🔥 Эксклюзив! +20 тепла, +10 здоровья" },
-diamond_ring: { id: "diamond_ring", name: "Кольцо с бриллиантом", type: "accessory", icon: "💍", image: "images/items/diamond_ring.png", effect: { health: 15 }, price: 0, slot: null, description: "💎 Эксклюзив! +15 здоровья" },
-legendary_medal: { id: "legendary_medal", name: "Легендарная медаль", type: "accessory", icon: "🎖️", image: "images/items/legendary_medal.png", effect: { cold: 10, health: 10, hunger: 10 }, price: 0, slot: null, description: "🏆 Эксклюзив! +10 ко всем характеристикам" }
+    leather_jacket: { id: "leather_jacket", name: "Кожаная куртка", type: "clothes", icon: "🧥", image: "images/items/leather_jacket.png", effect: { cold: 20, health: 10 }, price: 0, slot: "body", description: "🔥 Эксклюзив! +20 тепла, +10 здоровья" },
+    diamond_ring: { id: "diamond_ring", name: "Кольцо с бриллиантом", type: "accessory", icon: "💍", image: "images/items/diamond_ring.png", effect: { health: 15 }, price: 0, slot: null, description: "💎 Эксклюзив! +15 здоровья" },
+    legendary_medal: { id: "legendary_medal", name: "Легендарная медаль", type: "accessory", icon: "🎖️", image: "images/items/legendary_medal.png", effect: { cold: 10, health: 10, hunger: 10 }, price: 0, slot: null, description: "🏆 Эксклюзив! +10 ко всем характеристикам" }
 };
 
 // Функция для получения цены продажи
@@ -318,7 +319,7 @@ function showDepositModal(homeId) {
     updateMoneyDisplay();
 }
 
-// ========== РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" (с кнопкой продажи игроку) ==========
+// ========== РЕНДЕР ВКЛАДКИ "МОЁ ЖИЛЬЁ" ==========
 export async function renderHousingTab() {
     // Принудительно загружаем актуальную недвижимость из real_estate
     await loadOwnedHomesFromRealEstate();
@@ -551,7 +552,7 @@ function getPriceByHomeId(homeId) {
     return 0;
 }
 
-// ========== НОВАЯ ФУНКЦИЯ: ПРОДАЖА НЕДВИЖИМОСТИ ГОРОДУ (с автоматическим снятием объявления) ==========
+// ========== НОВАЯ ФУНКЦИЯ: ПРОДАЖА НЕДВИЖИМОСТИ ГОРОДУ ==========
 async function sellPropertyToCity(propertyId, sellPrice) {
     console.log(`💰 Продажа ${propertyId} за ${sellPrice}₽`);
     
@@ -850,23 +851,21 @@ async function useItem(itemId) {
         return;
     }
 
-    // В useItem() в inventory.js, после проверки на junk:
-
-// ===== ЛУТБОКСЫ =====
-if (itemData.type === 'lootbox') {
-    const { openLootBox } = await import('./lootbox.js');
-    // Удаляем предмет из инвентаря
-    if (inventory[itemIndex].count === 1) {
-        inventory.splice(itemIndex, 1);
-    } else {
-        inventory[itemIndex].count--;
+    // ===== ЛУТБОКСЫ =====
+    if (itemData.type === 'lootbox') {
+        const { openLootBox } = await import('./lootbox.js');
+        // Удаляем предмет из инвентаря
+        if (inventory[itemIndex].count === 1) {
+            inventory.splice(itemIndex, 1);
+        } else {
+            inventory[itemIndex].count--;
+        }
+        updateUI();
+        await saveGameData();
+        openLootBox(itemId);
+        window._usingItem = false;
+        return;
     }
-    updateUI();
-    await saveGameData();
-    openLootBox(itemId);
-    window._usingItem = false;
-    return;
-}
     
     // ===== ОСТАЛЬНОЙ КОД (еда, лекарства, алкоголь и т.д.) =====
     let effText = "";
@@ -958,6 +957,9 @@ async function equipItem(itemId) {
         setStats(health, hunger, newCold, money);
     }
     
+    // 👇 ПЕРЕСЧИТЫВАЕМ ПОРОГ ТЕПЛА ПОСЛЕ НАДЕВАНИЯ
+    recalcColdFloor();
+    
     await saveGameData();
     renderItemsTab();
     renderEquipmentTab();
@@ -981,6 +983,9 @@ async function unequipItem(slot) {
     if (exist !== -1) inventory[exist].count++;
     else inventory.push({ id: itemId, count: 1 });
     equipped[slot] = null;
+    
+    // 👇 ПЕРЕСЧИТЫВАЕМ ПОРОГ ТЕПЛА ПОСЛЕ СНЯТИЯ
+    recalcColdFloor();
     
     await saveGameData();
     renderItemsTab();
@@ -1149,7 +1154,7 @@ export async function renderTradeHousingSelector() {
     });
 }
 
-// ========== РЕНДЕР ИНВЕНТАРЯ В ТОРГОВЛЕ (для предметов) ==========
+// ========== РЕНДЕР ИНВЕНТАРЯ В ТОРГОВЛЕ ==========
 async function renderTradeInventorySelector(side) {
     const user = window.auth?.currentUser;
     if (!user) return;
@@ -1157,12 +1162,10 @@ async function renderTradeInventorySelector(side) {
     const container = document.getElementById(`trade${side === 'from' ? 'FromItems' : 'ToItems'}`);
     if (!container) return;
     
-    // Динамически импортируем Firebase
     const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
     const { db } = await import('./firestore.js');
     
     if (side === 'from') {
-        // Отображаем инвентарь игрока (что отдаёт)
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         const userInv = userDoc.data()?.inventory || [];
         
@@ -1191,7 +1194,6 @@ async function renderTradeInventorySelector(side) {
         html += '</div>';
         container.innerHTML = html;
         
-        // Добавляем тултипы
         document.querySelectorAll('#tradeFromItems .trade-slot').forEach(slot => {
             const itemId = slot.dataset.id;
             const itemData = itemsDB[itemId];
@@ -1210,7 +1212,6 @@ async function renderTradeInventorySelector(side) {
         });
         
     } else {
-        // Отображаем все доступные предметы (что можно получить)
         const allItems = Object.values(itemsDB);
         
         let html = '<div class="inventory-grid">';
@@ -1246,7 +1247,6 @@ async function renderTradeInventorySelector(side) {
         });
     }
     
-    // Обработчики для кнопок добавления предметов
     document.querySelectorAll('.trade-add-btn').forEach(btn => {
         btn.removeEventListener('click', btn._handler);
         const handler = async (e) => {
@@ -1344,7 +1344,7 @@ function showTradeTooltip(item, event, count = 1) {
     activeTradeTooltip = tooltip;
 }
 
-// ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТКРЫТИЯ ТОРГОВЛИ (с вкладками) ==========
+// ========== ОБНОВЛЁННАЯ ФУНКЦИЯ ОТКРЫТИЯ ТОРГОВЛИ ==========
 export async function openTradeOfferModal(targetUserId, targetUserNick) {
     const modal = document.getElementById('tradeOfferModal');
     if (!modal) return;
@@ -1400,7 +1400,7 @@ export async function openTradeOfferModal(targetUserId, targetUserNick) {
     });
 }
 
-// ========== ВКЛАДКА ТИТУЛОВ (БЕЙДЖИКОВ) ==========
+// ========== ВКЛАДКА ТИТУЛОВ ==========
 export async function renderTitlesTab() {
     const container = document.getElementById('titlesTab');
     if (!container) return;
@@ -1416,7 +1416,6 @@ export async function renderTitlesTab() {
     
     let html = '<div class="inventory-grid titles-grid">';
     
-    // Список всех возможных титулов с их иконками и описаниями
     const titlesInfo = {
         "🌟 Миллионер": { icon: "💰", desc: "Накопить 1,000,000₽" },
         "🏆 Легенда дартса": { icon: "🎯", desc: "Первым набрать 300 очков в дротики" },
@@ -1443,7 +1442,6 @@ export async function renderTitlesTab() {
     html += '</div>';
     container.innerHTML = html;
     
-    // Обработчики для кнопок
     document.querySelectorAll('.title-equip-btn').forEach(btn => {
         if (btn._equipHandler) {
             btn.removeEventListener('click', btn._equipHandler);
@@ -1465,34 +1463,28 @@ async function equipTitle(title) {
     const gameState = await import('./gameState.js');
     const { saveGameData } = await import('./firestore.js');
     
-    // Проверяем, есть ли такой титул у игрока
     if (!gameState.ownedTitles.includes(title)) {
         showMessage('❌ У вас нет такого титула!', '#e74c3c');
         return;
     }
     
-    // Если уже надет этот титул — ничего не делаем
     if (gameState.currentTitle === title) {
         showMessage(`🏷️ Титул "${title}" уже активен!`, '#ffd966');
         return;
     }
     
-    // 👇 ИСПОЛЬЗУЕМ ФУНКЦИЮ setCurrentTitle, а не прямое присвоение
     if (typeof gameState.setCurrentTitle === 'function') {
         await gameState.setCurrentTitle(title);
     } else {
-        // fallback если функции нет
         showMessage('❌ Система титулов временно недоступна', '#e74c3c');
         return;
     }
     
-    // Обновляем вкладку титулов
     await renderTitlesTab();
-    
     showMessage(`🏷️ Титул "${title}" активирован!`, '#4caf50');
 }
 
-// ========== ОБНОВЛЁННАЯ initInventoryTabs с поддержкой вкладки housing И titles ==========
+// ========== ОБНОВЛЁННАЯ initInventoryTabs ==========
 export function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
     if (!modal) return;
@@ -1512,14 +1504,12 @@ export function initInventoryTabs() {
         tabs.forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         
-        // Скрываем все вкладки
         itemsTab.style.display = 'none';
         equipmentTab.style.display = 'none';
         achievementsTab.style.display = 'none';
         housingTab.style.display = 'none';
         titlesTab.style.display = 'none';
         
-        // Показываем нужную
         if (tab.dataset.tab === 'items') {
             itemsTab.style.display = 'flex';
             renderItemsTab();
@@ -1559,13 +1549,9 @@ export async function openStorageModal() {
         return;
     }
     
-    // 👇 ПОДСКАЗКА: открытие хранилища (уже есть в locations.js, но добавим и сюда для страховки)
     await showInventoryTip('shown_storage', '📦 Хранилище — место для хранения вещей. Вместимость зависит от твоего жилья.');
     
-    // Обновляем информацию о вместимости
     updateStorageCapacityInfo();
-    
-    // Рендерим содержимое
     await renderStorageInventory();
     await renderStorageHomeItems();
     
@@ -1598,7 +1584,6 @@ async function renderStorageInventory() {
         const itemData = itemsDB[item.id];
         if (!itemData) continue;
         
-        // Проверяем, можно ли переместить (есть ли место в хранилище)
         const canMove = homeStorage.length < homeStorageCapacity;
         
         html += `
@@ -1617,7 +1602,6 @@ async function renderStorageInventory() {
     html += '</div>';
     container.innerHTML = html;
     
-    // Обработчики для кнопок перемещения в хранилище
     document.querySelectorAll('.storage-move-to-home-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -1626,7 +1610,6 @@ async function renderStorageInventory() {
         });
     });
     
-    // Тултипы
     document.querySelectorAll('#storageInventoryItems .inventory-slot').forEach(slot => {
         const itemId = slot.dataset.id;
         const itemData = itemsDB[itemId];
@@ -1677,7 +1660,6 @@ async function renderStorageHomeItems() {
     html += '</div>';
     container.innerHTML = html;
     
-    // Обработчики для кнопок перемещения в инвентарь
     document.querySelectorAll('.storage-move-to-inventory-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -1686,7 +1668,6 @@ async function renderStorageHomeItems() {
         });
     });
     
-    // Тултипы
     document.querySelectorAll('#storageHomeItems .inventory-slot').forEach(slot => {
         const itemId = slot.dataset.id;
         const itemData = itemsDB[itemId];
@@ -1707,14 +1688,12 @@ async function renderStorageHomeItems() {
 
 // Переместить предмет из инвентаря в хранилище
 async function moveToStorage(itemId) {
-    // Находим предмет в инвентаре
     const itemIndex = inventory.findIndex(i => i.id === itemId);
     if (itemIndex === -1) {
         showMessage("❌ Предмет не найден", "#e74c3c");
         return;
     }
     
-    // Проверяем место в хранилище
     if (homeStorage.length >= homeStorageCapacity) {
         showMessage(`❌ В хранилище нет места! (${homeStorage.length}/${homeStorageCapacity})`, "#e74c3c");
         return;
@@ -1723,16 +1702,12 @@ async function moveToStorage(itemId) {
     const item = inventory[itemIndex];
     const itemData = itemsDB[itemId];
     
-    // Добавляем в хранилище
     addToHomeStorage(itemId, item.count);
-    
-    // Удаляем из инвентаря
     inventory.splice(itemIndex, 1);
     
     updateUI();
     await saveGameData();
     
-    // Обновляем UI хранилища
     updateStorageCapacityInfo();
     await renderStorageInventory();
     await renderStorageHomeItems();
@@ -1743,7 +1718,6 @@ async function moveToStorage(itemId) {
 
 // Переместить предмет из хранилища в инвентарь
 async function moveToInventory(itemId) {
-    // Находим предмет в хранилище
     const itemIndex = homeStorage.findIndex(i => i.id === itemId);
     if (itemIndex === -1) {
         showMessage("❌ Предмет не найден в хранилище", "#e74c3c");
@@ -1753,7 +1727,6 @@ async function moveToInventory(itemId) {
     const item = homeStorage[itemIndex];
     const itemData = itemsDB[itemId];
     
-    // Добавляем в инвентарь
     const existingItem = inventory.find(i => i.id === itemId);
     if (existingItem) {
         existingItem.count += item.count;
@@ -1761,13 +1734,11 @@ async function moveToInventory(itemId) {
         inventory.push({ id: itemId, count: item.count });
     }
     
-    // Удаляем из хранилища
     homeStorage.splice(itemIndex, 1);
     
     updateUI();
     await saveGameData();
     
-    // Обновляем UI хранилища
     updateStorageCapacityInfo();
     await renderStorageInventory();
     await renderStorageHomeItems();
