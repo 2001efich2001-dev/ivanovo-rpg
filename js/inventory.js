@@ -560,7 +560,7 @@ async function sellPropertyToCity(propertyId, sellPrice) {
         const { auth } = await import('./auth.js');
         const { db } = await import('./firestore.js');
         const { doc, runTransaction, deleteField, collection, query, where, getDocs, updateDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
-        const { money, setStats, updateUI, currentHome, setPrimaryHome, ownedHomes } = await import('./gameState.js');
+        const { money, setStats, updateUI, currentHome, setPrimaryHome, ownedHomes, currentLocation, setCurrentLocation, getHomeLocationId } = await import('./gameState.js');
         const { showMessage: showMsg } = await import('./utils.js');
         
         const currentUser = auth.currentUser;
@@ -655,6 +655,28 @@ async function sellPropertyToCity(propertyId, sellPrice) {
         } else if (ownedHomes.length === 0) {
             const { setCurrentLocation } = await import('./gameState.js');
             setCurrentLocation('dump_home');
+        }
+        
+        // ===== НОВАЯ ПРОВЕРКА: если игрок находится в проданном доме — телепортируем =====
+        const currentLoc = currentLocation;
+        const homeLoc = getHomeLocationId(propertyId);
+        
+        if (currentLoc === homeLoc) {
+            // Игрок находится в проданном доме!
+            const { setCurrentLocation } = await import('./gameState.js');
+            
+            if (ownedHomes.length > 0) {
+                // Если есть другое жильё — телепортируем туда
+                const newHome = ownedHomes[0];
+                await setPrimaryHome(newHome);
+                const newLoc = getHomeLocationId(newHome);
+                setCurrentLocation(newLoc);
+                showMsg(`🏠 Вы были перемещены в "${newHome}" (ваше новое основное жильё)`, '#ffd966');
+            } else {
+                // Если жилья нет — на помойку
+                setCurrentLocation('dump_home');
+                showMsg(`🗑️ У вас больше нет жилья! Вы отправлены на помойку.`, '#ffd966');
+            }
         }
         
         updateUI();
