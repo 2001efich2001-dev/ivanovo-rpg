@@ -14,6 +14,7 @@ import { setAchievementsData } from './achievements.js';
 import { showNewsIfNeeded, initNewsModal } from './news.js';
 import { isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
 import { updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
+import { initChat } from './chat.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -1401,6 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLogPanel();
         updateUI();
         updatePlayerTitle();
+        initChat();
         
         // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
         await updatePlayerStats();
