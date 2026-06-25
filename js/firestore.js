@@ -1,3 +1,4 @@
+// js/firestore.js
 import { getFirestore, doc, setDoc, getDoc, collection, addDoc, updateDoc, deleteDoc, query, where, getDocs, runTransaction, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { showMessage } from './utils.js';
 import { shouldBlockRealtime, activateTradeGuard, deactivateTradeGuard, isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
@@ -43,8 +44,14 @@ export async function saveGameData() {
     try {
         const { getAchievementsData } = await import('./achievements.js');
         achievementsData = getAchievementsData();
+        // 👇 ЗАЩИТА: если данные null — пропускаем сохранение ачивок
+        if (achievementsData === null || (typeof achievementsData === 'object' && Object.keys(achievementsData.completed || {}).length === 0 && Object.keys(achievementsData.stats || {}).every(k => achievementsData.stats[k] === 0))) {
+            console.warn('⚠️ achievementsData пустые, пропускаем сохранение ачивок, чтобы не затирать существующие');
+            achievementsData = undefined;
+        }
     } catch (err) {
         console.warn('Модуль ачивок не загружен');
+        achievementsData = undefined;
     }
     
     const housingData = {
@@ -60,20 +67,20 @@ export async function saveGameData() {
         lastGlobalHousingCheck: gameState.lastGlobalHousingCheck ?? null
     };
     
-    // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ: собираем данные титулов
     const titlesData = {
         current: gameState.currentTitle ?? null,
         owned: gameState.ownedTitles ?? []
     };
     
-    // 👉 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА: собираем данные туториала
     const tutorialData = {
         enabled: gameState.tutorialEnabled ?? true,
         flags: gameState.tutorialFlags ?? {}
     };
     
     const docRef = doc(db, 'users', user.uid);
-    await setDoc(docRef, {
+    
+    // 👇 ЗАЩИТА: собираем данные только для существующих полей
+    const dataToSave = {
         health: healthVal,
         hunger: hungerVal,
         cold: coldVal,
@@ -94,11 +101,17 @@ export async function saveGameData() {
         lastUpdated: new Date().toISOString(),
         dailyBonusLastClaim: dailyBonusLastClaimVal,
         dailyBonusStreak: dailyBonusStreakVal,
-        achievements: achievementsData,
         housing: housingData,
         titles: titlesData,
-        tutorial: tutorialData  // 👈 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА
-    }, { merge: true });
+        tutorial: tutorialData
+    };
+    
+    // 👇 ДОБАВЛЯЕМ АЧИВКИ ТОЛЬКО ЕСЛИ ОНИ НЕ UNDEFINED
+    if (achievementsData !== undefined) {
+        dataToSave.achievements = achievementsData;
+    }
+    
+    await setDoc(docRef, dataToSave, { merge: true });
     console.log("Данные сохранены", { achievements: achievementsData, housing: housingData, titles: titlesData, tutorial: tutorialData });
 }
 
@@ -128,16 +141,15 @@ export async function loadGameData(userId) {
         const { setDailyBonusData } = await import('./dailyBonus.js');
         setDailyBonusData(data.dailyBonusLastClaim ?? null, data.dailyBonusStreak ?? 0);
         
-      if (data.achievements) {
-    try {
-        const { setAchievementsData } = await import('./achievements.js');
-        // 👇 ДОБАВЛЯЕМ force=true
-        setAchievementsData(data.achievements, true);
-        console.log('🏆 Загружены данные достижений (принудительно)');
-    } catch (err) {
-        console.warn('Модуль ачивок не загружен');
-    }
-}
+        if (data.achievements) {
+            try {
+                const { setAchievementsData } = await import('./achievements.js');
+                setAchievementsData(data.achievements, true);
+                console.log('🏆 Загружены данные достижений (принудительно)');
+            } catch (err) {
+                console.warn('Модуль ачивок не загружен');
+            }
+        }
         
         if (data.housing) {
             const { setHousingData } = await import('./gameState.js');
@@ -148,7 +160,6 @@ export async function loadGameData(userId) {
             initHousingData();
         }
         
-        // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ: загружаем титулы
         if (data.titles) {
             const { setTitlesData } = await import('./gameState.js');
             setTitlesData(data.titles);
@@ -158,34 +169,51 @@ export async function loadGameData(userId) {
             initTitlesData();
         }
         
-        // 👉 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА: загружаем данные туториала
         if (data.tutorial) {
             const { setTutorialData } = await import('./gameState.js');
             setTutorialData(data.tutorial);
             console.log('💡 Загружены данные туториала:', data.tutorial);
         } else {
-            // Если данных нет, они останутся дефолтными (tutorialEnabled = true, все флаги = false)
             console.log('💡 Данные туториала не найдены, используются дефолтные значения');
         }
         
         updateUI();
         console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication });
+        
     } else {
+        // ===== ЗАЩИТА: ПОДТВЕРЖДЕНИЕ ПЕРЕД СОЗДАНИЕМ НОВОГО ИГРОКА =====
+        console.warn('⚠️ Документ пользователя не найден в Firestore');
+        console.warn('⚠️ Возможные причины: новый игрок или ошибка соединения');
+        
+        // Проверяем, не загружены ли уже данные локально (если есть — не создаём нового)
         const gameState = await import('./gameState.js');
+        const hasLocalData = gameState.money > 200 || gameState.level > 1 || gameState.inventory.length > 6;
         
+        if (hasLocalData) {
+            console.warn('⚠️ Обнаружены локальные данные, создание нового игрока отменено');
+            showMessage('⚠️ Ошибка загрузки данных. Перезагрузите страницу.', '#e74c3c');
+            return;
+        }
+        
+        // Показываем предупреждение перед созданием
+        const confirmCreate = confirm('⚠️ Ваш аккаунт не найден. Создать нового персонажа?\n\nЕсли это ошибка — нажмите "Отмена" и перезагрузите страницу.');
+        
+        if (!confirmCreate) {
+            showMessage('❌ Создание аккаунта отменено. Перезагрузите страницу.', '#e74c3c');
+            return;
+        }
+        
+        // Создаём нового игрока
         gameState.setStats(100, 100, 100, 200);
-        
         gameState.inventory.length = 0;
         gameState.inventory.push(
             { id: "bread", count: 2 }, { id: "vodka", count: 1 }, { id: "cigarettes", count: 1 },
             { id: "medkit", count: 1 }, { id: "ushanka", count: 1 }, { id: "puhovik", count: 1 }
         );
-        
         gameState.equipped.head = null;
         gameState.equipped.body = null;
         gameState.equipped.legs = null;
         gameState.equipped.feet = null;
-        
         gameState.setTimeWeather(720, 'sunny', 15);
         gameState.setActionLog([]);
         gameState.setExpData(0, 1);
@@ -200,18 +228,14 @@ export async function loadGameData(userId) {
         
         const { initHousingData } = await import('./gameState.js');
         initHousingData();
-        
-        // 👉 ДОБАВЛЕНО ДЛЯ ТИТУЛОВ: инициализируем данные титулов для нового игрока
         const { initTitlesData } = await import('./gameState.js');
         initTitlesData();
         
-        // 👉 ДОБАВЛЕНО ДЛЯ ТУТОРИАЛА: для нового игрока всё остаётся по умолчанию (tutorialEnabled = true, все флаги = false)
         console.log('💡 Новый игрок: туториал включён по умолчанию');
-        
         gameState.updateUI();
         
         await saveGameData();
-        showMessage('Новый аккаунт создан', '#4caf50');
+        showMessage('✅ Новый аккаунт создан', '#4caf50');
     }
 }
 
@@ -232,15 +256,12 @@ export function subscribeToUserChanges(userId, onDataChanged) {
         if (docSnap.exists() && onDataChanged) {
             console.log('🔄 Real-time: данные изменились в БД');
             
-            // ===== КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ПРОВЕРКА ЗАЩИТЫ =====
-            // Если защита активна — пропускаем realtime обновление
             if (isTradeGuardActive()) {
                 const pendingTrade = getPendingTrade();
                 console.log(`🛡️ Real-time обновление пропущено (защита активна)`, pendingTrade);
                 return;
             }
             
-            // Если обновление пришло от нас самих во время транзакции — тоже пропускаем
             const remoteData = docSnap.data();
             const remoteLastUpdated = remoteData.lastUpdated ? new Date(remoteData.lastUpdated) : null;
             const localLastUpdated = window._lastLocalUpdate ? new Date(window._lastLocalUpdate) : null;
@@ -250,7 +271,6 @@ export function subscribeToUserChanges(userId, onDataChanged) {
                 return;
             }
             
-            // Передаём данные в колбэк с флагом, что это realtime обновление
             onDataChanged(remoteData, true);
         }
     }, (error) => {
@@ -271,7 +291,6 @@ export async function updateNickInTradeOffers(userId, newNick) {
     if (!db) return;
     
     try {
-        // Обновляем исходящие предложения (где пользователь отправитель)
         const outgoingQuery = query(collection(db, 'trade_offers'), where('fromUserId', '==', userId));
         const outgoingSnapshot = await getDocs(outgoingQuery);
         
@@ -281,7 +300,6 @@ export async function updateNickInTradeOffers(userId, newNick) {
             });
         }
         
-        // Обновляем входящие предложения (где пользователь получатель)
         const incomingQuery = query(collection(db, 'trade_offers'), where('toUserId', '==', userId));
         const incomingSnapshot = await getDocs(incomingQuery);
         
@@ -302,7 +320,6 @@ export async function updateNickInRealEstateListings(userId, newNick) {
     if (!db) return;
     
     try {
-        // Обновляем активные объявления продавца
         const listingsQuery = query(
             collection(db, 'real_estate_listings'),
             where('sellerId', '==', userId),
@@ -371,18 +388,15 @@ export async function cancelTradeOffer(offerId, userId) {
     return true;
 }
 
-// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ (с поддержкой tradeGuard) ==========
+// ========== ТРАНЗАКЦИЯ С ПОВТОРОМ ПРИ КОНФЛИКТЕ ==========
 export async function acceptTradeOffer(offerId, userId) {
     if (!db) return false;
     
-    // АКТИВИРУЕМ ЗАЩИТУ ПЕРЕД НАЧАЛОМ ОБМЕНА (ваша идея!)
     activateTradeGuard(10000, { offerId, userId, action: 'acceptTrade' });
     window._preventAutoSave = true;
-    window._lastLocalUpdate = new Date().toISOString(); // Запоминаем время локального обновления
+    window._lastLocalUpdate = new Date().toISOString();
     
     let retries = 3;
-    
-    // Переменные для хранения результатов транзакции
     let finalFromInventory, finalToInventory, finalFromMoney, finalToMoney;
     let finalFromHousing, finalToHousing;
     let finalFromCurrent, finalToCurrent;
@@ -545,7 +559,6 @@ export async function acceptTradeOffer(offerId, userId) {
                 let toNewCurrent = toUserData?.housing?.current;
                 let toNewCapacity = toUserData?.housing?.storageCapacity || 0;
                 
-                // Сохраняем результаты для локального обновления
                 finalFromInventory = fromInventory;
                 finalToInventory = toInventory;
                 finalFromMoney = fromNewMoney;
@@ -582,7 +595,6 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage('Обмен успешно завершён!', '#4caf50');
             
-            // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ТЕКУЩЕГО ИГРОКА =====
             const currentUser = window.auth?.currentUser;
             
             if (currentUser && currentUser.uid === userId) {
@@ -647,10 +659,9 @@ export async function acceptTradeOffer(offerId, userId) {
                 console.log('🏠 UI продавца обновлён принудительно');
             }
             
-            // Снимаем блокировку через 5 секунд (после того как все обновления устаканятся)
             setTimeout(() => { 
                 window._preventAutoSave = false;
-                deactivateTradeGuard(); // Снимаем защиту
+                deactivateTradeGuard();
                 console.log('✅ Защита обмена снята');
             }, 5000);
             
@@ -669,7 +680,7 @@ export async function acceptTradeOffer(offerId, userId) {
             
             showMessage(`Ошибка: ${error.message}`, '#e74c3c');
             window._preventAutoSave = false;
-            deactivateTradeGuard(); // Снимаем защиту при ошибке
+            deactivateTradeGuard();
             return false;
         }
     }
