@@ -1,6 +1,7 @@
 // js/chat.js
 import { doc, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
-import { db, auth } from './firestore.js';
+import { db } from './firestore.js';
+import { auth } from './auth.js';
 import { showMessage } from './utils.js';
 
 const MAX_MESSAGES = 200;
