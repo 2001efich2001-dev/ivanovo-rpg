@@ -128,6 +128,8 @@ export async function loadGameData(userId) {
         inventory.length = 0;
         inventory.push(...(data.inventory ?? []));
         Object.assign(equipped, data.equipped ?? { head: null, body: null, legs: null, feet: null });
+        const { recalcColdFloor } = await import('./gameState.js');
+        recalcColdFloor();
         setTimeWeather(data.accumulatedMinutes ?? 720, data.currentWeather ?? 'sunny', data.currentTemperature ?? 15);
         setActionLog(data.actionLog ?? []);
         setExpData(data.experience ?? 0, data.level ?? 1);
