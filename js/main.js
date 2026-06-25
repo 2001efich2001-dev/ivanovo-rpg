@@ -232,7 +232,33 @@ async function updateOnlineStatus() {
     }
 }
 
-// ========== ТОП ИГРОКОВ ==========
+// ========== ПОЛУЧЕНИЕ СПИСКА ОНЛАЙН UID ==========
+let onlineUids = new Set();
+
+async function fetchOnlineUids() {
+    try {
+        const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
+        const onlineSnapshot = await getDocs(collection(db, 'online'));
+        const now = Date.now();
+        const TWO_MINUTES = 2 * 60 * 1000;
+        const uids = new Set();
+        
+        for (const doc of onlineSnapshot.docs) {
+            const data = doc.data();
+            const lastSeen = data.lastSeen ? new Date(data.lastSeen).getTime() : 0;
+            if (now - lastSeen < TWO_MINUTES) {
+                uids.add(doc.id);
+            }
+        }
+        onlineUids = uids;
+        return uids;
+    } catch (error) {
+        console.error('Ошибка загрузки онлайн UID:', error);
+        return new Set();
+    }
+}
+
+// ========== ТОП ИГРОКОВ С ИНДИКАТОРОМ ОНЛАЙН ==========
 let topPlayersCache = null;
 let topPlayersCacheTime = 0;
 const TOP_CACHE_TTL = 5 * 60 * 1000;
@@ -253,6 +279,10 @@ async function loadTopPlayers(forceRefresh = false) {
     }
     container.innerHTML = '<div style="text-align:center;">Загрузка...</div>';
     try {
+        // 1. Получаем список онлайн UID
+        await fetchOnlineUids();
+        
+        // 2. Получаем топ игроков
         const usersRef = collection(db, 'users');
         const q = query(usersRef, orderBy('level', 'desc'), orderBy('experience', 'desc'), limit(20));
         const querySnapshot = await getDocs(q);
@@ -266,11 +296,17 @@ async function loadTopPlayers(forceRefresh = false) {
         
         for (const docSnap of querySnapshot.docs) {
             const data = docSnap.data();
+            const uid = docSnap.id;
             const nick = data.displayName || 'Аноним';
             const level = data.level ?? 1;
             const exp = data.experience ?? 0;
             const titles = data.titles || {};
             const currentTitle = titles.current || null;
+            
+            // 👇 ПРОВЕРКА ОНЛАЙН СТАТУСА
+            const isOnline = onlineUids.has(uid);
+            const statusIcon = isOnline ? '🟢' : '🔴';
+            const statusTitle = isOnline ? 'В сети' : 'Не в сети';
             
             let rankClass = '';
             let rankIcon = '';
@@ -293,14 +329,17 @@ async function loadTopPlayers(forceRefresh = false) {
             const titleBadge = currentTitle ? `<span class="player-title-badge" title="${currentTitle}">${currentTitle}</span>` : '';
             
             html += `
-                <div class="player-item ${rankClass}" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">
+                <div class="player-item ${rankClass}" data-user-id="${uid}" data-user-nick="${escapeHtml(nick)}">
                     <div class="player-info">
                         <div class="player-rank-rank">
                             <span class="player-rank">${rankIcon}</span>
                         </div>
                         <div class="player-details">
                             <div class="player-name-row">
-                                <span class="player-nick">${escapeHtml(nick)}</span>
+                                <span class="player-nick">
+                                    ${escapeHtml(nick)}
+                                    <span class="online-status" title="${statusTitle}">${statusIcon}</span>
+                                </span>
                                 ${titleBadge}
                             </div>
                             <div class="player-stats-row">
@@ -310,7 +349,7 @@ async function loadTopPlayers(forceRefresh = false) {
                         </div>
                     </div>
                     <div>
-                        <button class="trade-offer-btn" data-user-id="${docSnap.id}" data-user-nick="${escapeHtml(nick)}">💼 Предложить обмен</button>
+                        <button class="trade-offer-btn" data-user-id="${uid}" data-user-nick="${escapeHtml(nick)}">💼 Предложить обмен</button>
                     </div>
                 </div>
             `;
