@@ -127,6 +127,9 @@ export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
 export let energyValueSpan, energyFill;
 export let intoxicationValueSpan, intoxicationFill;
 
+// ========== НОВАЯ ПЕРЕМЕННАЯ: МИНИМАЛЬНЫЙ ПОРОГ ТЕПЛА ==========
+export let coldFloor = 0;  // Минимальный уровень тепла, который даёт одежда
+
 let onLocationChangeCallback = null;
 let onLogUpdateCallback = null;
 let onExpUpdateCallback = null;
@@ -175,6 +178,37 @@ export function isTutorialShown(flagKey) {
     return tutorialFlags[flagKey] || false;
 }
 
+// ========== ПЕРЕСЧЁТ МИНИМАЛЬНОГО ПОРОГА ТЕПЛА ==========
+export function recalcColdFloor() {
+    let bonus = 0;
+    const slots = ['head', 'body', 'legs', 'feet'];
+    
+    // Динамически импортируем itemsDB, чтобы не было циклической зависимости
+    import('./inventory.js').then(module => {
+        const itemsDB = module.itemsDB;
+        for (const slot of slots) {
+            const itemId = equipped[slot];
+            if (itemId && itemsDB[itemId]?.effect?.cold) {
+                bonus += itemsDB[itemId].effect.cold;
+            }
+        }
+        coldFloor = bonus;
+        console.log(`🧊 Минимальный порог тепла обновлён: ${coldFloor}`);
+    }).catch(() => {
+        // fallback если импорт не удался
+        coldFloor = 0;
+    });
+}
+
+// ========== ПРИМЕНЕНИЕ ТЕПЛА С УЧЁТОМ ПОРОГА ==========
+export function applyColdWithFloor(newColdValue) {
+    const floor = coldFloor || 0;
+    // Тепло не может упасть ниже coldFloor
+    cold = Math.min(maxCold, Math.max(floor, newColdValue));
+    updateUI();
+}
+
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 export function initDOM() {
     healthValueSpan = document.getElementById('healthValue');
     hungerValueSpan = document.getElementById('hungerValue');
@@ -265,7 +299,9 @@ export function setStats(h, hu, c, m) {
         hunger = isNaN(hu) ? maxHunger : Math.min(maxHunger, Math.max(0, hu));
     }
     if (c !== undefined && c !== null) {
-        cold = isNaN(c) ? maxCold : Math.min(maxCold, Math.max(0, c));
+        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor
+        const floor = coldFloor || 0;
+        cold = Math.min(maxCold, Math.max(floor, isNaN(c) ? maxCold : c));
     }
     if (m !== undefined && m !== null) {
         const oldMoney = money;
@@ -1285,7 +1321,9 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
         updated = true;
     }
     if (remoteData.cold !== undefined) {
-        cold = Math.min(maxCold, Math.max(0, remoteData.cold));
+        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor
+        const floor = coldFloor || 0;
+        cold = Math.min(maxCold, Math.max(floor, remoteData.cold));
         updated = true;
     }
     if (remoteData.money !== undefined) {
