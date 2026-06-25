@@ -52,7 +52,7 @@ export function renderInteractiveMap() {
     // 👇 ПОДСКАЗКА: первый раз открыли карту
     showMapTip('shown_map', '🗺️ Карта города. Перемещайся между локациями, чтобы искать приключения.');
     
-    // Основные локации для перемещения
+    // Основные локации для перемещения (ВСЕ ЛОКАЦИИ)
     const zones = [
         { id: "railway", name: "Вокзал", cx: 328, cy: 30, r: 20 },
         { id: "market", name: "Рынок", cx: 271, cy: 277, r: 20 },
@@ -60,7 +60,12 @@ export function renderInteractiveMap() {
         { id: "dump", name: "Свалка", cx: 300, cy: 1, r: 20 },
         { id: "church", name: "Церковь", cx: 304, cy: 243, r: 20 },
         { id: "bar", name: "Бар", cx: 331, cy: 215, r: 20 },
-        { id: "fishing_spot", name: "🏞️ Река Уводь", cx: 150, cy: 450, r: 25 }
+        { id: "fishing_spot", name: "🏞️ Река Уводь", cx: 150, cy: 450, r: 25 },
+        // ===== НОВЫЕ ЛОКАЦИИ =====
+        { id: "ploshchad", name: "🏛️ Площадь Революции", cx: 400, cy: 100, r: 25 },
+        { id: "mall", name: "🏬 ТЦ «Золотой город»", cx: 500, cy: 130, r: 25 },
+        { id: "red_church", name: "⛪ Красная церковь", cx: 200, cy: 350, r: 25 },
+        { id: "sheremet", name: "🛣️ Шереметевский километр", cx: 600, cy: 300, r: 25 }
     ];
     
     // Точки для недвижимости
