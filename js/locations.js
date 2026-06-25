@@ -94,8 +94,8 @@ async function restInHome(locationId, locationName) {
         return false;
     }
 
-    // 1. ПОКАЗЫВАЕМ ЗАТЕМНЕНИЕ
-    showRestOverlay(locationName);
+    // 1. ПОКАЗЫВАЕМ ПОЛНОЕ ЗАТЕМНЕНИЕ БЕЗ НАДПИСЕЙ
+    showRestOverlay();
 
     // 2. ВОССТАНАВЛИВАЕМ ПАРАМЕТРЫ В ЗАВИСИМОСТИ ОТ ТИПА ЖИЛЬЯ
     let healthRestore, coldRestore, energyRestore, hungerDecrease;
@@ -151,8 +151,13 @@ async function restInHome(locationId, locationName) {
     }
 
     // 3. ПРОПУСКАЕМ 8 ЧАСОВ
-    const { addGameHours } = await import('./timeWeather.js');
-    addGameHours(8);
+    try {
+        const { addGameHours } = await import('./timeWeather.js');
+        addGameHours(8);
+        console.log('✅ Пропущено 8 часов');
+    } catch (err) {
+        console.error('Ошибка пропуска времени:', err);
+    }
 
     // 4. ЛОГИРУЕМ И ПОКАЗЫВАЕМ СООБЩЕНИЕ
     const message = `🛌 Сон в ${locationName} завершён! +${healthRestore}❤️, -${Math.abs(hungerDecrease)}🍗, +${coldRestore}🔥, +${energyRestore}⚡`;
@@ -161,11 +166,13 @@ async function restInHome(locationId, locationName) {
 
     // Сохраняем
     await saveGameData();
+    updateUI();
+    
     return true;
 }
 
-// ========== ФУНКЦИЯ ДЛЯ ЗАТЕМНЕНИЯ (как в ночлежке) ==========
-function showRestOverlay(locationName) {
+// ========== ФУНКЦИЯ ДЛЯ ПОЛНОГО ЗАТЕМНЕНИЯ (БЕЗ НАДПИСЕЙ) ==========
+function showRestOverlay() {
     // Удаляем старый оверлей, если есть
     const oldOverlay = document.getElementById('restOverlay');
     if (oldOverlay) oldOverlay.remove();
@@ -178,66 +185,26 @@ function showRestOverlay(locationName) {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.85);
+        background: black;
         z-index: 10050;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        animation: fadeInOverlay 0.5s ease;
-        backdrop-filter: blur(4px);
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        pointer-events: none;
     `;
-
-    const text = document.createElement('div');
-    text.style.cssText = `
-        color: #ffd966;
-        font-size: 2rem;
-        font-weight: bold;
-        text-align: center;
-        animation: pulseText 1s ease infinite;
-        font-family: inherit;
-    `;
-    text.textContent = `🛌 Сон в ${locationName}...`;
-
-    const subtext = document.createElement('div');
-    subtext.style.cssText = `
-        color: #aaa;
-        font-size: 1.2rem;
-        margin-top: 15px;
-        font-family: inherit;
-    `;
-    subtext.textContent = '⏳ Прошло 8 часов';
-
-    overlay.appendChild(text);
-    overlay.appendChild(subtext);
     document.body.appendChild(overlay);
 
-    // Добавляем стили анимации (если ещё нет)
-    if (!document.getElementById('restAnimationStyle')) {
-        const style = document.createElement('style');
-        style.id = 'restAnimationStyle';
-        style.textContent = `
-            @keyframes fadeInOverlay {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-            @keyframes pulseText {
-                0% { transform: scale(1); opacity: 0.8; }
-                50% { transform: scale(1.05); opacity: 1; }
-                100% { transform: scale(1); opacity: 0.8; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    // Убираем оверлей через 2.5 секунды
+    // Плавное появление
     setTimeout(() => {
-        overlay.style.transition = 'opacity 0.5s ease';
+        overlay.style.opacity = '1';
+    }, 10);
+
+    // Убираем через 3 секунды
+    setTimeout(() => {
         overlay.style.opacity = '0';
         setTimeout(() => {
             if (overlay.remove) overlay.remove();
         }, 500);
-    }, 2500);
+    }, 3000);
 }
 
 // База локаций с фонами, зонами и действиями
