@@ -79,7 +79,7 @@ function applyColdWithFloor(newColdValue) {
     return Math.min(maxCold, Math.max(floor, newColdValue));
 }
 
-// ========== ЕДИНАЯ ФУНКЦИЯ ОТДЫХА ДЛЯ ВСЕХ ДОМОВ ==========
+// ========== ЕДИНАЯ ФУНКЦИЯ ОТДЫХА (ПОЛНОСТЬЮ КАК В НОЧЛЕЖКЕ) ==========
 async function restInHome(locationId, locationName) {
     // Список локаций, где доступен отдых
     const restLocations = ['dump_home', 'dorm_home', 'apartment_home', 'house_home'];
@@ -88,123 +88,81 @@ async function restInHome(locationId, locationName) {
         return false;
     }
 
-    // Проверка голода (нельзя спать на голодный желудок)
+    // Проверка голода
     if (hunger < 15) {
         showMessage('❌ Вы слишком голодны, чтобы спать. Поешьте сначала!', '#e74c3c');
         return false;
     }
 
-    // 1. ПОКАЗЫВАЕМ ПОЛНОЕ ЗАТЕМНЕНИЕ БЕЗ НАДПИСЕЙ
-    showRestOverlay();
-
-    // 2. ВОССТАНАВЛИВАЕМ ПАРАМЕТРЫ В ЗАВИСИМОСТИ ОТ ТИПА ЖИЛЬЯ
-    let healthRestore, coldRestore, energyRestore, hungerDecrease;
-
+    // ===== ПОЛНОСТЬЮ КАК В НОЧЛЕЖКЕ =====
+    // 1. Создаём затемнение
+    const overlay = document.createElement('div');
+    overlay.id = 'sleepOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'black';
+    overlay.style.zIndex = '10002';
+    overlay.style.transition = 'opacity 0.5s ease';
+    overlay.style.opacity = '0';
+    document.body.appendChild(overlay);
+    
+    setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+    
+    // 2. Восстанавливаем параметры в зависимости от жилья
+    let healthRestore, energyRestore;
+    
     switch (locationId) {
         case 'dump_home':
-            healthRestore = Math.floor(maxHealth * 0.15);   // +15% здоровья
-            coldRestore = Math.floor(maxCold * 0.1);        // +10% тепла
-            energyRestore = Math.floor(maxEnergy * 0.5);    // +50% энергии
-            hungerDecrease = -Math.floor(maxHunger * 0.05); // -5% голода
+            healthRestore = 15;   // как в ночлежке, но поменьше
+            energyRestore = 30;
             break;
         case 'dorm_home':
-            healthRestore = Math.floor(maxHealth * 0.2);    // +20% здоровья
-            coldRestore = Math.floor(maxCold * 0.15);       // +15% тепла
-            energyRestore = Math.floor(maxEnergy * 0.6);    // +60% энергии
-            hungerDecrease = -Math.floor(maxHunger * 0.08); // -8% голода
+            healthRestore = 25;
+            energyRestore = 40;
             break;
         case 'apartment_home':
-            healthRestore = Math.floor(maxHealth * 0.3);    // +30% здоровья
-            coldRestore = Math.floor(maxCold * 0.25);       // +25% тепла
-            energyRestore = Math.floor(maxEnergy * 0.7);    // +70% энергии
-            hungerDecrease = -Math.floor(maxHunger * 0.1);  // -10% голода
+            healthRestore = 35;
+            energyRestore = 50;
             break;
         case 'house_home':
-            healthRestore = Math.floor(maxHealth * 0.4);    // +40% здоровья
-            coldRestore = Math.floor(maxCold * 0.35);       // +35% тепла
-            energyRestore = Math.floor(maxEnergy * 0.8);    // +80% энергии
-            hungerDecrease = -Math.floor(maxHunger * 0.12); // -12% голода
+            healthRestore = 50;
+            energyRestore = 60;
             break;
         default:
-            // fallback на минимальные значения
-            healthRestore = Math.floor(maxHealth * 0.15);
-            coldRestore = Math.floor(maxCold * 0.1);
-            energyRestore = Math.floor(maxEnergy * 0.5);
-            hungerDecrease = -Math.floor(maxHunger * 0.05);
+            healthRestore = 20;
+            energyRestore = 30;
     }
-
-    // Применяем изменения
-    const newHealth = Math.min(maxHealth, health + healthRestore);
-    const newHunger = Math.max(0, hunger + hungerDecrease);
-    const newCold = Math.min(maxCold, cold + coldRestore);
-    setStats(newHealth, newHunger, newCold, money);
     
-    // Восстанавливаем энергию
-    const newEnergy = Math.min(maxEnergy, energy + energyRestore);
+    // Применяем восстановление
+    const newHealth = Math.min(maxHealth, health + healthRestore);
+    const newEnergy = Math.min(100, energy + energyRestore);
+    setStats(newHealth, hunger, cold, money);
     setEnergy(newEnergy);
-
-    // Снижаем опьянение
-    if (intoxication > 0) {
-        const intoxDecrease = Math.min(intoxication, 30);
-        reduceIntoxication(intoxDecrease);
-        addLogEntry(`🍺 Опьянение снизилось на ${intoxDecrease}% после сна`, 'system');
-    }
-
-    // 3. ПРОПУСКАЕМ 8 ЧАСОВ
-    try {
+    reduceIntoxication(30);
+    
+    // 3. Пропускаем 8 часов (ТОЧНО КАК В НОЧЛЕЖКЕ)
+    setTimeout(async () => {
         const { addGameHours } = await import('./timeWeather.js');
         addGameHours(8);
-        console.log('✅ Пропущено 8 часов');
-    } catch (err) {
-        console.error('Ошибка пропуска времени:', err);
-    }
-
-    // 4. ЛОГИРУЕМ И ПОКАЗЫВАЕМ СООБЩЕНИЕ
-    const message = `🛌 Сон в ${locationName} завершён! +${healthRestore}❤️, -${Math.abs(hungerDecrease)}🍗, +${coldRestore}🔥, +${energyRestore}⚡`;
-    addLogEntry(`🛌 Вы спали в ${locationName}. Прошло 8 часов.`, 'system');
-    showMessage(message, '#4caf50');
-
-    // Сохраняем
-    await saveGameData();
-    updateUI();
+        updateUI();
+        await saveGameData();
+    }, 500);
     
-    return true;
-}
-
-// ========== ФУНКЦИЯ ДЛЯ ПОЛНОГО ЗАТЕМНЕНИЯ (БЕЗ НАДПИСЕЙ) ==========
-function showRestOverlay() {
-    // Удаляем старый оверлей, если есть
-    const oldOverlay = document.getElementById('restOverlay');
-    if (oldOverlay) oldOverlay.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'restOverlay';
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: black;
-        z-index: 10050;
-        opacity: 0;
-        transition: opacity 0.5s ease;
-        pointer-events: none;
-    `;
-    document.body.appendChild(overlay);
-
-    // Плавное появление
-    setTimeout(() => {
-        overlay.style.opacity = '1';
-    }, 10);
-
-    // Убираем через 3 секунды
+    // 4. Убираем затемнение через 3.5 секунды
     setTimeout(() => {
         overlay.style.opacity = '0';
-        setTimeout(() => {
-            if (overlay.remove) overlay.remove();
-        }, 500);
-    }, 3000);
+        setTimeout(() => overlay.remove(), 500);
+    }, 3500);
+    
+    // 5. Показываем сообщение
+    const message = `🛌 Сон в ${locationName} завершён! +${healthRestore}❤️, +${energyRestore}⚡`;
+    addLogEntry(`🛌 Вы спали в ${locationName}. Прошло 8 часов.`, 'system');
+    showMessage(message, '#4caf50');
+    
+    return true;
 }
 
 // База локаций с фонами, зонами и действиями
