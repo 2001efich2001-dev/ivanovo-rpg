@@ -2405,3 +2405,25 @@ body {
         min-width: 200px !important;
     }
 }
+
+/* Индикатор онлайн статуса */
+.online-status {
+    display: inline-block;
+    font-size: 14px;
+    margin-left: 4px;
+    vertical-align: middle;
+    line-height: 1;
+}
+
+.player-name-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.player-nick {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
