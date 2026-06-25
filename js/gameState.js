@@ -299,15 +299,16 @@ export function setStats(h, hu, c, m) {
         hunger = isNaN(hu) ? maxHunger : Math.min(maxHunger, Math.max(0, hu));
     }
     if (c !== undefined && c !== null) {
-        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor
+        // 👇 ПРОВЕРКА: если coldFloor ещё не посчитан — пересчитать
+        if (coldFloor === 0) {
+            recalcColdFloor();
+        }
         const floor = coldFloor || 0;
         cold = Math.min(maxCold, Math.max(floor, isNaN(c) ? maxCold : c));
     }
     if (m !== undefined && m !== null) {
         const oldMoney = money;
         money = isNaN(m) ? 500 : Math.max(0, m);
-        
-        // 👇 ПРОВЕРКА КВЕСТА НА НАКОПЛЕНИЕ ДЕНЕГ 👇
         if (oldMoney < 1000000 && money >= 1000000) {
             import('./questSystem.js').then(qs => {
                 qs.updateQuestProgress('money_reach', money, { targetMoney: 1000000 });
@@ -1320,12 +1321,15 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
         hunger = Math.min(maxHunger, Math.max(0, remoteData.hunger));
         updated = true;
     }
-    if (remoteData.cold !== undefined) {
-        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor
-        const floor = coldFloor || 0;
-        cold = Math.min(maxCold, Math.max(floor, remoteData.cold));
-        updated = true;
+   if (remoteData.cold !== undefined) {
+    // 👇 ПЕРЕСЧИТЫВАЕМ coldFloor, если он ещё не посчитан
+    if (coldFloor === 0) {
+        recalcColdFloor();
     }
+    const floor = coldFloor || 0;
+    cold = Math.min(maxCold, Math.max(floor, remoteData.cold));
+    updated = true;
+}
     if (remoteData.money !== undefined) {
         money = Math.max(0, remoteData.money);
         updated = true;
