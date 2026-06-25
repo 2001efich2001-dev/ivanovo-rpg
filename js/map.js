@@ -1,4 +1,5 @@
-import { setCurrentLocation, teleportHome, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
+// js/map.js
+import { setCurrentLocation, teleportHome, markTutorialShown, isTutorialShown, tutorialEnabled, getCurrentHomeLocation, getHomeLocationId, ownedHomes, currentHome, setPrimaryHome } from './gameState.js';
 import { showMessage, showTutorialTip } from './utils.js';
 
 // ========== ПОКАЗАТЬ ПОДСКАЗКУ ДЛЯ КАРТЫ ==========
@@ -11,6 +12,39 @@ async function showMapTip(flagKey, tipText) {
     await import('./firestore.js').then(m => m.saveGameData());
 }
 
+// ========== ОБНОВЛЁННЫЙ ТЕЛЕПОРТ ДОМОЙ С ПРОВЕРКАМИ ==========
+async function safeTeleportHome() {
+    const gameState = await import('./gameState.js');
+    
+    // Проверяем, есть ли вообще жильё
+    if (gameState.ownedHomes.length === 0) {
+        gameState.setCurrentLocation('dump_home');
+        showMessage(`🗑️ У вас нет жилья. Вы отправились на помойку.`, '#ffd966');
+        return;
+    }
+    
+    // Проверяем, валидное ли текущее жильё
+    if (gameState.currentHome && gameState.ownedHomes.includes(gameState.currentHome)) {
+        // Всё хорошо — телепортируемся
+        await gameState.teleportHome();
+        return;
+    }
+    
+    // Текущее жильё невалидно — назначаем первое доступное
+    if (gameState.ownedHomes.length > 0) {
+        const firstHome = gameState.ownedHomes[0];
+        await gameState.setPrimaryHome(firstHome);
+        const homeLoc = gameState.getHomeLocationId(firstHome);
+        gameState.setCurrentLocation(homeLoc);
+        showMessage(`🏠 Вы телепортировались в ${firstHome} (основное жильё установлено автоматически)`, '#4caf50');
+        return;
+    }
+    
+    // Если ничего не помогло — на помойку
+    gameState.setCurrentLocation('dump_home');
+    showMessage(`🗑️ У вас нет жилья. Вы отправились на помойку.`, '#ffd966');
+}
+
 export function renderInteractiveMap() {
     const container = document.getElementById('mapContainer');
     if (!container) return;
@@ -18,7 +52,7 @@ export function renderInteractiveMap() {
     // 👇 ПОДСКАЗКА: первый раз открыли карту
     showMapTip('shown_map', '🗺️ Карта города. Перемещайся между локациями, чтобы искать приключения.');
     
-    // Основные локации для перемещения (ДОБАВЛЕНА fishing_spot)
+    // Основные локации для перемещения
     const zones = [
         { id: "railway", name: "Вокзал", cx: 328, cy: 30, r: 20 },
         { id: "market", name: "Рынок", cx: 271, cy: 277, r: 20 },
@@ -26,7 +60,7 @@ export function renderInteractiveMap() {
         { id: "dump", name: "Свалка", cx: 300, cy: 1, r: 20 },
         { id: "church", name: "Церковь", cx: 304, cy: 243, r: 20 },
         { id: "bar", name: "Бар", cx: 331, cy: 215, r: 20 },
-        { id: "fishing_spot", name: "🏞️ Река Уводь", cx: 150, cy: 450, r: 25 }  // ← НОВАЯ ЛОКАЦИЯ
+        { id: "fishing_spot", name: "🏞️ Река Уводь", cx: 150, cy: 450, r: 25 }
     ];
     
     // Точки для недвижимости
@@ -101,13 +135,12 @@ export function renderInteractiveMap() {
         
         circle.addEventListener('click', async () => {
             if (typeof window.playClickSound === 'function') window.playClickSound();
-            // 👇 ПОДСКАЗКА: покупка недвижимости
             await showMapTip('shown_housing_buy', '🏠 Покупка недвижимости даёт тебе дом, хранилище и возможность телепортироваться.');
             openHousingModal(type);
         });
     });
     
-    // ===== ОБРАБОТЧИК КНОПКИ "ДОМОЙ" =====
+    // ===== ОБНОВЛЁННЫЙ ОБРАБОТЧИК КНОПКИ "ДОМОЙ" =====
     const homeBtn = document.getElementById('homeBtn');
     if (homeBtn) {
         const newHomeBtn = homeBtn.cloneNode(true);
@@ -117,7 +150,9 @@ export function renderInteractiveMap() {
             if (typeof window.playClickSound === 'function') window.playClickSound();
             // 👇 ПОДСКАЗКА: телепорт домой
             await showMapTip('shown_home_teleport', '🏠 Телепорт домой. Если у тебя есть жильё — ты сразу окажешься там.');
-            await teleportHome();
+            
+            // 👇 ИСПОЛЬЗУЕМ ОБНОВЛЁННУЮ ФУНКЦИЮ
+            await safeTeleportHome();
         });
     }
     
@@ -250,7 +285,6 @@ async function loadHousingList(type) {
             const ownerId = data?.ownerId;
             const isCurrentOwner = isOwned && ownerId === currentUser?.uid;
             
-            // 👇 ПОЛУЧАЕМ КРАСИВОЕ НАЗВАНИЕ ИЗ FIRESTORE
             const displayName = data?.name || id.replace(/_/g, ' ').toUpperCase();
             
             if (isOwned && !isCurrentOwner) {
@@ -354,15 +388,12 @@ async function buyProperty(propertyId, price, type, propertyName) {
             
             const newMoney = currentMoney - price;
             
-            // ПОЛУЧАЕМ ТЕКУЩИЙ СПИСОК ИЗ БД
             const currentOwned = userData?.housing?.owned || [];
             
-            // ПРОВЕРКА: не куплен ли уже этот объект
             if (currentOwned.includes(propertyId)) {
                 throw new Error('Вы уже владеете этой недвижимостью');
             }
             
-            // СОЗДАЁМ НОВЫЙ МАССИВ (старый + новый объект)
             const newOwnedHomes = [...currentOwned, propertyId];
             
             console.log(`🏠 Было в собственности: ${currentOwned.length} объектов`);
@@ -386,12 +417,10 @@ async function buyProperty(propertyId, price, type, propertyName) {
             });
         });
         
-        // ОБНОВЛЯЕМ ЛОКАЛЬНОЕ СОСТОЯНИЕ
         const newMoney = money - price;
         setStats(null, null, null, newMoney);
         updateStorageCapacity(type);
         
-        // ДОБАВЛЯЕМ В ЛОКАЛЬНЫЙ МАССИВ И УСТАНАВЛИВАЕМ КАК ОСНОВНОЕ
         if (!ownedHomes.includes(propertyId)) {
             ownedHomes.push(propertyId);
         }
@@ -399,7 +428,6 @@ async function buyProperty(propertyId, price, type, propertyName) {
         
         updateUI();
         
-        // Используем красивое название
         const finalName = propertyName || propertyId.replace(/_/g, ' ').toUpperCase();
         showMsg(`✅ Поздравляем! Вы купили ${finalName}! Теперь у вас ${ownedHomes.length} объектов недвижимости`, '#4caf50');
         
