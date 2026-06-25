@@ -7,6 +7,13 @@ import { showMessage } from './utils.js';
 const MAX_MESSAGES = 200;
 const SEND_DELAY = 1500; // 1.5 секунды для сбора сообщений
 
+// ========== СПИСОК АДМИНИСТРАТОРОВ ==========
+// Замени 'YOUR_UID_HERE' на свой реальный UID
+const ADMINS = {
+    'eP8SFm104EOOt4b2KDAAplzzHy52': { color: '#ff4444', tag: '👑 Админ' },
+    'muXd25DfrnheLljZoQDgt1KIwaJ2': { color: '#ff8800', tag: '🌟 Модератор' }
+};
+
 let messageQueue = [];
 let sendTimeout = null;
 let chatUnsubscribe = null;
@@ -51,7 +58,7 @@ export function initChat() {
         }
     });
     
-    // 👇 ПОДПИСКА НА ЧАТ (ДАЖЕ КОГДА ЗАКРЫТ!)
+    // Подписка на чат (даже когда закрыт!)
     subscribeToChat();
 }
 
@@ -63,7 +70,6 @@ function openChat() {
     isChatOpen = true;
     unreadCount = 0;
     updateChatBadge();
-    // Фокус на поле ввода
     setTimeout(() => {
         const input = document.getElementById('chatInput');
         if (input) input.focus();
@@ -91,7 +97,6 @@ function subscribeToChat() {
             const messages = data.history || [];
             renderMessages(messages);
             
-            // 👇 ОБНОВЛЯЕМ ИНДИКАТОР НОВЫХ СООБЩЕНИЙ
             if (!isChatOpen) {
                 if (messages.length > lastMessageCount) {
                     unreadCount += (messages.length - lastMessageCount);
@@ -114,7 +119,6 @@ function updateChatBadge() {
     const chatBtn = document.getElementById('chatBtn');
     if (!chatBtn) return;
     
-    // Удаляем старый бейджик
     const oldBadge = chatBtn.querySelector('.chat-badge');
     if (oldBadge) oldBadge.remove();
     
@@ -138,7 +142,6 @@ function updateChatBadge() {
         `;
         chatBtn.appendChild(badge);
         
-        // Добавляем анимацию, если ещё нет
         if (!document.getElementById('chatStyles')) {
             const style = document.createElement('style');
             style.id = 'chatStyles';
@@ -170,7 +173,6 @@ async function sendMessage() {
         return;
     }
     
-    // Добавляем в очередь
     messageQueue.push({
         uid: user.uid,
         nick: user.displayName || 'Аноним',
@@ -181,7 +183,6 @@ async function sendMessage() {
     input.value = '';
     input.focus();
     
-    // Запускаем таймер, если не запущен
     if (!sendTimeout) {
         sendTimeout = setTimeout(async () => {
             const messagesToSend = [...messageQueue];
@@ -245,13 +246,17 @@ function renderMessages(messages) {
     const currentUid = user?.uid;
     
     let html = '';
-    // Показываем последние 50 сообщений
     const showMessages = messages.slice(-50);
     
     for (const msg of showMessages) {
         const isOwn = msg.uid === currentUid;
         const time = new Date(msg.time);
         const timeStr = time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        
+        // 👇 ПРОВЕРКА НА АДМИНА
+        const isAdmin = ADMINS[msg.uid];
+        const nickColor = isAdmin ? isAdmin.color : (isOwn ? 'var(--accent-gold)' : '#4fc3f7');
+        const nickTag = isAdmin ? `${isAdmin.tag} ` : '';
         
         html += `
             <div style="
@@ -264,14 +269,14 @@ function renderMessages(messages) {
             ">
                 <span style="
                     font-weight: bold;
-                    color: ${isOwn ? 'var(--accent-gold)' : '#4fc3f7'};
+                    color: ${nickColor};
                     font-size: 0.85rem;
                     min-width: 100px;
                     max-width: 120px;
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
-                ">${escapeHtml(msg.nick)}</span>
+                ">${nickTag}${escapeHtml(msg.nick)}</span>
                 <span style="color: var(--text-secondary); font-size: 0.7rem; min-width: 40px;">${timeStr}</span>
                 <span style="
                     color: var(--text-color);
