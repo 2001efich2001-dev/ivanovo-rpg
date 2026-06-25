@@ -116,7 +116,7 @@ async function restInHome(locationId, locationName) {
     
     switch (locationId) {
         case 'dump_home':
-            healthRestore = 15;   // как в ночлежке, но поменьше
+            healthRestore = 15;
             energyRestore = 30;
             break;
         case 'dorm_home':
@@ -143,7 +143,7 @@ async function restInHome(locationId, locationName) {
     setEnergy(newEnergy);
     reduceIntoxication(30);
     
-    // 3. Пропускаем 8 часов (ТОЧНО КАК В НОЧЛЕЖКЕ)
+    // 3. Пропускаем 8 часов
     setTimeout(async () => {
         const { addGameHours } = await import('./timeWeather.js');
         addGameHours(8);
@@ -379,7 +379,7 @@ export const locationsDB = {
         ]
     },
 
-    // ========== НОВАЯ ЛОКАЦИЯ: РЕКА УВОДЬ (РЫБАЛКА) ==========
+    // ========== РЕКА УВОДЬ (РЫБАЛКА) ==========
     fishing_spot: {
         id: "fishing_spot",
         name: "🏞️ Река Уводь",
@@ -415,6 +415,465 @@ export const locationsDB = {
                 effect: { items: ["water"] }, 
                 risk: 0,
                 cost: 0
+            }
+        ]
+    },
+
+    // ========== НОВЫЕ ЛОКАЦИИ ==========
+
+    // 1. ПЛОЩАДЬ РЕВОЛЮЦИИ
+    ploshchad: {
+        id: "ploshchad",
+        name: "🏛️ Площадь Революции",
+        description: "Главная площадь города. Здесь всегда людно: студенты, торговцы, музыканты. В центре — старый фонтан с позолоченными фигурами. А ещё здесь ошиваются странные типы в узких штанах...",
+        bgImage: "images/ploshchad_bg.jpg",
+        zones: [
+            { 
+                id: "beg_zone", 
+                name: "У фонтана", 
+                description: "Попросить подаяние у прохожих (шанс 25%)", 
+                cx: 150, 
+                cy: 200, 
+                r: 50, 
+                actionId: "beg" 
+            },
+            { 
+                id: "search_zone", 
+                name: "Скамейки", 
+                description: "Поискать забытые вещи на скамейках (риск 15%)", 
+                cx: 400, 
+                cy: 180, 
+                r: 45, 
+                actionId: "search_ploshchad" 
+            },
+            { 
+                id: "relax_zone", 
+                name: "Фонтан", 
+                description: "Послушать воду и отдохнуть", 
+                cx: 600, 
+                cy: 220, 
+                r: 50, 
+                actionId: "relax_ploshchad" 
+            },
+            { 
+                id: "fight_zone", 
+                name: "👊 Нефоры", 
+                description: "Подраться с местными неформалами (риск 35%)", 
+                cx: 250, 
+                cy: 350, 
+                r: 55, 
+                actionId: "fight_nefors" 
+            },
+            { 
+                id: "kfc_zone", 
+                name: "🍗 КФС", 
+                description: "Перекусить в КФС (восстановить голод за 40₽)", 
+                cx: 500, 
+                cy: 380, 
+                r: 50, 
+                actionId: "eat_kfc" 
+            }
+        ],
+        actions: [
+            { 
+                id: "beg", 
+                name: "Попросить подаяние", 
+                desc: "Риск: 25% получить отказ (но люди здесь добрее)", 
+                effect: { money: [15, 60] }, 
+                risk: 25, 
+                riskEffect: { money: -10, health: -3 } 
+            },
+            { 
+                id: "search_ploshchad", 
+                name: "Поискать на скамейках", 
+                desc: "Риск: 15% найти мусор вместо вещей", 
+                effect: { items: ["bread", "water", "old_hat"] }, 
+                risk: 15, 
+                riskEffect: { health: -5 } 
+            },
+            { 
+                id: "relax_ploshchad", 
+                name: "Отдохнуть у фонтана", 
+                desc: "Восстановить силы (+10 здоровья, +5 энергии)", 
+                effect: { health: 10, energy: 5 }, 
+                cost: 0, 
+                risk: 0 
+            },
+            { 
+                id: "fight_nefors", 
+                name: "👊 Подраться с неформалами", 
+                desc: "Риск: 35% получить люлей (но если победишь — получишь награду)", 
+                effect: { money: [50, 150] }, 
+                risk: 35, 
+                riskEffect: { health: -25, money: -20 },
+                isSpecial: true,
+                specialCallback: async () => {
+                    if (!hasEnoughEnergy(25)) {
+                        showMessage(`❌ Не хватает энергии! Нужно 25⚡`, '#e74c3c');
+                        return;
+                    }
+                    
+                    if (!canPerformAction('драка с неформалами')) {
+                        return;
+                    }
+                    
+                    let successChance = 65;
+                    if (intoxication > 50) {
+                        successChance -= 20;
+                    } else if (intoxication > 20) {
+                        successChance -= 10;
+                    }
+                    
+                    const hasWeapon = inventory.find(i => i.id === 'knife' || i.id === 'bat');
+                    if (hasWeapon) {
+                        successChance += 15;
+                        showMessage(`🔪 С оружием у тебя больше шансов!`, '#ffd966');
+                    }
+                    
+                    const roll = Math.random() * 100;
+                    const success = roll < successChance;
+                    
+                    spendEnergy(25);
+                    
+                    if (success) {
+                        const moneyGain = Math.floor(Math.random() * 100) + 50;
+                        setStats(health, hunger, cold, money + moneyGain);
+                        addExperience(25);
+                        addLogEntry(`👊 Ты победил нефоров! +${moneyGain}₽, +25 опыта`, 'combat');
+                        showMessage(`👊 Ты разобрался с неформалами! +${moneyGain}₽, +25 опыта`, '#4caf50');
+                        
+                        if (Math.random() < 0.3) {
+                            const loot = ['empty_bottle', 'bread', 'water'][Math.floor(Math.random() * 3)];
+                            const idx = inventory.findIndex(i => i.id === loot);
+                            if (idx !== -1) inventory[idx].count++;
+                            else inventory.push({ id: loot, count: 1 });
+                            showMessage(`🎒 Ты нашёл у них ${itemsDB[loot]?.name || loot}!`, '#ffd966');
+                        }
+                    } else {
+                        const healthLoss = Math.floor(Math.random() * 20) + 10;
+                        const newHealth = Math.max(0, health - healthLoss);
+                        setStats(newHealth, hunger, cold, money);
+                        addLogEntry(`👊 Нефоры тебя отпинали! -${healthLoss} здоровья`, 'combat');
+                        showMessage(`👊 Нефоры оказались сильнее! -${healthLoss} здоровья`, '#e74c3c');
+                        
+                        if (Math.random() < 0.3) {
+                            const moneyLoss = Math.min(money, 30);
+                            setStats(newHealth, hunger, cold, money - moneyLoss);
+                            showMessage(`💰 Нефоры обчистили тебя на ${moneyLoss}₽!`, '#e74c3c');
+                        }
+                    }
+                    
+                    updateUI();
+                    await saveGameData();
+                    document.getElementById('locationModal').style.display = 'none';
+                }
+            },
+            { 
+                id: "eat_kfc", 
+                name: "🍗 Перекусить в КФС", 
+                desc: "Восстановить голод и здоровье за 40₽", 
+                effect: { hunger: 40, health: 10 }, 
+                cost: 40, 
+                risk: 0 
+            }
+        ]
+    },
+
+    // 2. ТЦ "ЗОЛОТОЙ ГОРОД" (НАРУЖИ)
+    mall: {
+        id: "mall",
+        name: "🏬 ТЦ «Золотой город»",
+        description: "Огромный торговый центр. Стеклянные витрины, эскалаторы и куча народа. Сюда приходят за покупками... или за лёгкой добычей.",
+        bgImage: "images/mall_bg.jpg",
+        zones: [
+            { 
+                id: "enter_zone", 
+                name: "🚪 Вход в ТЦ", 
+                description: "Войти внутрь торгового центра", 
+                cx: 400, 
+                cy: 250, 
+                r: 60, 
+                actionId: "enter_mall" 
+            },
+            { 
+                id: "steal_zone", 
+                name: "Парковка", 
+                description: "Проверить машины на удачу (риск 40%)", 
+                cx: 150, 
+                cy: 180, 
+                r: 50, 
+                actionId: "steal_mall" 
+            },
+            { 
+                id: "beg_zone", 
+                name: "Входная группа", 
+                description: "Попросить у выходящих посетителей (шанс 30%)", 
+                cx: 600, 
+                cy: 200, 
+                r: 50, 
+                actionId: "beg_mall" 
+            }
+        ],
+        actions: [
+            { 
+                id: "enter_mall", 
+                name: "🚪 Войти в ТЦ", 
+                desc: "Зайти внутрь торгового центра", 
+                effect: {}, 
+                cost: 0, 
+                risk: 0,
+                callback: async () => {
+                    const { setCurrentLocation } = await import('./gameState.js');
+                    setCurrentLocation('mall_inside');
+                    showMessage('🏬 Вы вошли в ТЦ «Золотой город»', '#4caf50');
+                    renderLocation('mall_inside');
+                    document.getElementById('locationModal').style.display = 'none';
+                }
+            },
+            { 
+                id: "steal_mall", 
+                name: "Проверить машины", 
+                desc: "Риск: 40% попасться охране", 
+                effect: { money: [20, 80] }, 
+                risk: 40, 
+                riskEffect: { money: -50, health: -15 } 
+            },
+            { 
+                id: "beg_mall", 
+                name: "Попросить у посетителей", 
+                desc: "Риск: 30% получить отказ", 
+                effect: { money: [10, 40] }, 
+                risk: 30, 
+                riskEffect: { money: -10, health: -5 } 
+            }
+        ]
+    },
+
+    // 3. ТЦ "ЗОЛОТОЙ ГОРОД" (ВНУТРИ)
+    mall_inside: {
+        id: "mall_inside",
+        name: "🏬 ТЦ «Золотой город» (внутри)",
+        description: "Внутри шумно и людно. Эскалаторы, бутики, фуд-корт. Охрана ходит по периметру, но есть и тёмные уголки.",
+        bgImage: "images/mall_inside_bg.jpg",
+        zones: [
+            { 
+                id: "exit_zone", 
+                name: "🚪 Выход из ТЦ", 
+                description: "Выйти наружу", 
+                cx: 400, 
+                cy: 250, 
+                r: 60, 
+                actionId: "exit_mall" 
+            },
+            { 
+                id: "search_zone", 
+                name: "Фуд-корт", 
+                description: "Поискать забытую еду на столиках", 
+                cx: 200, 
+                cy: 180, 
+                r: 50, 
+                actionId: "search_mall_inside" 
+            },
+            { 
+                id: "steal_zone", 
+                name: "Примерочная", 
+                description: "Попытаться украсть одежду (риск 50%)", 
+                cx: 600, 
+                cy: 200, 
+                r: 50, 
+                actionId: "steal_mall_inside" 
+            },
+            { 
+                id: "rest_zone", 
+                name: "Диванчик", 
+                description: "Отдохнуть на мягком диване", 
+                cx: 350, 
+                cy: 350, 
+                r: 45, 
+                actionId: "rest_mall_inside" 
+            }
+        ],
+        actions: [
+            { 
+                id: "exit_mall", 
+                name: "🚪 Выйти из ТЦ", 
+                desc: "Вернуться на улицу", 
+                effect: {}, 
+                cost: 0, 
+                risk: 0,
+                callback: async () => {
+                    const { setCurrentLocation } = await import('./gameState.js');
+                    setCurrentLocation('mall');
+                    showMessage('🏬 Вы вышли из ТЦ «Золотой город»', '#4caf50');
+                    renderLocation('mall');
+                    document.getElementById('locationModal').style.display = 'none';
+                }
+            },
+            { 
+                id: "search_mall_inside", 
+                name: "Поискать на фуд-корте", 
+                desc: "Шанс найти еду (риск 20%)", 
+                effect: { items: ["bread", "water", "apple"] }, 
+                risk: 20, 
+                riskEffect: { health: -5, hunger: -5 } 
+            },
+            { 
+                id: "steal_mall_inside", 
+                name: "Украсть из магазина", 
+                desc: "Риск: 50% поймает охрана", 
+                effect: { items: ["old_hat", "empty_bottle"], money: [30, 100] }, 
+                risk: 50, 
+                riskEffect: { money: -100, health: -20 } 
+            },
+            { 
+                id: "rest_mall_inside", 
+                name: "Отдохнуть на диване", 
+                desc: "Восстановить силы (+5 здоровья, +10 энергии)", 
+                effect: { health: 5, energy: 10 }, 
+                cost: 0, 
+                risk: 0 
+            }
+        ]
+    },
+
+    // 4. КРАСНАЯ ЦЕРКОВЬ
+    red_church: {
+        id: "red_church",
+        name: "⛪ Красная церковь",
+        description: "Старинная церковь из красного кирпича. Местные говорят, что здесь особая благодать. Можно помолиться или попросить помощи у священника.",
+        bgImage: "images/red_church_bg.jpg",
+        zones: [
+            { 
+                id: "pray_zone", 
+                name: "Алтарь", 
+                description: "Помолиться (+30 здоровья, +5 энергии)", 
+                cx: 200, 
+                cy: 200, 
+                r: 60, 
+                actionId: "pray_red" 
+            },
+            { 
+                id: "food_zone", 
+                name: "Трапезная", 
+                description: "Попросить еду у священника", 
+                cx: 450, 
+                cy: 180, 
+                r: 50, 
+                actionId: "get_food_red" 
+            },
+            { 
+                id: "rest_zone", 
+                name: "Скамейка", 
+                description: "Посидеть в тишине (+5 здоровья, +10 энергии)", 
+                cx: 350, 
+                cy: 300, 
+                r: 45, 
+                actionId: "rest_red" 
+            }
+        ],
+        actions: [
+            { 
+                id: "pray_red", 
+                name: "Помолиться", 
+                desc: "Восстановить здоровье и энергию", 
+                effect: { health: 30, energy: 5 }, 
+                cost: 0, 
+                risk: 0 
+            },
+            { 
+                id: "get_food_red", 
+                name: "Попросить еду", 
+                desc: "Дадут хлеб и воду", 
+                effect: { items: ["bread", "water"] }, 
+                risk: 0 
+            },
+            { 
+                id: "rest_red", 
+                name: "Посидеть в тишине", 
+                desc: "Восстановить силы", 
+                effect: { health: 5, energy: 10 }, 
+                cost: 0, 
+                risk: 0 
+            }
+        ]
+    },
+
+    // 5. ШЕРЕМЕТЕВСКИЙ КИЛОМЕТР
+    sheremet: {
+        id: "sheremet",
+        name: "🛣️ Шереметевский километр",
+        description: "Длинная улица, уходящая за горизонт. Здесь есть магазины, ларьки и много прохожих. Говорят, на Шеремете можно найти всё что угодно.",
+        bgImage: "images/sheremet_bg.jpg",
+        zones: [
+            { 
+                id: "beg_zone", 
+                name: "У ларька", 
+                description: "Попросить у прохожих (шанс 20%)", 
+                cx: 150, 
+                cy: 200, 
+                r: 50, 
+                actionId: "beg_sheremet" 
+            },
+            { 
+                id: "search_zone", 
+                name: "Мусорка у магазина", 
+                description: "Поискать в мусоре (риск 25%)", 
+                cx: 400, 
+                cy: 180, 
+                r: 45, 
+                actionId: "search_sheremet" 
+            },
+            { 
+                id: "trade_zone", 
+                name: "Ларёк с бутылками", 
+                description: "Обменять пустые бутылки (цена выше рыночной)", 
+                cx: 600, 
+                cy: 220, 
+                r: 50, 
+                actionId: "trade_sheremet" 
+            },
+            { 
+                id: "fight_zone", 
+                name: "Тёмный переулок", 
+                description: "Подраться с местными (риск 40%)", 
+                cx: 250, 
+                cy: 350, 
+                r: 45, 
+                actionId: "fight_sheremet" 
+            }
+        ],
+        actions: [
+            { 
+                id: "beg_sheremet", 
+                name: "Попросить подаяние", 
+                desc: "Риск: 20% получить отказ", 
+                effect: { money: [10, 50] }, 
+                risk: 20, 
+                riskEffect: { money: -15, health: -5 } 
+            },
+            { 
+                id: "search_sheremet", 
+                name: "Поискать в мусоре", 
+                desc: "Риск: 25% найти гнилые продукты", 
+                effect: { items: ["empty_bottle", "bread", "old_hat"] }, 
+                risk: 25, 
+                riskEffect: { health: -10, hunger: -10 } 
+            },
+            { 
+                id: "trade_sheremet", 
+                name: "Сдать бутылки", 
+                desc: "Выгодный обмен: каждая бутылка даёт 10-20₽", 
+                needsItem: "empty_bottle", 
+                effect: { money: [10, 20] }, 
+                risk: 0 
+            },
+            { 
+                id: "fight_sheremet", 
+                name: "Подраться", 
+                desc: "Риск: 40% получить травму", 
+                effect: { money: [30, 120] }, 
+                risk: 40, 
+                riskEffect: { health: -25 } 
             }
         ]
     }
@@ -615,7 +1074,13 @@ function hideTooltip() {
 async function executeAction(locationId, action) {
     playClick();
     
-    // ===== ПРОВЕРКА НА CALLBACK (для отдыха) =====
+    // ===== ПРОВЕРКА НА SPECIAL CALLBACK (для драки с неформалами) =====
+    if (action.isSpecial && action.specialCallback) {
+        await action.specialCallback();
+        return;
+    }
+    
+    // ===== ПРОВЕРКА НА CALLBACK (для отдыха и перехода) =====
     if (action.callback) {
         await action.callback();
         document.getElementById('locationModal').style.display = 'none';
@@ -793,8 +1258,6 @@ async function executeAction(locationId, action) {
     
     // ===== ОТДЫХ НА ПОМОЙКЕ (старый вариант, заменён на callback) =====
     if (action.id === 'rest_dump') {
-        // Этот блок больше не используется, так как у rest_dump теперь есть callback
-        // Оставляем на случай, если где-то ещё вызывается
         await showActionTip('shown_rest', '🛌 Отдых на помойке восстанавливает здоровье и энергию.');
         
         const newHealth = Math.min(maxHealth, health + (action.effect?.health || 10));
