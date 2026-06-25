@@ -284,7 +284,7 @@ async function loadTopPlayers(forceRefresh = false) {
         
         // 2. Получаем топ игроков
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, orderBy('level', 'desc'), orderBy('experience', 'desc'), limit(20));
+        const q = query(usersRef, orderBy('level', 'desc'), orderBy('experience', 'desc'));
         const querySnapshot = await getDocs(q);
         if (querySnapshot.empty) {
             container.innerHTML = '<div style="text-align:center;">Пока нет игроков</div>';
