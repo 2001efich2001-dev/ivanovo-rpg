@@ -1134,6 +1134,154 @@ async function openQuestsModal() {
     }
 }
 
+// ========== СИСТЕМА БАНОВ ==========
+function checkBanStatus(userData) {
+    const ban = userData?.ban;
+    if (!ban) return null;
+    
+    const now = Date.now();
+    const banTime = new Date(ban).getTime();
+    
+    if (now < banTime) {
+        const remaining = banTime - now;
+        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        
+        let text = '⛔ У ВАС БАН! ⛔';
+        if (days > 0) {
+            text += `\nОсталось: ${days}д ${hours}ч ${minutes}м`;
+        } else if (hours > 0) {
+            text += `\nОсталось: ${hours}ч ${minutes}м`;
+        } else {
+            text += `\nОсталось: ${minutes}м`;
+        }
+        
+        return {
+            isBanned: true,
+            remaining: remaining,
+            text: text
+        };
+    }
+    
+    return null;
+}
+
+function showBanScreen(banInfo) {
+    // Удаляем старый бан-экран, если есть
+    const oldBan = document.getElementById('banScreen');
+    if (oldBan) oldBan.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'banScreen';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 99999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        animation: banPulse 0.5s ease infinite alternate;
+        pointer-events: all;
+        cursor: not-allowed;
+    `;
+    
+    overlay.innerHTML = `
+        <div style="
+            color: #ff0000;
+            font-size: 4rem;
+            font-weight: 900;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(255, 0, 0, 0.8), 0 0 40px rgba(255, 0, 0, 0.5);
+            animation: banText 0.3s ease infinite alternate;
+            padding: 20px;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            line-height: 1.3;
+        ">
+            ⛔ У ВАС БАН! ⛔
+        </div>
+        <div style="
+            color: #ff6666;
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px;
+            text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+            white-space: pre-line;
+            line-height: 1.4;
+        ">
+            ${banInfo.text}
+        </div>
+        <div style="
+            color: #ff4444;
+            font-size: 1.2rem;
+            text-align: center;
+            margin-top: 30px;
+            opacity: 0.7;
+            max-width: 80%;
+        ">
+            🔒 Все действия заблокированы до снятия бана.
+        </div>
+        <div style="
+            color: #888;
+            font-size: 0.9rem;
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.5;
+        ">
+            По вопросам бана обращайтесь к администрации.
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Добавляем стили анимации (если ещё нет)
+    if (!document.getElementById('banStyles')) {
+        const style = document.createElement('style');
+        style.id = 'banStyles';
+        style.textContent = `
+            @keyframes banPulse {
+                0% { background: rgba(0, 0, 0, 0.95); }
+                100% { background: rgba(30, 0, 0, 0.98); }
+            }
+            @keyframes banText {
+                0% { transform: scale(1); opacity: 1; }
+                100% { transform: scale(1.05); opacity: 0.9; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Блокируем все взаимодействия с игрой
+    document.querySelectorAll('.action-btn, .reset-btn, .modal, .location-circle, .housing-circle, .player-item, .trade-offer-btn, .close-modal').forEach(el => {
+        el.style.pointerEvents = 'none';
+        el.style.opacity = '0.3';
+    });
+    
+    // Дополнительно блокируем все клики по игре
+    document.querySelectorAll('.game-container, .game-right, .game-left').forEach(el => {
+        el.style.pointerEvents = 'none';
+    });
+    
+    // Добавляем обработчик для снятия блокировки (только если бан снят)
+    setTimeout(() => {
+        // Периодически проверяем, не истёк ли бан
+        const checkBanInterval = setInterval(() => {
+            // Если оверлей всё ещё на месте, но бан мог истечь
+            const currentOverlay = document.getElementById('banScreen');
+            if (!currentOverlay) {
+                clearInterval(checkBanInterval);
+                return;
+            }
+        }, 30000);
+    }, 1000);
+}
+
 // ========== ИНИЦИАЛИЗАЦИЯ ==========
 document.addEventListener('DOMContentLoaded', () => {
     const gameContainer = document.getElementById('gameContainer');
@@ -1198,9 +1346,31 @@ document.addEventListener('DOMContentLoaded', () => {
         
         window._preventAutoSave = false;
         
+        // 👇 ПРОВЕРКА БАНА
         if (user) {
             try {
                 const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const banInfo = checkBanStatus(userData);
+                    
+                    if (banInfo && banInfo.isBanned) {
+                        showBanScreen(banInfo);
+                        // Блокируем игру, но оставляем возможность выйти
+                        // Кнопка выхода всё ещё должна работать
+                        const logoutBtn = document.getElementById('logoutMenuBtn');
+                        if (logoutBtn) {
+                            logoutBtn.style.pointerEvents = 'auto';
+                            logoutBtn.style.opacity = '1';
+                        }
+                        return; // Прерываем вход, не даём играть
+                    }
+                }
+            } catch (err) {
+                console.warn('Ошибка проверки бана:', err);
+            }
+            
+            try {
                 if (userDoc.exists() && userDoc.data().lastUpdated) {
                     localLastUpdated = new Date(userDoc.data().lastUpdated).getTime();
                     console.log('📅 Загружена метка времени lastUpdated:', new Date(localLastUpdated).toLocaleTimeString());
