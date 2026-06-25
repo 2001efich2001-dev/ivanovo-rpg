@@ -97,8 +97,8 @@ export function initCheats() {
             console.log('Буфер читов сброшен');
         }, 2000);
         
-        const key = e.key;
-        if (key.length === 1 || key === '-') {
+       const key = e.key;
+if (key && (key.length === 1 || key === '-')) {
             cheatInputBuffer += key;
             console.log('Текущий буфер:', cheatInputBuffer);
         }
