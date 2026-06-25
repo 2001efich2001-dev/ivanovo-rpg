@@ -1082,6 +1082,22 @@ export function getHomeLocationId(homeId) {
     return 'dump_home';
 }
 
+// ========== ПОЛУЧИТЬ ЛОКАЦИЮ ДЛЯ ТЕКУЩЕГО ЖИЛЬЯ ==========
+export function getCurrentHomeLocation() {
+    // Если есть текущее жильё и оно принадлежит игроку
+    if (currentHome && ownedHomes.includes(currentHome)) {
+        return getHomeLocationId(currentHome);
+    }
+    // Если текущее жильё невалидно — пытаемся найти другое
+    if (ownedHomes.length > 0) {
+        // Берём первое доступное
+        const firstHome = ownedHomes[0];
+        return getHomeLocationId(firstHome);
+    }
+    // Если жилья нет — помойка
+    return 'dump_home';
+}
+
 export async function setPrimaryHome(homeId) {
     if (!ownedHomes.includes(homeId)) {
         showMessage(`❌ У вас нет такого жилья!`, '#e74c3c');
