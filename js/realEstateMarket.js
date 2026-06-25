@@ -283,6 +283,16 @@ export async function buyProperty(listingId, buyerId) {
             console.log('🏠 UI покупателя обновлён принудительно');
             showMessage(`🏠 Вы купили ${propertyName} за ${price}₽`, '#4caf50');
             
+            // ===== ПРОВЕРКА: если покупатель находится на карте и купил дом — обновляем локацию =====
+            const { currentLocation, setCurrentLocation, getHomeLocationId } = await import('./gameState.js');
+            const homeLoc = getHomeLocationId(propertyId);
+            
+            if (currentLocation === homeLoc) {
+                // Игрок уже в этом доме — обновляем локацию (чтобы перерисовать фон)
+                setCurrentLocation(homeLoc);
+                console.log('🏠 Локация покупателя обновлена');
+            }
+            
             // 👇 ПОДСКАЗКА: первая покупка с доски
             if (tutorialEnabled && !isTutorialShown('shown_estate_buy')) {
                 showTutorialTip('🏠 Поздравляем с покупкой! Теперь у тебя есть новое жильё. Не забывай пополнять счёт для коммуналки, чтобы не выселили!', 4000);
