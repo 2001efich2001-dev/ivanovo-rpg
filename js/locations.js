@@ -79,6 +79,167 @@ function applyColdWithFloor(newColdValue) {
     return Math.min(maxCold, Math.max(floor, newColdValue));
 }
 
+// ========== ЕДИНАЯ ФУНКЦИЯ ОТДЫХА ДЛЯ ВСЕХ ДОМОВ ==========
+async function restInHome(locationId, locationName) {
+    // Список локаций, где доступен отдых
+    const restLocations = ['dump_home', 'dorm_home', 'apartment_home', 'house_home'];
+    if (!restLocations.includes(locationId)) {
+        showMessage('❌ Здесь нельзя отдохнуть', '#e74c3c');
+        return false;
+    }
+
+    // Проверка голода (нельзя спать на голодный желудок)
+    if (hunger < 15) {
+        showMessage('❌ Вы слишком голодны, чтобы спать. Поешьте сначала!', '#e74c3c');
+        return false;
+    }
+
+    // 1. ПОКАЗЫВАЕМ ЗАТЕМНЕНИЕ
+    showRestOverlay(locationName);
+
+    // 2. ВОССТАНАВЛИВАЕМ ПАРАМЕТРЫ В ЗАВИСИМОСТИ ОТ ТИПА ЖИЛЬЯ
+    let healthRestore, coldRestore, energyRestore, hungerDecrease;
+
+    switch (locationId) {
+        case 'dump_home':
+            healthRestore = Math.floor(maxHealth * 0.15);   // +15% здоровья
+            coldRestore = Math.floor(maxCold * 0.1);        // +10% тепла
+            energyRestore = Math.floor(maxEnergy * 0.5);    // +50% энергии
+            hungerDecrease = -Math.floor(maxHunger * 0.05); // -5% голода
+            break;
+        case 'dorm_home':
+            healthRestore = Math.floor(maxHealth * 0.2);    // +20% здоровья
+            coldRestore = Math.floor(maxCold * 0.15);       // +15% тепла
+            energyRestore = Math.floor(maxEnergy * 0.6);    // +60% энергии
+            hungerDecrease = -Math.floor(maxHunger * 0.08); // -8% голода
+            break;
+        case 'apartment_home':
+            healthRestore = Math.floor(maxHealth * 0.3);    // +30% здоровья
+            coldRestore = Math.floor(maxCold * 0.25);       // +25% тепла
+            energyRestore = Math.floor(maxEnergy * 0.7);    // +70% энергии
+            hungerDecrease = -Math.floor(maxHunger * 0.1);  // -10% голода
+            break;
+        case 'house_home':
+            healthRestore = Math.floor(maxHealth * 0.4);    // +40% здоровья
+            coldRestore = Math.floor(maxCold * 0.35);       // +35% тепла
+            energyRestore = Math.floor(maxEnergy * 0.8);    // +80% энергии
+            hungerDecrease = -Math.floor(maxHunger * 0.12); // -12% голода
+            break;
+        default:
+            // fallback на минимальные значения
+            healthRestore = Math.floor(maxHealth * 0.15);
+            coldRestore = Math.floor(maxCold * 0.1);
+            energyRestore = Math.floor(maxEnergy * 0.5);
+            hungerDecrease = -Math.floor(maxHunger * 0.05);
+    }
+
+    // Применяем изменения
+    const newHealth = Math.min(maxHealth, health + healthRestore);
+    const newHunger = Math.max(0, hunger + hungerDecrease);
+    const newCold = Math.min(maxCold, cold + coldRestore);
+    setStats(newHealth, newHunger, newCold, money);
+    
+    // Восстанавливаем энергию
+    const newEnergy = Math.min(maxEnergy, energy + energyRestore);
+    setEnergy(newEnergy);
+
+    // Снижаем опьянение
+    if (intoxication > 0) {
+        const intoxDecrease = Math.min(intoxication, 30);
+        reduceIntoxication(intoxDecrease);
+        addLogEntry(`🍺 Опьянение снизилось на ${intoxDecrease}% после сна`, 'system');
+    }
+
+    // 3. ПРОПУСКАЕМ 8 ЧАСОВ
+    const { addGameHours } = await import('./timeWeather.js');
+    addGameHours(8);
+
+    // 4. ЛОГИРУЕМ И ПОКАЗЫВАЕМ СООБЩЕНИЕ
+    const message = `🛌 Сон в ${locationName} завершён! +${healthRestore}❤️, -${Math.abs(hungerDecrease)}🍗, +${coldRestore}🔥, +${energyRestore}⚡`;
+    addLogEntry(`🛌 Вы спали в ${locationName}. Прошло 8 часов.`, 'system');
+    showMessage(message, '#4caf50');
+
+    // Сохраняем
+    await saveGameData();
+    return true;
+}
+
+// ========== ФУНКЦИЯ ДЛЯ ЗАТЕМНЕНИЯ (как в ночлежке) ==========
+function showRestOverlay(locationName) {
+    // Удаляем старый оверлей, если есть
+    const oldOverlay = document.getElementById('restOverlay');
+    if (oldOverlay) oldOverlay.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'restOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 10050;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        animation: fadeInOverlay 0.5s ease;
+        backdrop-filter: blur(4px);
+    `;
+
+    const text = document.createElement('div');
+    text.style.cssText = `
+        color: #ffd966;
+        font-size: 2rem;
+        font-weight: bold;
+        text-align: center;
+        animation: pulseText 1s ease infinite;
+        font-family: inherit;
+    `;
+    text.textContent = `🛌 Сон в ${locationName}...`;
+
+    const subtext = document.createElement('div');
+    subtext.style.cssText = `
+        color: #aaa;
+        font-size: 1.2rem;
+        margin-top: 15px;
+        font-family: inherit;
+    `;
+    subtext.textContent = '⏳ Прошло 8 часов';
+
+    overlay.appendChild(text);
+    overlay.appendChild(subtext);
+    document.body.appendChild(overlay);
+
+    // Добавляем стили анимации (если ещё нет)
+    if (!document.getElementById('restAnimationStyle')) {
+        const style = document.createElement('style');
+        style.id = 'restAnimationStyle';
+        style.textContent = `
+            @keyframes fadeInOverlay {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes pulseText {
+                0% { transform: scale(1); opacity: 0.8; }
+                50% { transform: scale(1.05); opacity: 1; }
+                100% { transform: scale(1); opacity: 0.8; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Убираем оверлей через 2.5 секунды
+    setTimeout(() => {
+        overlay.style.transition = 'opacity 0.5s ease';
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            if (overlay.remove) overlay.remove();
+        }, 500);
+    }, 2500);
+}
+
 // База локаций с фонами, зонами и действиями
 export const locationsDB = {
     railway: {
@@ -200,11 +361,21 @@ export const locationsDB = {
         description: "Твоё любимое место на свалке. Картонка, крыса рядом...",
         bgImage: "images/dump_home.jpg",
         zones: [
-            { id: "rest_zone", name: "Картонка", description: "Отдохнуть: +10 здоровья, +5 энергии", cx: 200, cy: 200, r: 60, actionId: "rest_dump" },
+            { id: "rest_zone", name: "Картонка", description: "Отдохнуть на картонке", cx: 200, cy: 200, r: 60, actionId: "rest_dump" },
             { id: "scavenge_zone", name: "Помойка", description: "Покопаться в мусоре", cx: 400, cy: 200, r: 55, actionId: "scavenge_home" }
         ],
         actions: [
-            { id: "rest_dump", name: "Отдохнуть", desc: "Восстановить здоровье и энергию", effect: { health: 10, energy: 5 }, cost: 0, risk: 0 },
+            { 
+                id: "rest_dump", 
+                name: "🛌 Поспать", 
+                desc: "Восстановить силы на картонке", 
+                effect: {}, 
+                cost: 0, 
+                risk: 0,
+                callback: async () => {
+                    await restInHome('dump_home', 'помойке');
+                }
+            },
             { id: "scavenge_home", name: "Покопаться в мусоре", desc: "Найти что-то полезное", effect: { items: ["empty_bottle", "old_hat"] }, risk: 30, riskEffect: { health: -5 } }
         ]
     },
@@ -214,11 +385,21 @@ export const locationsDB = {
         description: "Уютная комнатка. Есть кровать и тумбочка.",
         bgImage: "images/dorm_home.jpg",
         zones: [
-            { id: "sleep_zone", name: "Кровать", description: "Поспать: +20 здоровья, +20 энергии", cx: 200, cy: 200, r: 60, actionId: "sleep_dorm" },
+            { id: "sleep_zone", name: "Кровать", description: "Поспать в кровати", cx: 200, cy: 200, r: 60, actionId: "sleep_dorm" },
             { id: "storage_zone", name: "Тумбочка", description: "Достать вещи из хранилища", cx: 400, cy: 200, r: 55, actionId: "storage_open" }
         ],
         actions: [
-            { id: "sleep_dorm", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 20, energy: 20 }, cost: 0, risk: 0 },
+            { 
+                id: "sleep_dorm", 
+                name: "🛌 Поспать", 
+                desc: "Хорошо выспаться в кровати", 
+                effect: {}, 
+                cost: 0, 
+                risk: 0,
+                callback: async () => {
+                    await restInHome('dorm_home', 'общаге');
+                }
+            },
             { id: "storage_open", name: "Открыть хранилище", desc: "Достать вещи из хранилища", effect: {}, cost: 0, risk: 0 }
         ]
     },
@@ -228,11 +409,21 @@ export const locationsDB = {
         description: "Просторная квартира. Полный уют и комфорт.",
         bgImage: "images/apartment_home.jpg",
         zones: [
-            { id: "sleep_zone", name: "Кровать", description: "Поспать: +30 здоровья, +30 энергии", cx: 200, cy: 200, r: 60, actionId: "sleep_apartment" },
+            { id: "sleep_zone", name: "Кровать", description: "Поспать в кровати", cx: 200, cy: 200, r: 60, actionId: "sleep_apartment" },
             { id: "kitchen_zone", name: "Кухня", description: "Приготовить еду", cx: 400, cy: 200, r: 55, actionId: "cook" }
         ],
         actions: [
-            { id: "sleep_apartment", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 30, energy: 30 }, cost: 0, risk: 0 },
+            { 
+                id: "sleep_apartment", 
+                name: "🛌 Поспать", 
+                desc: "Хорошо выспаться в уютной квартире", 
+                effect: {}, 
+                cost: 0, 
+                risk: 0,
+                callback: async () => {
+                    await restInHome('apartment_home', 'квартире');
+                }
+            },
             { id: "cook", name: "Приготовить еду", desc: "Сделать бутерброд", effect: { items: ["bread"] }, cost: 0, risk: 0 }
         ]
     },
@@ -242,12 +433,22 @@ export const locationsDB = {
         description: "Роскошный дом. Сауна, гараж, всё включено!",
         bgImage: "images/house_home.jpg",
         zones: [
-            { id: "sleep_zone", name: "Кровать", description: "Поспать: +50 здоровья, +50 энергии", cx: 150, cy: 200, r: 50, actionId: "sleep_house" },
+            { id: "sleep_zone", name: "Кровать", description: "Поспать в кровати", cx: 150, cy: 200, r: 50, actionId: "sleep_house" },
             { id: "sauna_zone", name: "Сауна", description: "Попариться: +20 здоровья, -10 голода", cx: 350, cy: 200, r: 50, actionId: "sauna" },
             { id: "garage_zone", name: "Гараж", description: "Хранилище", cx: 550, cy: 200, r: 50, actionId: "garage_storage" }
         ],
         actions: [
-            { id: "sleep_house", name: "Поспать", desc: "Восстановить здоровье и энергию", effect: { health: 50, energy: 50 }, cost: 0, risk: 0 },
+            { 
+                id: "sleep_house", 
+                name: "🛌 Поспать", 
+                desc: "Отлично выспаться в собственном доме", 
+                effect: {}, 
+                cost: 0, 
+                risk: 0,
+                callback: async () => {
+                    await restInHome('house_home', 'доме');
+                }
+            },
             { id: "sauna", name: "Сауна", desc: "Попариться", effect: { health: 20, hunger: -10 }, cost: 0, risk: 0 },
             { id: "garage_storage", name: "Открыть гараж", desc: "Хранилище вещей", effect: {}, cost: 0, risk: 0 }
         ]
@@ -489,6 +690,13 @@ function hideTooltip() {
 async function executeAction(locationId, action) {
     playClick();
     
+    // ===== ПРОВЕРКА НА CALLBACK (для отдыха) =====
+    if (action.callback) {
+        await action.callback();
+        document.getElementById('locationModal').style.display = 'none';
+        return;
+    }
+    
     // ===== ПОДСКАЗКА: первый клик по зоне =====
     if (action.id !== 'talk_hobo' && action.id !== 'storage_open' && action.id !== 'garage_storage') {
         await showActionTip('shown_zone_click', '🟢 Зелёные круги — места для действий. Нажми на них, чтобы сделать что-то.');
@@ -647,7 +855,6 @@ async function executeAction(locationId, action) {
         
         const newHealth = Math.min(maxHealth, health + 5);
         const newHunger = Math.min(maxHunger, hunger + 5);
-        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor
         const newCold = applyColdWithFloor(cold + 5);
         
         setStats(newHealth, newHunger, newCold, money);
@@ -659,13 +866,14 @@ async function executeAction(locationId, action) {
         return;
     }
     
-    // ===== ОТДЫХ НА ПОМОЙКЕ =====
+    // ===== ОТДЫХ НА ПОМОЙКЕ (старый вариант, заменён на callback) =====
     if (action.id === 'rest_dump') {
+        // Этот блок больше не используется, так как у rest_dump теперь есть callback
+        // Оставляем на случай, если где-то ещё вызывается
         await showActionTip('shown_rest', '🛌 Отдых на помойке восстанавливает здоровье и энергию.');
         
         const newHealth = Math.min(maxHealth, health + (action.effect?.health || 10));
         const newEnergy = Math.min(100, energy + (action.effect?.energy || 5));
-        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor (хотя здесь холод не меняется, но для единообразия)
         const newCold = cold;
         
         setStats(newHealth, hunger, newCold, money);
@@ -752,11 +960,9 @@ async function executeAction(locationId, action) {
     let actionLogMessage = '';
     let gainedExp = 0;
     
-    // ========== СОН ==========
-    if (action.id === 'sleep' || action.id === 'sleep_dorm' || action.id === 'sleep_apartment' || action.id === 'sleep_house') {
-        if (action.id === 'sleep') {
-            await showActionTip('shown_sleep', '🛌 Сон в ночлежке восстанавливает здоровье и энергию. Стоит 20₽.');
-        }
+    // ========== СОН В НОЧЛЕЖКЕ ==========
+    if (action.id === 'sleep') {
+        await showActionTip('shown_sleep', '🛌 Сон в ночлежке восстанавливает здоровье и энергию. Стоит 20₽.');
         
         if (action.cost && action.cost > 0) {
             if (money < action.cost) { 
@@ -782,36 +988,34 @@ async function executeAction(locationId, action) {
             msg += `Энергия +${add}. `;
         }
         
-        if (action.id === 'sleep') {
-            reduceIntoxication(30);
-            actionLogMessage += `🍺 Опьянение -30. `;
-            
-            const overlay = document.createElement('div');
-            overlay.id = 'sleepOverlay';
-            overlay.style.position = 'fixed';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100%';
-            overlay.style.height = '100%';
-            overlay.style.backgroundColor = 'black';
-            overlay.style.zIndex = '10002';
-            overlay.style.transition = 'opacity 0.5s ease';
+        reduceIntoxication(30);
+        actionLogMessage += `🍺 Опьянение -30. `;
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'sleepOverlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'black';
+        overlay.style.zIndex = '10002';
+        overlay.style.transition = 'opacity 0.5s ease';
+        overlay.style.opacity = '0';
+        document.body.appendChild(overlay);
+        
+        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        
+        setTimeout(async () => {
+            const { addGameHours } = await import('./timeWeather.js');
+            addGameHours(8);
+            updateUI();
+        }, 500);
+        
+        setTimeout(() => {
             overlay.style.opacity = '0';
-            document.body.appendChild(overlay);
-            
-            setTimeout(() => { overlay.style.opacity = '1'; }, 10);
-            
-            setTimeout(async () => {
-                const { addGameHours } = await import('./timeWeather.js');
-                addGameHours(8);
-                updateUI();
-            }, 500);
-            
-            setTimeout(() => {
-                overlay.style.opacity = '0';
-                setTimeout(() => overlay.remove(), 500);
-            }, 3500);
-        }
+            setTimeout(() => overlay.remove(), 500);
+        }, 3500);
         
         updateUI();
         await saveGameData();
@@ -851,7 +1055,6 @@ async function executeAction(locationId, action) {
                     newHealth = health + modifiedDamage;
                 }
                 let newHunger = hunger + (action.riskEffect.hunger || 0);
-                // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor для тепла
                 const newCold = applyColdWithFloor(cold);
                 setStats(Math.min(maxHealth, Math.max(0, newHealth)), Math.min(maxHunger, Math.max(0, newHunger)), newCold, Math.max(0, newMoney));
                 msg += `${action.riskEffect.health ? `Здоровье ${action.riskEffect.health>0?'+':''}${action.riskEffect.health}. ` : ''}${action.riskEffect.money ? `Деньги ${action.riskEffect.money>0?'+':''}${action.riskEffect.money}. ` : ''}`;
