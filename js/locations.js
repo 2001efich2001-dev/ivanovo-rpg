@@ -3,7 +3,7 @@ import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction, showTutorialTip } from './utils.js';
 import { createWeatherLayers, removeWeatherLayers, updateDarkness, updateWeatherEffects } from './weatherEffects.js';
-import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction, addIntoxication, reduceIntoxication, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
+import { addExperience, inventory, health, hunger, cold, money, maxHealth, maxHunger, maxCold, setStats, updateUI, hasEnoughEnergy, spendEnergy, energy, setEnergy, intoxication, getIntoxicationLuckModifier, getIntoxicationDamageModifier, canPerformAction, addIntoxication, reduceIntoxication, markTutorialShown, isTutorialShown, tutorialEnabled, coldFloor } from './gameState.js';
 import { updateAchievementStats } from './achievements.js';
 
 // Локальный вызов звука (через глобальную функцию из main.js)
@@ -32,7 +32,7 @@ const energyCosts = {
     rest_dump: 0,
     storage: 0,
     talk: 0,
-    zombie_shooter: 20  // 👈 ДОБАВЛЕНО
+    zombie_shooter: 20
 };
 
 // ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ КВЕСТОВ ==========
@@ -73,33 +73,39 @@ function applyIntoxicationToDamage(originalDamage, intoxicationLevel, isSuccess 
     return Math.floor(originalDamage * modifier);
 }
 
+// ========== ФУНКЦИЯ ДЛЯ ПРИМЕНЕНИЯ ТЕПЛА С ПОРОГОМ ==========
+function applyColdWithFloor(newColdValue) {
+    const floor = coldFloor || 0;
+    return Math.min(maxCold, Math.max(floor, newColdValue));
+}
+
 // База локаций с фонами, зонами и действиями
 export const locationsDB = {
-   railway: {
-    id: "railway",
-    name: "Вокзал",
-    description: "Шум, люди, поезда. Можно попросить подаяние или поискать забытые вещи. А ещё здесь работает таксист Олег.",
-    bgImage: "images/railway_bg.jpg",
-    npc: {
-        id: 'railway_taxi',
-        name: '🚕 Олег Таксист',
-        avatar: 'images/npc/taxi.png',
-        position: { x: 620, y: 840 },
-        width: 500,
-        height: 500,
-        actionId: 'talk_taxi'
+    railway: {
+        id: "railway",
+        name: "Вокзал",
+        description: "Шум, люди, поезда. Можно попросить подаяние или поискать забытые вещи. А ещё здесь работает таксист Олег.",
+        bgImage: "images/railway_bg.jpg",
+        npc: {
+            id: 'railway_taxi',
+            name: '🚕 Олег Таксист',
+            avatar: 'images/npc/taxi.png',
+            position: { x: 620, y: 840 },
+            width: 500,
+            height: 500,
+            actionId: 'talk_taxi'
+        },
+        zones: [
+            { id: "beg_zone", name: "Площадь у вокзала", description: "Попросить подаяние: получить 10-50₽ (риск 30%)", cx: 150, cy: 200, r: 50, actionId: "beg" },
+            { id: "search_zone", name: "Зал ожидания", description: "Поискать вещи: хлеб или вода (риск 20%)", cx: 400, cy: 180, r: 45, actionId: "search" },
+            { id: "taxi_zone", name: "🚕 Стоянка такси", description: "Поговорить с Олегом Таксистом", cx: 650, cy: 250, r: 50, actionId: "talk_taxi" }
+        ],
+        actions: [
+            { id: "beg", name: "Попросить подаяние", desc: "Риск: 30% получить отказ", effect: { money: [10, 50] }, risk: 30, riskEffect: { money: -10, health: -5 } },
+            { id: "search", name: "Поискать забытые вещи", desc: "Риск: 20% найти мусор", effect: { items: ["bread", "water"] }, risk: 20, riskEffect: { health: -10, hunger: -5 } },
+            { id: "talk_taxi", name: "🚕 Поговорить с Олегом", desc: "Поговорить с таксистом", effect: {}, cost: 0, risk: 0 }
+        ]
     },
-    zones: [
-        { id: "beg_zone", name: "Площадь у вокзала", description: "Попросить подаяние: получить 10-50₽ (риск 30%)", cx: 150, cy: 200, r: 50, actionId: "beg" },
-        { id: "search_zone", name: "Зал ожидания", description: "Поискать вещи: хлеб или вода (риск 20%)", cx: 400, cy: 180, r: 45, actionId: "search" },
-        { id: "taxi_zone", name: "🚕 Стоянка такси", description: "Поговорить с Олегом Таксистом", cx: 650, cy: 250, r: 50, actionId: "talk_taxi" }
-    ],
-    actions: [
-        { id: "beg", name: "Попросить подаяние", desc: "Риск: 30% получить отказ", effect: { money: [10, 50] }, risk: 30, riskEffect: { money: -10, health: -5 } },
-        { id: "search", name: "Поискать забытые вещи", desc: "Риск: 20% найти мусор", effect: { items: ["bread", "water"] }, risk: 20, riskEffect: { health: -10, hunger: -5 } },
-        { id: "talk_taxi", name: "🚕 Поговорить с Олегом", desc: "Поговорить с таксистом", effect: {}, cost: 0, risk: 0 }
-    ]
-},
     market: {
         id: "market",
         name: "Рынок",
@@ -488,26 +494,25 @@ async function executeAction(locationId, action) {
         await showActionTip('shown_zone_click', '🟢 Зелёные круги — места для действий. Нажми на них, чтобы сделать что-то.');
     }
     
-  
-// ===== РАЗГОВОР С NPC =====
-if (action.id === 'talk_hobo' || action.id === 'talk_taxi' || action.id.startsWith('talk_')) {
-    await showActionTip('shown_npc', '💬 Диалоги с NPC могут открыть новые квесты, магазины и информацию.');
-    try {
-        const { openNpcDialog } = await import('./npcSystemUI.js');
-        const loc = locationsDB[locationId];
-        if (loc && loc.npc) {
-            await openNpcDialog(loc.npc.id);
-            logAction(`В локации "${locationsDB[locationId]?.name}": разговор с NPC`, 'location');
-        } else {
-            showMessage('NPC не найден в этой локации', '#e74c3c');
+    // ===== РАЗГОВОР С NPC =====
+    if (action.id === 'talk_hobo' || action.id === 'talk_taxi' || action.id.startsWith('talk_')) {
+        await showActionTip('shown_npc', '💬 Диалоги с NPC могут открыть новые квесты, магазины и информацию.');
+        try {
+            const { openNpcDialog } = await import('./npcSystemUI.js');
+            const loc = locationsDB[locationId];
+            if (loc && loc.npc) {
+                await openNpcDialog(loc.npc.id);
+                logAction(`В локации "${locationsDB[locationId]?.name}": разговор с NPC`, 'location');
+            } else {
+                showMessage('NPC не найден в этой локации', '#e74c3c');
+            }
+        } catch (error) {
+            console.error('Ошибка открытия NPC:', error);
+            showMessage("❌ Ошибка диалога. Попробуйте позже.", "#e74c3c");
         }
-    } catch (error) {
-        console.error('Ошибка открытия NPC:', error);
-        showMessage("❌ Ошибка диалога. Попробуйте позже.", "#e74c3c");
+        document.getElementById('locationModal').style.display = 'none';
+        return;
     }
-    document.getElementById('locationModal').style.display = 'none';
-    return;
-}
     
     // ===== ОТКРЫТЬ ХРАНИЛИЩЕ =====
     if (action.id === 'storage_open' || action.id === 'garage_storage') {
@@ -539,32 +544,32 @@ if (action.id === 'talk_hobo' || action.id === 'talk_taxi' || action.id.startsWi
         return;
     }
 
-// ===== ОБЪЕДИНЯЛКА =====
-if (action.id === 'merge_game') {
-    await showActionTip('shown_merge_game', '🔄 Объединялка! Соединяй одинаковые бутылки, чтобы получать новые предметы и очки. Чем выше уровень — тем больше награда!');
-    
-    const energyCost = 15;
-    if (!hasEnoughEnergy(energyCost)) {
-        showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+    // ===== ОБЪЕДИНЯЛКА =====
+    if (action.id === 'merge_game') {
+        await showActionTip('shown_merge_game', '🔄 Объединялка! Соединяй одинаковые бутылки, чтобы получать новые предметы и очки. Чем выше уровень — тем больше награда!');
+        
+        const energyCost = 15;
+        if (!hasEnoughEnergy(energyCost)) {
+            showMessage(`❌ Не хватает энергии! Нужно ${energyCost}⚡`, '#e74c3c');
+            return;
+        }
+        
+        if (!canPerformAction(action.name)) {
+            return;
+        }
+        
+        try {
+            const { openMergeGame } = await import('./minigameMerge.js');
+            await openMergeGame();
+            logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - объединялка`, 'location');
+        } catch (error) {
+            console.error('Ошибка открытия объединялки:', error);
+            showMessage("❌ Ошибка запуска игры. Попробуйте позже.", "#e74c3c");
+        }
+        
+        document.getElementById('locationModal').style.display = 'none';
         return;
     }
-    
-    if (!canPerformAction(action.name)) {
-        return;
-    }
-    
-    try {
-        const { openMergeGame } = await import('./minigameMerge.js');
-        await openMergeGame();
-        logAction(`В локации "${locationsDB[locationId]?.name}": ${action.name} - объединялка`, 'location');
-    } catch (error) {
-        console.error('Ошибка открытия объединялки:', error);
-        showMessage("❌ Ошибка запуска игры. Попробуйте позже.", "#e74c3c");
-    }
-    
-    document.getElementById('locationModal').style.display = 'none';
-    return;
-}
     
     // ===== ДРОТИКИ =====
     if (action.id === 'darts') {
@@ -639,9 +644,12 @@ if (action.id === 'merge_game') {
     // ===== ОТДЫХ У РЕКИ =====
     if (action.id === 'relax') {
         await showActionTip('shown_relax', '🌿 Отдых у реки восстанавливает здоровье, голод и тепло.');
+        
         const newHealth = Math.min(maxHealth, health + 5);
         const newHunger = Math.min(maxHunger, hunger + 5);
-        const newCold = Math.min(maxCold, cold + 5);
+        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor
+        const newCold = applyColdWithFloor(cold + 5);
+        
         setStats(newHealth, newHunger, newCold, money);
         updateUI();
         await saveGameData();
@@ -654,9 +662,13 @@ if (action.id === 'merge_game') {
     // ===== ОТДЫХ НА ПОМОЙКЕ =====
     if (action.id === 'rest_dump') {
         await showActionTip('shown_rest', '🛌 Отдых на помойке восстанавливает здоровье и энергию.');
+        
         const newHealth = Math.min(maxHealth, health + (action.effect?.health || 10));
         const newEnergy = Math.min(100, energy + (action.effect?.energy || 5));
-        setStats(newHealth, hunger, cold, money);
+        // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor (хотя здесь холод не меняется, но для единообразия)
+        const newCold = cold;
+        
+        setStats(newHealth, hunger, newCold, money);
         setEnergy(newEnergy);
         updateUI();
         await saveGameData();
@@ -839,7 +851,9 @@ if (action.id === 'merge_game') {
                     newHealth = health + modifiedDamage;
                 }
                 let newHunger = hunger + (action.riskEffect.hunger || 0);
-                setStats(Math.min(maxHealth, Math.max(0, newHealth)), Math.min(maxHunger, Math.max(0, newHunger)), cold, Math.max(0, newMoney));
+                // 👇 ИСПОЛЬЗУЕМ applyColdWithFloor для тепла
+                const newCold = applyColdWithFloor(cold);
+                setStats(Math.min(maxHealth, Math.max(0, newHealth)), Math.min(maxHunger, Math.max(0, newHunger)), newCold, Math.max(0, newMoney));
                 msg += `${action.riskEffect.health ? `Здоровье ${action.riskEffect.health>0?'+':''}${action.riskEffect.health}. ` : ''}${action.riskEffect.money ? `Деньги ${action.riskEffect.money>0?'+':''}${action.riskEffect.money}. ` : ''}`;
                 actionLogMessage = `Неудача в действии "${action.name}"! ${msg}`;
                 
