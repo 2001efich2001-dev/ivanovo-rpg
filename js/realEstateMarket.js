@@ -238,11 +238,16 @@ export async function buyProperty(listingId, buyerId) {
                 money: finalSellerMoney,
                 lastUpdated: now 
             });
+            
+            // 👇 ИСПРАВЛЕНО: добавляем debt и lastTaxPaid
             transaction.update(propertyRef, {
                 ownerId: buyerId,
                 ownerName: user.displayName,
-                purchasedAt: now
+                purchasedAt: now,
+                debt: 0,
+                lastTaxPaid: now
             });
+            
             transaction.update(listingRef, {
                 status: 'sold',
                 soldAt: now,
@@ -252,7 +257,6 @@ export async function buyProperty(listingId, buyerId) {
         });
         
         console.log('✅ Транзакция покупки недвижимости успешна');
-        showMessage('Обмен успешно завершён!', '#4caf50');
         
         // ===== ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ UI ДЛЯ ПОКУПАТЕЛЯ =====
         const currentUser = window.auth?.currentUser;
@@ -271,6 +275,9 @@ export async function buyProperty(listingId, buyerId) {
             if (propertyId.startsWith('dorm')) gameState.updateStorageCapacity('dorm');
             else if (propertyId.startsWith('apartment')) gameState.updateStorageCapacity('apartment');
             else if (propertyId.startsWith('house')) gameState.updateStorageCapacity('house');
+            
+            // Обновляем currentHome покупателя
+            gameState.currentHome = propertyId;
             
             gameState.updateUI();
             
@@ -310,6 +317,11 @@ export async function buyProperty(listingId, buyerId) {
             // Удаляем недвижимость из ownedHomes продавца
             const index = gameState.ownedHomes.indexOf(propertyId);
             if (index !== -1) gameState.ownedHomes.splice(index, 1);
+            
+            // Если продавец продал своё текущее жильё — сбрасываем currentHome
+            if (gameState.currentHome === propertyId) {
+                gameState.currentHome = gameState.ownedHomes.length > 0 ? gameState.ownedHomes[0] : null;
+            }
             
             gameState.updateUI();
             
