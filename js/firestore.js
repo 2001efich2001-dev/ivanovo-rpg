@@ -181,20 +181,28 @@ export async function loadGameData(userId) {
             console.log('💡 Данные туториала не найдены, используются дефолтные значения');
         }
         
-        // 👇 НОВОЕ: загружаем роль и бан
-        const gameState = await import('./gameState.js');
-        if (data.role !== undefined) {
-            gameState.role = data.role;
-            console.log('👤 Загружена роль:', data.role);
-        } else {
-            gameState.role = 'user';
-        }
-        if (data.ban !== undefined) {
-            gameState.ban = data.ban;
-            console.log('🔒 Загружен бан:', data.ban);
-        } else {
-            gameState.ban = null;
-        }
+       // 👇 НОВОЕ: загружаем роль и бан (ЧЕРЕЗ ИМПОРТИРОВАННЫЕ ПЕРЕМЕННЫЕ)
+if (data.role !== undefined) {
+    // Импортируем gameState в начале файла или используем уже импортированный
+    const { role, ban } = await import('./gameState.js');
+    // Так как role и ban — это экспортированные переменные, мы можем их перезаписать через объект модуля
+    // Но проще всего использовать сеттеры или обновить через объект
+    const gameStateModule = await import('./gameState.js');
+    // Перезаписываем через Object.assign или напрямую через сеттеры
+    gameStateModule.role = data.role;
+    console.log('👤 Загружена роль:', data.role);
+} else {
+    const gameStateModule = await import('./gameState.js');
+    gameStateModule.role = 'user';
+}
+if (data.ban !== undefined) {
+    const gameStateModule = await import('./gameState.js');
+    gameStateModule.ban = data.ban;
+    console.log('🔒 Загружен бан:', data.ban);
+} else {
+    const gameStateModule = await import('./gameState.js');
+    gameStateModule.ban = null;
+}
         
         updateUI();
         console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication, role: gameState.role, ban: gameState.ban });
