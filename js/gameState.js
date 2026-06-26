@@ -121,6 +121,10 @@ export let tutorialFlags = {
     shown_merge_game: false,         // объеденялка
 };
 
+// ========== РОЛИ И БАН ==========
+export let role = 'user';               // 👈 НОВОЕ
+export let ban = null;                  // 👈 НОВОЕ
+
 export let healthValueSpan, hungerValueSpan, coldValueSpan, moneyValueSpan;
 export let healthFill, hungerFill, coldFill;
 export let levelValueSpan, expValueSpan, expRequiredSpan, expFill;
@@ -1337,15 +1341,15 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
         hunger = Math.min(maxHunger, Math.max(0, remoteData.hunger));
         updated = true;
     }
-   if (remoteData.cold !== undefined) {
-    // 👇 ПЕРЕСЧИТЫВАЕМ coldFloor, если он ещё не посчитан
-    if (coldFloor === 0) {
-        recalcColdFloor();
+    if (remoteData.cold !== undefined) {
+        // 👇 ПЕРЕСЧИТЫВАЕМ coldFloor, если он ещё не посчитан
+        if (coldFloor === 0) {
+            recalcColdFloor();
+        }
+        const floor = coldFloor || 0;
+        cold = Math.min(maxCold, Math.max(floor, remoteData.cold));
+        updated = true;
     }
-    const floor = coldFloor || 0;
-    cold = Math.min(maxCold, Math.max(floor, remoteData.cold));
-    updated = true;
-}
     if (remoteData.money !== undefined) {
         money = Math.max(0, remoteData.money);
         updated = true;
@@ -1394,6 +1398,17 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
         setTutorialData(remoteData.tutorial);
         updated = true;
     }
+    
+    // 👇 НОВОЕ: загружаем роль и бан
+    if (remoteData.role !== undefined) {
+        role = remoteData.role;
+        updated = true;
+    }
+    if (remoteData.ban !== undefined) {
+        ban = remoteData.ban;
+        updated = true;
+    }
+    
     if (remoteData.lastUpdated !== undefined) {
         lastUpdated = remoteData.lastUpdated;
         updated = true;
