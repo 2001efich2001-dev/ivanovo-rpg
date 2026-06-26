@@ -24,9 +24,23 @@ const db = getFirestore(app);
 
 async function saveUserNickOnRegister(userId, email, nick) {
     await setDoc(doc(db, 'users', userId), {
-        displayName: nick, userEmail: email, health:100, hunger:100, cold:100, money:200,
-        inventory: [{ id: "bread", count:2 },{ id: "vodka", count:1 },{ id: "cigarettes", count:1 },{ id: "medkit", count:1 },{ id: "ushanka", count:1 },{ id: "puhovik", count:1 }],
-        equipped: { head:null, body:null, legs:null, feet:null }
+        displayName: nick,
+        userEmail: email,
+        role: 'user',           // 👈 НОВОЕ
+        ban: null,              // 👈 НОВОЕ
+        health: 100,
+        hunger: 100,
+        cold: 100,
+        money: 200,
+        inventory: [
+            { id: "bread", count: 2 },
+            { id: "vodka", count: 1 },
+            { id: "cigarettes", count: 1 },
+            { id: "medkit", count: 1 },
+            { id: "ushanka", count: 1 },
+            { id: "puhovik", count: 1 }
+        ],
+        equipped: { head: null, body: null, legs: null, feet: null }
     }, { merge: true });
     if (auth.currentUser) await updateProfile(auth.currentUser, { displayName: nick });
 }
