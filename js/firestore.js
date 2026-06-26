@@ -181,27 +181,25 @@ export async function loadGameData(userId) {
             console.log('💡 Данные туториала не найдены, используются дефолтные значения');
         }
         
-        // 👇 НОВОЕ: загружаем роль и бан (БЕЗОПАСНО через Object.assign)
+        // 👇 НОВОЕ: загружаем роль и бан (через СЕТТЕРЫ из gameState.js)
         const gameStateModule = await import('./gameState.js');
         if (data.role !== undefined) {
-            Object.assign(gameStateModule, { role: data.role });
+            gameStateModule.setRole(data.role);
             console.log('👤 Загружена роль:', data.role);
         } else {
-            Object.assign(gameStateModule, { role: 'user' });
+            gameStateModule.setRole('user');
         }
         if (data.ban !== undefined) {
-            Object.assign(gameStateModule, { ban: data.ban });
+            gameStateModule.setBan(data.ban);
             console.log('🔒 Загружен бан:', data.ban);
         } else {
-            Object.assign(gameStateModule, { ban: null });
+            gameStateModule.setBan(null);
         }
         
         updateUI();
         console.log("Данные загружены", { 
             dailyBonusStreak: data.dailyBonusStreak, 
-            intoxication: data.intoxication,
-            role: gameStateModule.role,
-            ban: gameStateModule.ban 
+            intoxication: data.intoxication
         });
         
     } else {
@@ -245,8 +243,9 @@ export async function loadGameData(userId) {
         gameState.setIntoxication(0);
         gameState.lastEnergyUpdate = Date.now();
         gameState.lastIntoxicationUpdate = Date.now();
-        // 👇 НОВОЕ
-        Object.assign(gameState, { role: 'user', ban: null });
+        // 👇 НОВОЕ: через сеттеры
+        gameState.setRole('user');
+        gameState.setBan(null);
         await gameState.setCurrentLocation('church');
         
         const { setDailyBonusData } = await import('./dailyBonus.js');
