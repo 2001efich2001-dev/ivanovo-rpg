@@ -103,7 +103,9 @@ export async function saveGameData() {
         dailyBonusStreak: dailyBonusStreakVal,
         housing: housingData,
         titles: titlesData,
-        tutorial: tutorialData
+        tutorial: tutorialData,
+        role: gameState.role || 'user',     // 👈 НОВОЕ
+        ban: gameState.ban || null          // 👈 НОВОЕ
     };
     
     // 👇 ДОБАВЛЯЕМ АЧИВКИ ТОЛЬКО ЕСЛИ ОНИ НЕ UNDEFINED
@@ -112,7 +114,7 @@ export async function saveGameData() {
     }
     
     await setDoc(docRef, dataToSave, { merge: true });
-    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData, titles: titlesData, tutorial: tutorialData });
+    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData, titles: titlesData, tutorial: tutorialData, role: gameState.role, ban: gameState.ban });
 }
 
 export async function loadGameData(userId) {
@@ -179,8 +181,23 @@ export async function loadGameData(userId) {
             console.log('💡 Данные туториала не найдены, используются дефолтные значения');
         }
         
+        // 👇 НОВОЕ: загружаем роль и бан
+        const gameState = await import('./gameState.js');
+        if (data.role !== undefined) {
+            gameState.role = data.role;
+            console.log('👤 Загружена роль:', data.role);
+        } else {
+            gameState.role = 'user';
+        }
+        if (data.ban !== undefined) {
+            gameState.ban = data.ban;
+            console.log('🔒 Загружен бан:', data.ban);
+        } else {
+            gameState.ban = null;
+        }
+        
         updateUI();
-        console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication });
+        console.log("Данные загружены", { dailyBonusStreak: data.dailyBonusStreak, intoxication: data.intoxication, role: gameState.role, ban: gameState.ban });
         
     } else {
         // ===== ЗАЩИТА: ПОДТВЕРЖДЕНИЕ ПЕРЕД СОЗДАНИЕМ НОВОГО ИГРОКА =====
@@ -205,7 +222,7 @@ export async function loadGameData(userId) {
             return;
         }
         
-        // Создаём нового игрока
+        // Создаём нового игрока с role и ban
         gameState.setStats(100, 100, 100, 200);
         gameState.inventory.length = 0;
         gameState.inventory.push(
@@ -223,6 +240,8 @@ export async function loadGameData(userId) {
         gameState.setIntoxication(0);
         gameState.lastEnergyUpdate = Date.now();
         gameState.lastIntoxicationUpdate = Date.now();
+        gameState.role = 'user';     // 👈 НОВОЕ
+        gameState.ban = null;        // 👈 НОВОЕ
         await gameState.setCurrentLocation('church');
         
         const { setDailyBonusData } = await import('./dailyBonus.js');
