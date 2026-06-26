@@ -1399,13 +1399,13 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
         updated = true;
     }
     
-    // 👇 НОВОЕ: загружаем роль и бан
+    // 👇 НОВОЕ: загружаем роль и бан (через СЕТТЕРЫ)
     if (remoteData.role !== undefined) {
-        role = remoteData.role;
+        setRole(remoteData.role);
         updated = true;
     }
     if (remoteData.ban !== undefined) {
-        ban = remoteData.ban;
+        setBan(remoteData.ban);
         updated = true;
     }
     
@@ -1425,6 +1425,17 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
     }
     
     return updated;
+}
+
+// ========== ФУНКЦИИ ДЛЯ РОЛЕЙ И БАНА ==========
+export function setRole(newRole) {
+    role = newRole || 'user';
+    console.log('👤 Роль установлена:', role);
+}
+
+export function setBan(newBan) {
+    ban = newBan || null;
+    console.log('🔒 Бан установлен:', ban);
 }
 
 // ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ TRADE ==========
