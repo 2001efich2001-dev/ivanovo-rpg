@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Добавление поля ban всем игрокам</title>
+    <title>Добавление роли игрокам</title>
     <style>
         body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #4caf50; color: white; border: none; border-radius: 8px; }
@@ -38,18 +38,18 @@
     </style>
 </head>
 <body>
-    <h2>🔨 Добавление поля ban</h2>
-    <p>Скрипт добавит поле <code>ban: null</code> всем игрокам в коллекции <code>users</code>.</p>
+    <h2>👤 Добавление поля role игрокам</h2>
+    <p>Скрипт проверит всех игроков и добавит поле <code>role: 'user'</code> всем, у кого оно отсутствует.</p>
 
     <div style="margin: 15px 0;">
-        <button id="addBtn">🚀 Добавить поле ban</button>
+        <button id="addBtn">🚀 Добавить поле role</button>
         <button id="checkBtn" style="background: #2196f3; margin-left: 10px;">🔍 Проверить</button>
     </div>
 
     <div id="stats" class="stats" style="display: none;">
         <div>📊 Всего игроков: <span id="totalPlayers">0</span></div>
-        <div>✅ Уже есть ban: <span id="hasBan">0</span></div>
-        <div>🔧 Добавлено ban: <span id="addedBan">0</span></div>
+        <div>✅ Уже есть role: <span id="hasRole">0</span></div>
+        <div>🔧 Добавлено role: <span id="addedRole">0</span></div>
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill"></div>
         </div>
@@ -78,8 +78,8 @@
         const logDiv = document.getElementById('log');
         const statsDiv = document.getElementById('stats');
         const totalSpan = document.getElementById('totalPlayers');
-        const hasBanSpan = document.getElementById('hasBan');
-        const addedBanSpan = document.getElementById('addedBan');
+        const hasRoleSpan = document.getElementById('hasRole');
+        const addedRoleSpan = document.getElementById('addedRole');
         const progressFill = document.getElementById('progressFill');
 
         let isProcessing = false;
@@ -97,10 +97,10 @@
             progressFill.style.width = Math.min(100, percent) + '%';
         }
 
-        function updateStats(total, hasBan, addedBan) {
+        function updateStats(total, hasRole, addedRole) {
             totalSpan.textContent = total;
-            hasBanSpan.textContent = hasBan;
-            addedBanSpan.textContent = addedBan;
+            hasRoleSpan.textContent = hasRole;
+            addedRoleSpan.textContent = addedRole;
             statsDiv.style.display = 'block';
         }
 
@@ -128,7 +128,7 @@
                 }
 
                 addLog(`✅ Авторизован как: ${user.email}`, 'success');
-                addLog(`📦 ${shouldAdd ? '🔧 ДОБАВЛЕНИЕ' : '🔍 ПРОВЕРКА'} поля ban...`, 'info');
+                addLog(`📦 ${shouldAdd ? '🔧 ДОБАВЛЕНИЕ' : '🔍 ПРОВЕРКА'} поля role...`, 'info');
 
                 try {
                     const usersRef = collection(db, 'users');
@@ -143,8 +143,8 @@
                     }
 
                     const total = snapshot.size;
-                    let hasBan = 0;
-                    let addedBan = 0;
+                    let hasRole = 0;
+                    let addedRole = 0;
                     let processed = 0;
 
                     addLog(`📊 Найдено документов: ${total}`, 'info');
@@ -158,48 +158,48 @@
                         processed++;
                         updateProgress((processed / total) * 100);
 
-                        // Проверяем наличие поля ban
-                        if (data.ban !== undefined && data.ban !== null) {
-                            hasBan++;
-                            addLog(`✅ ${userId.slice(0, 10)}... уже есть ban: ${data.ban}`, 'success');
+                        // Проверяем наличие поля role
+                        if (data.role !== undefined && data.role !== null) {
+                            hasRole++;
+                            addLog(`✅ ${userId.slice(0, 10)}... уже есть role: ${data.role}`, 'success');
                         } else {
                             if (shouldAdd) {
                                 try {
-                                    await updateDoc(userRef, { ban: null });
-                                    addedBan++;
-                                    addLog(`🔧 ${userId.slice(0, 10)}... добавлено ban: null`, 'success');
+                                    await updateDoc(userRef, { role: 'user' });
+                                    addedRole++;
+                                    addLog(`🔧 ${userId.slice(0, 10)}... добавлено role: user`, 'success');
                                 } catch (err) {
                                     addLog(`❌ ${userId.slice(0, 10)}... ошибка: ${err.message}`, 'error');
                                 }
                             } else {
-                                addLog(`🔍 ${userId.slice(0, 10)}... требует добавления ban`, 'warning');
+                                addLog(`🔍 ${userId.slice(0, 10)}... требует добавления role`, 'warning');
                             }
                         }
 
                         // Обновляем статистику каждые 5 игроков
                         if (processed % 5 === 0) {
-                            updateStats(total, hasBan, addedBan);
+                            updateStats(total, hasRole, addedRole);
                         }
                     }
 
                     // Финальная статистика
-                    updateStats(total, hasBan, addedBan);
+                    updateStats(total, hasRole, addedRole);
 
                     addLog(`\n📊 ИТОГО:`, 'info');
                     addLog(`   ✅ Всего игроков: ${total}`, 'info');
-                    addLog(`   ✅ Уже есть ban: ${hasBan}`, 'success');
+                    addLog(`   ✅ Уже есть role: ${hasRole}`, 'success');
                     if (shouldAdd) {
-                        addLog(`   🔧 Добавлено ban: ${addedBan}`, 'success');
+                        addLog(`   🔧 Добавлено role: ${addedRole}`, 'success');
                     } else {
-                        addLog(`   ⚠️ Требуют добавления: ${total - hasBan}`, 'warning');
+                        addLog(`   ⚠️ Требуют добавления: ${total - hasRole}`, 'warning');
                     }
 
-                    if (shouldAdd && addedBan > 0) {
-                        addLog(`\n🎉 ГОТОВО! Добавлено поле ban ${addedBan} игрокам.`, 'success');
-                    } else if (!shouldAdd && total - hasBan > 0) {
-                        addLog(`\n🔧 Нажми "Добавить поле ban", чтобы добавить его всем игрокам.`, 'warning');
-                    } else if (shouldAdd && addedBan === 0) {
-                        addLog(`\n✅ Все игроки уже имеют поле ban!`, 'success');
+                    if (shouldAdd && addedRole > 0) {
+                        addLog(`\n🎉 ГОТОВО! Добавлено поле role ${addedRole} игрокам.`, 'success');
+                    } else if (!shouldAdd && total - hasRole > 0) {
+                        addLog(`\n🔧 Нажми "Добавить поле role", чтобы добавить его всем игрокам.`, 'warning');
+                    } else if (shouldAdd && addedRole === 0) {
+                        addLog(`\n✅ Все игроки уже имеют поле role!`, 'success');
                     }
 
                 } catch (error) {
@@ -219,7 +219,7 @@
         });
 
         document.getElementById('addBtn').addEventListener('click', async () => {
-            if (confirm('⚠️ ВНИМАНИЕ! Скрипт добавит поле ban: null всем игрокам, у которых оно отсутствует. Продолжить?')) {
+            if (confirm('⚠️ ВНИМАНИЕ! Скрипт добавит поле role: "user" всем игрокам, у которых оно отсутствует. Продолжить?')) {
                 await processPlayers(true);
             }
         });
