@@ -104,8 +104,8 @@ export async function saveGameData() {
         housing: housingData,
         titles: titlesData,
         tutorial: tutorialData,
-        role: gameState.role || 'user',     // 👈 НОВОЕ
-        ban: gameState.ban || null          // 👈 НОВОЕ
+        role: gameState.role || 'user',
+        ban: gameState.ban || null
     };
     
     // 👇 ДОБАВЛЯЕМ АЧИВКИ ТОЛЬКО ЕСЛИ ОНИ НЕ UNDEFINED
@@ -515,16 +515,22 @@ export async function acceptTradeOffer(offerId, userId) {
                     if (idx !== -1) fromInventory[idx].count += cnt;
                     else fromInventory.push({ id: item.id, count: cnt });
                 }
+                
+                // 👇 ИСПРАВЛЕНО: ОДНО ОБНОВЛЕНИЕ для недвижимости продавца
                 for (const homeId of fromHousingOffer) {
                     const idx = fromHousing.indexOf(homeId);
                     if (idx !== -1) fromHousing.splice(idx, 1);
                     const propertyRef = doc(db, 'real_estate', homeId);
                     transaction.update(propertyRef, {
-                        ownerId: null,
-                        ownerName: null,
-                        purchasedAt: null
+                        ownerId: offer.toUserId,
+                        ownerName: offer.toUserNick,
+                        purchasedAt: new Date().toISOString(),
+                        debt: 0,
+                        lastTaxPaid: new Date().toISOString()
                     });
                 }
+                
+                // Добавляем полученную недвижимость продавцу
                 for (const homeId of toHousingOffer) {
                     if (!fromHousing.includes(homeId)) {
                         fromHousing.push(homeId);
@@ -544,26 +550,18 @@ export async function acceptTradeOffer(offerId, userId) {
                     if (idx !== -1) toInventory[idx].count += cnt;
                     else toInventory.push({ id: item.id, count: cnt });
                 }
+                
+                // 👇 ИСПРАВЛЕНО: только удаляем недвижимость у покупателя
                 for (const homeId of toHousingOffer) {
                     const idx = toHousing.indexOf(homeId);
                     if (idx !== -1) toHousing.splice(idx, 1);
-                    const propertyRef = doc(db, 'real_estate', homeId);
-                    transaction.update(propertyRef, {
-                        ownerId: null,
-                        ownerName: null,
-                        purchasedAt: null
-                    });
+                    // НЕ обновляем real_estate здесь — владелец уже назначен выше
                 }
+                
                 let newToHousing = [...toHousing];
                 for (const homeId of fromHousingOffer) {
                     if (!newToHousing.includes(homeId)) {
                         newToHousing.push(homeId);
-                        const propertyRef = doc(db, 'real_estate', homeId);
-                        transaction.update(propertyRef, {
-                            ownerId: offer.toUserId,
-                            ownerName: offer.toUserNick,
-                            purchasedAt: new Date().toISOString()
-                        });
                     }
                 }
                 
@@ -582,7 +580,16 @@ export async function acceptTradeOffer(offerId, userId) {
                 }
                 
                 let toNewCurrent = toUserData?.housing?.current;
+                // Если покупатель передаёт своё текущее жильё — сбрасываем
+                if (toHousingOffer.includes(toNewCurrent)) {
+                    toNewCurrent = newToHousing.length > 0 ? newToHousing[0] : null;
+                }
                 let toNewCapacity = toUserData?.housing?.storageCapacity || 0;
+                if (toNewCurrent) {
+                    if (toNewCurrent.startsWith('dorm')) toNewCapacity = 10;
+                    else if (toNewCurrent.startsWith('apartment')) toNewCapacity = 20;
+                    else if (toNewCurrent.startsWith('house')) toNewCapacity = 40;
+                }
                 
                 finalFromInventory = fromInventory;
                 finalToInventory = toInventory;
