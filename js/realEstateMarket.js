@@ -266,18 +266,18 @@ export async function buyProperty(listingId, buyerId) {
             
             gameState.setStats(null, null, null, finalBuyerMoney);
             
-            // Добавляем недвижимость в ownedHomes
-            if (!gameState.ownedHomes.includes(propertyId)) {
-                gameState.ownedHomes.push(propertyId);
-            }
-            
-            // Обновляем вместимость хранилища
-            if (propertyId.startsWith('dorm')) gameState.updateStorageCapacity('dorm');
-            else if (propertyId.startsWith('apartment')) gameState.updateStorageCapacity('apartment');
-            else if (propertyId.startsWith('house')) gameState.updateStorageCapacity('house');
-            
-            // Обновляем currentHome покупателя
-            gameState.currentHome = propertyId;
+         // Добавляем недвижимость в ownedHomes
+if (!gameState.ownedHomes.includes(propertyId)) {
+    gameState.ownedHomes.push(propertyId);
+}
+
+// Обновляем вместимость хранилища
+if (propertyId.startsWith('dorm')) gameState.updateStorageCapacity('dorm');
+else if (propertyId.startsWith('apartment')) gameState.updateStorageCapacity('apartment');
+else if (propertyId.startsWith('house')) gameState.updateStorageCapacity('house');
+
+// 👇 ИСПРАВЛЕНО: используем setPrimaryHome вместо прямого присваивания
+await gameState.setPrimaryHome(propertyId);
             
             gameState.updateUI();
             
