@@ -54,24 +54,24 @@ export function renderInteractiveMap() {
     
     // Основные локации для перемещения (ВСЕ ЛОКАЦИИ)
     const zones = [
-        { id: "railway", name: "Вокзал", cx: 328, cy: 30, r: 10 },
+        { id: "railway", name: "Вокзал", cx: 308, cy: 20, r: 10 },
         { id: "market", name: "Рынок", cx: 271, cy: 277, r: 10 },
-        { id: "shelter", name: "Ночлежка", cx: 355, cy: 185, r: 10 },
-        { id: "dump", name: "Свалка", cx: 300, cy: 1, r: 10 },
+        { id: "shelter", name: "Ночлежка", cx: 345, cy: 175, r: 10 },
+        { id: "dump", name: "Свалка", cx: 300, cy: -30, r: 10 },
         { id: "church", name: "Церковь", cx: 304, cy: 243, r: 10 },
         { id: "bar", name: "Бар", cx: 331, cy: 215, r: 10 },
         { id: "fishing_spot", name: "🏞️ Река Уводь", cx: 340, cy: 145, r: 10 },
         // ===== НОВЫЕ ЛОКАЦИИ =====
         { id: "ploshchad", name: "🏛️ Площадь Революции", cx: 350, cy: 215, r: 10 },
         { id: "mall", name: "🏬 ТЦ «Золотой город»", cx: 370, cy: 120, r: 10 },
-        { id: "red_church", name: "⛪ Красная церковь", cx: 390, cy: 100, r: 10 },
-        { id: "sheremet", name: "🛣️ Шереметевский километр", cx: 410, cy: 120, r: 10 }
+        { id: "red_church", name: "⛪ Красная церковь", cx: 390, cy: 80, r: 10 },
+        { id: "sheremet", name: "🛣️ Шереметевский километр", cx: 410, cy: 140, r: 10 }
     ];
     
     // Точки для недвижимости
     const housingZones = [
-        { id: "housing_dorm", name: "Общага", cx: 211, cy: 185, r: 10, type: "dorm" },
-        { id: "housing_apartment", name: "ЖК Огни Москвы", cx: 305, cy: 185, r: 10, type: "apartment" },
+        { id: "housing_dorm", name: "Общага", cx: 150, cy: 185, r: 10, type: "dorm" },
+        { id: "housing_apartment", name: "ЖК Огни Москвы", cx: 290, cy: 175, r: 10, type: "apartment" },
         { id: "housing_house", name: "Минеево", cx: 240, cy: -40, r: 10, type: "house" }
     ];
     
