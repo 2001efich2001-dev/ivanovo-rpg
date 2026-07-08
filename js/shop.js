@@ -378,6 +378,14 @@ async function buyAvatar(avatarId, price) {
     showMessage(`✅ Аватар "${avatar.name}" куплен!`, '#4caf50');
     logAction(`Куплен аватар: ${avatar.name} за ${price}₽`, 'economy');
     
+    // 👇 ОБНОВЛЯЕМ ВКЛАДКУ АВАТАРОВ В ИНВЕНТАРЕ
+    try {
+        const { renderAvatarsTab } = await import('./inventory.js');
+        renderAvatarsTab();
+    } catch (e) {
+        console.warn('Не удалось обновить вкладку аватаров:', e);
+    }
+    
     // Обновляем магазин
     renderShopBuyTab();
     renderShopSellTab();
@@ -404,6 +412,14 @@ async function selectAvatar(avatarId) {
     await saveGameData();
     showMessage(`✅ Аватар "${avatar.name}" выбран!`, '#4caf50');
     logAction(`Выбран аватар: ${avatar.name}`, 'system');
+    
+    // 👇 ОБНОВЛЯЕМ ВКЛАДКУ АВАТАРОВ В ИНВЕНТАРЕ
+    try {
+        const { renderAvatarsTab } = await import('./inventory.js');
+        renderAvatarsTab();
+    } catch (e) {
+        console.warn('Не удалось обновить вкладку аватаров:', e);
+    }
     
     // Обновляем отображение аватара в игре
     updateAvatarDisplay();
