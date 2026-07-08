@@ -1,5 +1,5 @@
 // js/main.js
-import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining, currentTitle, ownedTitles, setCurrentTitle, tutorialEnabled, tutorialFlags, resetTutorialFlags, setTutorialEnabled, markTutorialShown, isTutorialShown } from './gameState.js';
+import { initDOM, updateUI, setLocationChangeCallback, currentLocation, actionLog, setLogUpdateCallback, setExpUpdateCallback, addExperience, updateEnergy, setEnergyUpdateCallback, updateFromFirestoreWithGuard, isTradeBlocked, getTradeBlockTimeRemaining, currentTitle, ownedTitles, setCurrentTitle, tutorialEnabled, tutorialFlags, resetTutorialFlags, setTutorialEnabled, markTutorialShown, isTutorialShown, currentAvatar, ownedAvatars } from './gameState.js';
 import { initAuth, auth } from './auth.js';
 import { renderItemsTab, renderEquipmentTab, recalcColdFromEquipment, itemsDB, initInventoryTabs, openTradeOfferModal, renderTitlesTab } from './inventory.js';
 import { renderInteractiveMap } from './map.js';
@@ -753,6 +753,7 @@ function setupRealTimeUpdates(userId) {
         if (updated) {
             localLastUpdated = newLastUpdated;
             updatePlayerTitle();
+            updateAvatarDisplay();
             
             try {
                 const { renderItemsTab, renderEquipmentTab, initInventoryTabs, renderHousingTab, renderTitlesTab } = await import('./inventory.js');
@@ -1123,6 +1124,24 @@ async function changeNickname(newNick) {
     }
 }
 
+// ========== ОБНОВЛЕНИЕ АВАТАРА ==========
+function updateAvatarDisplay() {
+    const avatarImg = document.getElementById('avatarGif');
+    if (!avatarImg) return;
+    
+    if (currentAvatar === 'default') {
+        avatarImg.src = 'images/hero2.png';
+        return;
+    }
+    
+    const avatar = itemsDB[currentAvatar];
+    if (avatar && avatar.image) {
+        avatarImg.src = avatar.image;
+    } else {
+        avatarImg.src = 'images/hero2.png';
+    }
+}
+
 // ========== ОТКРЫТИЕ МОДАЛЬНОГО ОКНА КВЕСТОВ ==========
 async function openQuestsModal() {
     playClick();
@@ -1402,6 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLogPanel();
         updateUI();
         updatePlayerTitle();
+        updateAvatarDisplay();
         initChat();
         
         // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
