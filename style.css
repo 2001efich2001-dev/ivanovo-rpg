@@ -2427,3 +2427,169 @@ body {
     align-items: center;
     gap: 4px;
 }
+
+/* ========== АВАТАРЫ ========== */
+.avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    padding: 8px;
+    width: 100%;
+}
+
+.avatar-slot {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 12px 8px;
+    text-align: center;
+    border: 2px solid var(--card-border);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.avatar-slot:hover {
+    transform: scale(1.03);
+    border-color: var(--accent-gold);
+}
+
+.avatar-slot.active {
+    border-color: #4caf50;
+    background: rgba(76, 175, 80, 0.15);
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.2);
+}
+
+.avatar-slot.owned {
+    opacity: 1;
+}
+
+.avatar-slot.locked {
+    opacity: 0.6;
+    filter: grayscale(0.5);
+}
+
+.avatar-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--card-border);
+    transition: all 0.3s ease;
+}
+
+.avatar-slot.active .avatar-image {
+    border-color: #4caf50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+}
+
+.avatar-name {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.avatar-active {
+    font-size: 0.7rem;
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.avatar-locked {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.avatar-select-btn {
+    background: #2196F3;
+    border: none;
+    padding: 4px 14px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: bold;
+    transition: 0.2s;
+    margin-top: 4px;
+}
+
+.avatar-select-btn:hover {
+    transform: scale(1.05);
+    background: #1976D2;
+}
+
+/* ========== АВАТАРЫ В МАГАЗИНЕ ========== */
+.inventory-slot.owned {
+    border-color: #4caf50;
+    background: rgba(76, 175, 80, 0.08);
+}
+
+.inventory-slot.active {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, 0.15);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+}
+
+.item-owned {
+    color: #4caf50;
+    font-weight: bold;
+    font-size: 0.7rem;
+}
+
+.buy-avatar-btn,
+.avatar-select-btn {
+    background: var(--buy-btn-bg);
+    border: none;
+    padding: 4px 14px;
+    border-radius: 40px;
+    color: white;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.buy-avatar-btn:hover,
+.avatar-select-btn:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+.buy-avatar-btn:disabled,
+.avatar-select-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ========== АДАПТИВ ДЛЯ АВАТАРОВ ========== */
+@media (max-width: 768px) {
+    .avatar-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+    
+    .avatar-image {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .avatar-name {
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .avatar-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    
+    .avatar-image {
+        width: 50px;
+        height: 50px;
+    }
+}
