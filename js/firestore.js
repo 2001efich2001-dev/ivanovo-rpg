@@ -105,7 +105,10 @@ export async function saveGameData() {
         titles: titlesData,
         tutorial: tutorialData,
         role: gameState.role || 'user',
-        ban: gameState.ban || null
+        ban: gameState.ban || null,
+        // 👇 НОВОЕ: аватары
+        currentAvatar: gameState.currentAvatar || 'default',
+        ownedAvatars: gameState.ownedAvatars || ['default']
     };
     
     // 👇 ДОБАВЛЯЕМ АЧИВКИ ТОЛЬКО ЕСЛИ ОНИ НЕ UNDEFINED
@@ -114,7 +117,16 @@ export async function saveGameData() {
     }
     
     await setDoc(docRef, dataToSave, { merge: true });
-    console.log("Данные сохранены", { achievements: achievementsData, housing: housingData, titles: titlesData, tutorial: tutorialData, role: gameState.role, ban: gameState.ban });
+    console.log("Данные сохранены", { 
+        achievements: achievementsData, 
+        housing: housingData, 
+        titles: titlesData, 
+        tutorial: tutorialData, 
+        role: gameState.role, 
+        ban: gameState.ban,
+        currentAvatar: gameState.currentAvatar,
+        ownedAvatars: gameState.ownedAvatars
+    });
 }
 
 export async function loadGameData(userId) {
@@ -196,10 +208,22 @@ export async function loadGameData(userId) {
             gameStateModule.setBan(null);
         }
         
+        // 👇 НОВОЕ: загружаем аватары
+        if (data.currentAvatar !== undefined) {
+            gameStateModule.setCurrentAvatar(data.currentAvatar);
+            console.log('🎭 Загружен аватар:', data.currentAvatar);
+        }
+        if (data.ownedAvatars !== undefined) {
+            gameStateModule.setOwnedAvatars(data.ownedAvatars);
+            console.log('🎭 Загружены аватары:', data.ownedAvatars);
+        }
+        
         updateUI();
         console.log("Данные загружены", { 
             dailyBonusStreak: data.dailyBonusStreak, 
-            intoxication: data.intoxication
+            intoxication: data.intoxication,
+            currentAvatar: data.currentAvatar,
+            ownedAvatars: data.ownedAvatars
         });
         
     } else {
@@ -246,6 +270,9 @@ export async function loadGameData(userId) {
         // 👇 НОВОЕ: через сеттеры
         gameState.setRole('user');
         gameState.setBan(null);
+        // 👇 НОВОЕ: аватары по умолчанию
+        gameState.setCurrentAvatar('default');
+        gameState.setOwnedAvatars(['default']);
         await gameState.setCurrentLocation('church');
         
         const { setDailyBonusData } = await import('./dailyBonus.js');
