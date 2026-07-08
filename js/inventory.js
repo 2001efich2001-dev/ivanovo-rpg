@@ -75,6 +75,13 @@ export const itemsDB = {
     plastic_bottle: { id: "plastic_bottle", name: "Пластиковая бутылка", type: "junk", icon: "🍾", image: "images/items/plastic_bottle.png", effect: {}, price: 0, slot: null, description: "Можно сдать на переработку? Нет, это просто мусор" },
     dirty_rag: { id: "dirty_rag", name: "Грязная тряпка", type: "junk", icon: "🧽", image: "images/items/dirty_rag.png", effect: {}, price: 0, slot: null, description: "Просто мусор... Можно выбросить" },
 
+
+    // аватары
+    avatar_elite: { id: 'avatar_elite', name: '👑 Элитный бомж', description: 'Ты не просто бомж, ты — элита!', price: 1000, type: 'avatar', image: 'images/avatars/elite.png' },
+avatar_ivanovo: { id: 'avatar_ivanovo', name: '🏙️ Простой ивановец', description: 'Обычный парень из Иваново.', price: 10000, type: 'avatar', image: 'images/avatars/ivanovo.png' },
+avatar_zoomer: { id: 'avatar_zoomer', name: '📱 Зуммер', description: 'Молодой, дерзкий, всегда в телефоне.', price: 100000, type: 'avatar', image: 'images/avatars/zoomer.png' },
+avatar_commerce: { id: 'avatar_commerce', name: '💼 Коммерс', description: 'Деловой человек с большими планами.', price: 1000000, type: 'avatar', image: 'images/avatars/commerce.png' },
+    
     bronze_box: { id: "bronze_box", name: "Бронзовый ящик", type: "lootbox", icon: "📦", image: "images/items/bronze_box.png", effect: {}, price: 1000, slot: null, description: "🎁 Бронзовый ящик. Шанс на легендарку: 5%" },
     silver_box: { id: "silver_box", name: "Серебряный ящик", type: "lootbox", icon: "🎁", image: "images/items/silver_box.png", effect: {}, price: 5000, slot: null, description: "🎁 Серебряный ящик. Шанс на легендарку: 15%" },
     gold_box: { id: "gold_box", name: "Золотой ящик", type: "lootbox", icon: "👑", image: "images/items/gold_box.png", effect: {}, price: 20000, slot: null, description: "👑 Золотой ящик. Шанс на легендарку: 30%" },
