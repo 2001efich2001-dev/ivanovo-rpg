@@ -67,6 +67,10 @@ export let lastUpdated = null;             // Время последнего о
 export let currentTitle = null;            // Текущий активный титул
 export let ownedTitles = [];               // Массив полученных титулов
 
+// ========== АВАТАРЫ ==========
+export let currentAvatar = 'default';      // Текущий активный аватар
+export let ownedAvatars = ['default'];     // Массив купленных аватаров
+
 // ========== ТУТОРИАЛ ==========
 export let tutorialEnabled = true;         // Глобальный выключатель подсказок
 export let tutorialFlags = {
@@ -1409,6 +1413,16 @@ export function updateFromFirestoreWithGuard(remoteData, force = false) {
         updated = true;
     }
     
+    // 👇 НОВОЕ: загружаем аватары
+    if (remoteData.currentAvatar !== undefined) {
+        setCurrentAvatar(remoteData.currentAvatar);
+        updated = true;
+    }
+    if (remoteData.ownedAvatars !== undefined) {
+        setOwnedAvatars(remoteData.ownedAvatars);
+        updated = true;
+    }
+    
     if (remoteData.lastUpdated !== undefined) {
         lastUpdated = remoteData.lastUpdated;
         updated = true;
@@ -1436,6 +1450,17 @@ export function setRole(newRole) {
 export function setBan(newBan) {
     ban = newBan || null;
     console.log('🔒 Бан установлен:', ban);
+}
+
+// ========== ФУНКЦИИ ДЛЯ АВАТАРОВ ==========
+export function setCurrentAvatar(avatarId) {
+    currentAvatar = avatarId || 'default';
+    console.log('🎭 Аватар установлен:', currentAvatar);
+}
+
+export function setOwnedAvatars(avatars) {
+    ownedAvatars = Array.isArray(avatars) ? avatars : ['default'];
+    console.log('🎭 Список аватаров обновлён:', ownedAvatars);
 }
 
 // ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ TRADE ==========
