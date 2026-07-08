@@ -1,5 +1,5 @@
 // js/shop.js
-import { money, inventory, health, hunger, cold, setStats, markTutorialShown, isTutorialShown, tutorialEnabled } from './gameState.js';
+import { money, inventory, health, hunger, cold, setStats, markTutorialShown, isTutorialShown, tutorialEnabled, ownedAvatars, currentAvatar, setCurrentAvatar, ownedTitles, currentTitle, setCurrentTitle } from './gameState.js';
 import { itemsDB } from './inventory.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction, showTutorialTip } from './utils.js';
@@ -50,6 +50,7 @@ function showTooltip(item, event) {
             ${item.effect?.hunger ? `<div>🍗 Голод: ${item.effect.hunger > 0 ? '+' : ''}${item.effect.hunger}</div>` : ''}
             ${item.effect?.health ? `<div>❤️ Здоровье: ${item.effect.health > 0 ? '+' : ''}${item.effect.health}</div>` : ''}
             ${item.effect?.cold ? `<div>🔥 Тепло: ${item.effect.cold > 0 ? '+' : ''}${item.effect.cold}</div>` : ''}
+            ${item.effect?.energy ? `<div>⚡ Энергия: ${item.effect.energy > 0 ? '+' : ''}${item.effect.energy}</div>` : ''}
             <div class="tooltip-divider"></div>
             <div>💰 Покупка: ${item.price}₽</div>
             <div>💸 Продажа: ${sellPrice}₽</div>
@@ -77,13 +78,15 @@ export function renderShopBuyTab() {
     const container = document.getElementById('shopBuyTab');
     if (!container) return;
     
-    const items = Object.values(itemsDB).filter(item => item.price > 0);
-    const itemsPerPage = 20;
-    
     // Обновляем отображение денег
     updateShopMoneyDisplay();
     
     let html = '<div class="inventory-grid">';
+    
+    // ===== ОБЫЧНЫЕ ПРЕДМЕТЫ (не аватары) =====
+    const items = Object.values(itemsDB).filter(item => 
+        item.price > 0 && item.type !== 'avatar'
+    );
     
     for (const item of items) {
         html += `
@@ -99,8 +102,34 @@ export function renderShopBuyTab() {
         `;
     }
     
+    // ===== АВАТАРЫ =====
+    const avatars = Object.values(itemsDB).filter(item => 
+        item.type === 'avatar'
+    );
+    
+    for (const avatar of avatars) {
+        const isOwned = ownedAvatars && ownedAvatars.includes(avatar.id);
+        const isActive = currentAvatar === avatar.id;
+        
+        html += `
+            <div class="inventory-slot ${isOwned ? 'owned' : ''} ${isActive ? 'active' : ''}" data-id="${avatar.id}" data-name="${avatar.name}">
+                <img src="${avatar.image}" alt="${avatar.name}" class="item-image" loading="lazy" 
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${avatar.icon}%3C/text%3E%3C/svg%3E'">
+                <span class="item-name">${avatar.name}</span>
+                ${isActive ? '<span class="item-owned">✅ Активен</span>' : (isOwned ? '<span class="item-owned">✅ Куплен</span>' : `<span class="item-price">${avatar.price}₽</span>`)}
+                <div class="item-actions">
+                    ${isOwned && !isActive ? `<button class="avatar-select-btn shop-action-btn" data-id="${avatar.id}" style="background: #2196F3;">Выбрать</button>` : ''}
+                    ${!isOwned ? `<button class="buy-avatar-btn shop-action-btn" data-id="${avatar.id}" data-price="${avatar.price}">Купить</button>` : ''}
+                    ${isActive ? `<button class="shop-action-btn" disabled style="opacity:0.5; background:#4caf50;">✅ Активен</button>` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
     // Заполняем пустые ячейки до 20 (5x4)
-    const remainingSlots = itemsPerPage - (items.length % itemsPerPage);
+    const totalItems = items.length + avatars.length;
+    const itemsPerPage = 20;
+    const remainingSlots = itemsPerPage - (totalItems % itemsPerPage);
     if (remainingSlots < itemsPerPage) {
         for (let i = 0; i < remainingSlots; i++) {
             html += `<div class="inventory-slot empty-slot">🔲</div>`;
@@ -110,7 +139,8 @@ export function renderShopBuyTab() {
     html += '</div>';
     container.innerHTML = html;
     
-    // Добавляем обработчики для кнопок покупки
+    // ===== ОБРАБОТЧИКИ =====
+    // Обычные предметы
     document.querySelectorAll('.buy-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             e.stopPropagation();
@@ -119,10 +149,30 @@ export function renderShopBuyTab() {
         });
     });
     
-    // Добавляем тултипы
+    // Покупка аватара
+    document.querySelectorAll('.buy-avatar-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const itemId = btn.dataset.id;
+            const price = parseInt(btn.dataset.price);
+            await buyAvatar(itemId, price);
+        });
+    });
+    
+    // Выбор аватара
+    document.querySelectorAll('.avatar-select-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const itemId = btn.dataset.id;
+            await selectAvatar(itemId);
+        });
+    });
+    
+    // Добавляем тултипы для обычных предметов (не для аватаров)
     document.querySelectorAll('.inventory-slot:not(.empty-slot)').forEach(slot => {
         const itemId = slot.dataset.id;
         const item = itemsDB[itemId];
+        if (!item || item.type === 'avatar') return;
         
         slot.addEventListener('mouseenter', (e) => {
             if (item) showTooltip(item, e);
@@ -149,7 +199,7 @@ export function renderShopSellTab() {
     
     const sellable = inventory.filter(item => {
         const dbItem = itemsDB[item.id];
-        return dbItem && dbItem.price > 0;
+        return dbItem && dbItem.price > 0 && dbItem.type !== 'avatar';
     });
     
     const itemsPerPage = 20;
@@ -289,4 +339,98 @@ async function sellItem(itemId) {
     renderShopBuyTab();
     renderShopSellTab();
     updateShopMoneyDisplay();
+}
+
+// ===== НОВЫЕ ФУНКЦИИ ДЛЯ АВАТАРОВ =====
+
+// Покупка аватара
+async function buyAvatar(avatarId, price) {
+    const avatar = itemsDB[avatarId];
+    if (!avatar || avatar.type !== 'avatar') return;
+    
+    // Проверяем, не куплен ли уже
+    if (ownedAvatars && ownedAvatars.includes(avatarId)) {
+        showMessage(`❌ Аватар "${avatar.name}" уже куплен!`, '#e74c3c');
+        return;
+    }
+    
+    if (money < price) {
+        showMessage(`❌ Не хватает денег! Нужно ${price}₽`, '#e74c3c');
+        return;
+    }
+    
+    // Списываем деньги
+    const newMoney = money - price;
+    setStats(health, hunger, cold, newMoney);
+    
+    // Добавляем в ownedAvatars
+    if (!ownedAvatars) {
+        ownedAvatars = ['default'];
+    }
+    ownedAvatars.push(avatarId);
+    
+    // Если это первый купленный аватар (кроме default) — делаем его активным
+    if (ownedAvatars.length === 2) {
+        await setCurrentAvatar(avatarId);
+    }
+    
+    await saveGameData();
+    showMessage(`✅ Аватар "${avatar.name}" куплен!`, '#4caf50');
+    logAction(`Куплен аватар: ${avatar.name} за ${price}₽`, 'economy');
+    
+    // Обновляем магазин
+    renderShopBuyTab();
+    renderShopSellTab();
+    updateShopMoneyDisplay();
+}
+
+// Выбор аватара
+async function selectAvatar(avatarId) {
+    const avatar = itemsDB[avatarId];
+    if (!avatar || avatar.type !== 'avatar') return;
+    
+    // Проверяем, куплен ли
+    if (!ownedAvatars || !ownedAvatars.includes(avatarId)) {
+        showMessage(`❌ Аватар "${avatar.name}" не куплен! Сначала купите его в магазине.`, '#e74c3c');
+        return;
+    }
+    
+    if (currentAvatar === avatarId) {
+        showMessage(`✅ Аватар "${avatar.name}" уже активен!`, '#ffd966');
+        return;
+    }
+    
+    await setCurrentAvatar(avatarId);
+    await saveGameData();
+    showMessage(`✅ Аватар "${avatar.name}" выбран!`, '#4caf50');
+    logAction(`Выбран аватар: ${avatar.name}`, 'system');
+    
+    // Обновляем отображение аватара в игре
+    updateAvatarDisplay();
+    
+    // Обновляем магазин
+    renderShopBuyTab();
+}
+
+// Обновление отображения аватара в игре
+function updateAvatarDisplay() {
+    const avatarImg = document.getElementById('avatarGif');
+    if (!avatarImg) return;
+    
+    if (currentAvatar === 'default') {
+        avatarImg.src = 'images/hero2.png';
+        return;
+    }
+    
+    const avatar = itemsDB[currentAvatar];
+    if (avatar && avatar.image) {
+        avatarImg.src = avatar.image;
+    } else {
+        avatarImg.src = 'images/hero2.png';
+    }
+}
+
+// Экспортируем функцию для использования в main.js
+export function initAvatarDisplay() {
+    updateAvatarDisplay();
 }
