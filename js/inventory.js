@@ -1,5 +1,5 @@
 // js/inventory.js
-import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle, markTutorialShown, isTutorialShown, tutorialEnabled, recalcColdFloor } from './gameState.js';
+import { inventory, equipped, health, hunger, cold, money, maxHealth, maxHunger, maxCold, updateUI, setStats, addIntoxication, reduceIntoxication, intoxication, currentHome, ownedHomes, setPrimaryHome, housingAccount, housingDailyCost, housingDebt, depositToHousingAccount, withdrawFromHousingAccount, loadOwnedHomesFromRealEstate, energy, maxEnergy, setEnergy, homeStorage, homeStorageCapacity, addToHomeStorage, removeFromHomeStorage, setCurrentTitle, markTutorialShown, isTutorialShown, tutorialEnabled, recalcColdFloor, currentAvatar, ownedAvatars, setCurrentAvatar } from './gameState.js';
 import { saveGameData } from './firestore.js';
 import { showMessage, logAction, showTutorialTip } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
@@ -1523,8 +1523,9 @@ export function initInventoryTabs() {
     const achievementsTab = document.getElementById('achievementsTab');
     const housingTab = document.getElementById('housingTab');
     const titlesTab = document.getElementById('titlesTab');
+    const avatarsTab = document.getElementById('avatarsTab');
     
-    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab || !housingTab || !titlesTab) return;
+    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab || !housingTab || !titlesTab || !avatarsTab) return;
     
     tabs.forEach(tab => { tab.removeEventListener('click', tab._listener); });
     
@@ -1538,6 +1539,7 @@ export function initInventoryTabs() {
         achievementsTab.style.display = 'none';
         housingTab.style.display = 'none';
         titlesTab.style.display = 'none';
+        avatarsTab.style.display = 'none';
         
         if (tab.dataset.tab === 'items') {
             itemsTab.style.display = 'flex';
@@ -1554,6 +1556,9 @@ export function initInventoryTabs() {
         } else if (tab.dataset.tab === 'titles') {
             titlesTab.style.display = 'flex';
             renderTitlesTab();
+        } else if (tab.dataset.tab === 'avatars') {
+            avatarsTab.style.display = 'flex';
+            renderAvatarsTab();
         }
     };
     
@@ -1774,6 +1779,122 @@ async function moveToInventory(itemId) {
     
     showMessage(`🎒 ${itemData.name} ×${item.count} перемещён в инвентарь`, "#4caf50");
     logAction(`Перемещён предмет из хранилища: ${itemData.name} ×${item.count}`, 'item');
+}
+
+// ========== ВКЛАДКА АВАТАРОВ ==========
+export function renderAvatarsTab() {
+    const container = document.getElementById('avatarsTab');
+    if (!container) return;
+    
+    const owned = ownedAvatars || ['default'];
+    const current = currentAvatar || 'default';
+    
+    // Все доступные аватары из itemsDB
+    const allAvatars = Object.values(itemsDB).filter(item => item.type === 'avatar');
+    
+    if (owned.length === 1 && owned[0] === 'default') {
+        container.innerHTML = '<div class="empty-inventory">🎭 У вас пока нет аватаров. Купите их в магазине!</div>';
+        return;
+    }
+    
+    let html = '<div class="avatar-grid">';
+    
+    // Сначала показываем стандартный аватар (всегда есть)
+    const isDefaultActive = current === 'default';
+    
+    html += `
+        <div class="avatar-slot owned ${isDefaultActive ? 'active' : ''}" data-id="default">
+            <img src="images/hero2.png" alt="Стандартный" class="avatar-image"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E🧑%3C/text%3E%3C/svg%3E'">
+            <div class="avatar-name">🧑 Стандартный</div>
+            ${isDefaultActive ? '<div class="avatar-active">✅ Активен</div>' : `<button class="avatar-select-btn" data-id="default">Выбрать</button>`}
+        </div>
+    `;
+    
+    // Затем показываем купленные аватары
+    for (const avatarId of owned) {
+        if (avatarId === 'default') continue;
+        
+        const avatar = itemsDB[avatarId];
+        if (!avatar) continue;
+        
+        const isActive = current === avatarId;
+        
+        html += `
+            <div class="avatar-slot owned ${isActive ? 'active' : ''}" data-id="${avatarId}">
+                <img src="${avatar.image}" alt="${avatar.name}" class="avatar-image"
+                     onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Ctext x=%2232%22 y=%2232%22 text-anchor=%22middle%22 dy=%22.35em%22 font-size=%2230%22%3E${avatar.icon}%3C/text%3E%3C/svg%3E'">
+                <div class="avatar-name">${avatar.name}</div>
+                ${isActive ? '<div class="avatar-active">✅ Активен</div>' : `<button class="avatar-select-btn" data-id="${avatarId}">Выбрать</button>`}
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    container.innerHTML = html;
+    
+    // Обработчики для кнопок "Выбрать"
+    container.querySelectorAll('.avatar-select-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            await selectAvatar(id);
+        });
+    });
+}
+
+// ========== ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ ВЫБОРА АВАТАРА ==========
+async function selectAvatar(avatarId) {
+    const gameState = await import('./gameState.js');
+    const { saveGameData } = await import('./firestore.js');
+    const { showMessage } = await import('./utils.js');
+    
+    // Если выбираем стандартный аватар
+    if (avatarId === 'default') {
+        gameState.setCurrentAvatar('default');
+        await saveGameData();
+        showMessage('🎭 Выбран стандартный аватар!', '#4caf50');
+        renderAvatarsTab();
+        // Обновляем отображение в игре
+        updateAvatarDisplayGlobal();
+        return;
+    }
+    
+    // Проверяем, куплен ли аватар
+    if (!gameState.ownedAvatars || !gameState.ownedAvatars.includes(avatarId)) {
+        showMessage('❌ Аватар не куплен! Сначала купите его в магазине.', '#e74c3c');
+        return;
+    }
+    
+    if (gameState.currentAvatar === avatarId) {
+        showMessage('✅ Этот аватар уже активен!', '#ffd966');
+        return;
+    }
+    
+    gameState.setCurrentAvatar(avatarId);
+    await saveGameData();
+    showMessage(`🎭 Аватар выбран!`, '#4caf50');
+    renderAvatarsTab();
+    updateAvatarDisplayGlobal();
+}
+
+// ========== ОБНОВЛЕНИЕ ОТОБРАЖЕНИЯ АВАТАРА В ИГРЕ ==========
+function updateAvatarDisplayGlobal() {
+    const avatarImg = document.getElementById('avatarGif');
+    if (!avatarImg) return;
+    
+    const current = currentAvatar || 'default';
+    
+    if (current === 'default') {
+        avatarImg.src = 'images/hero2.png';
+        return;
+    }
+    
+    const avatar = itemsDB[current];
+    if (avatar && avatar.image) {
+        avatarImg.src = avatar.image;
+    } else {
+        avatarImg.src = 'images/hero2.png';
+    }
 }
 
 // Функция escapeHtml для безопасности
