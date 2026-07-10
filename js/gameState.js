@@ -755,10 +755,15 @@ export function updateHousingDailyCost(homeId = currentHome) {
     return housingDailyCost;
 }
 
-// ===== ПОПОЛНЕНИЕ СЧЁТА =====
+// ===== ПОПОЛНЕНИЕ СЧЁТА (ОБНОВЛЕНО — РАБОТАЕТ ЧЕРЕЗ real_estate) =====
 export async function depositToHousingAccount(amount) {
     if (isNaN(amount) || amount <= 0) {
         showMessage(`❌ Введите корректную сумму`, '#e74c3c');
+        return false;
+    }
+    
+    if (!currentHome) {
+        showMessage(`❌ У вас нет активного жилья`, '#e74c3c');
         return false;
     }
     
@@ -767,54 +772,132 @@ export async function depositToHousingAccount(amount) {
         return false;
     }
     
-    const newAccount = Math.min(20000, housingAccount + amount);
-    const actualDeposit = newAccount - housingAccount;
+    const { db } = await import('./firestore.js');
+    const { doc, updateDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
     
-    if (actualDeposit <= 0) {
-        showMessage(`❌ Счёт уже достиг максимума (20000₽)`, '#ffd966');
+    try {
+        // 1. Загружаем текущие данные из real_estate
+        const propertyRef = doc(db, 'real_estate', currentHome);
+        const propertySnap = await getDoc(propertyRef);
+        
+        if (!propertySnap.exists()) {
+            showMessage(`❌ Объект недвижимости не найден`, '#e74c3c');
+            return false;
+        }
+        
+        const propertyData = propertySnap.data();
+        const currentAccount = propertyData.account ?? 20000;
+        const currentDebt = propertyData.debt || 0;
+        
+        // 2. Проверяем лимит
+        const maxAccount = 20000;
+        if (currentAccount >= maxAccount) {
+            showMessage(`❌ Счёт уже достиг максимума (${maxAccount}₽)`, '#ffd966');
+            return false;
+        }
+        
+        const maxDeposit = maxAccount - currentAccount;
+        const actualDeposit = Math.min(amount, maxDeposit);
+        
+        if (actualDeposit <= 0) {
+            showMessage(`❌ Счёт уже достиг максимума (${maxAccount}₽)`, '#ffd966');
+            return false;
+        }
+        
+        if (actualDeposit < amount) {
+            showMessage(`⚠️ Счёт не может превысить ${maxAccount}₽. Зачислено ${actualDeposit}₽ из ${amount}₽`, '#ffd966');
+        }
+        
+        // 3. Списываем деньги у игрока и обновляем real_estate
+        const newMoney = money - actualDeposit;
+        setStats(health, hunger, cold, newMoney);
+        
+        const newAccount = currentAccount + actualDeposit;
+        const newDebt = currentDebt > 0 ? Math.max(0, currentDebt - actualDeposit) : 0;
+        
+        await updateDoc(propertyRef, {
+            account: newAccount,
+            debt: newDebt,
+            lastTaxPaid: new Date().toISOString()
+        });
+        
+        // 4. Обновляем локальные переменные (для совместимости)
+        housingAccount = newAccount;
+        housingDebt = newDebt;
+        
+        updateUI();
+        await saveGameData();
+        
+        showMessage(`💰 Счёт пополнен на ${actualDeposit}₽. Баланс: ${newAccount}₽${newDebt > 0 ? `, долг: ${newDebt}₽` : ''}`, '#4caf50');
+        addLogEntry(`🏠 Пополнение счёта жилья на ${actualDeposit}₽`, 'economy');
+        
+        return true;
+    } catch (error) {
+        console.error('Ошибка пополнения счёта:', error);
+        showMessage(`❌ Ошибка: ${error.message}`, '#e74c3c');
         return false;
     }
-    
-    setStats(health, hunger, cold, money - actualDeposit);
-    housingAccount = newAccount;
-    
-    if (housingDebt > 0) {
-        housingDebt = 0;
-        addLogEntry(`💰 Долг по жилью погашен!`, 'economy');
-    }
-    
-    updateUI();
-    await saveGameData();
-    
-    showMessage(`💰 Счёт пополнен на ${actualDeposit}₽. Баланс: ${housingAccount}₽`, '#4caf50');
-    addLogEntry(`🏠 Пополнение счёта жилья на ${actualDeposit}₽`, 'economy');
-    
-    return true;
 }
 
-// ===== СНЯТИЕ СО СЧЁТА =====
+// ===== СНЯТИЕ СО СЧЁТА (ОБНОВЛЕНО — РАБОТАЕТ ЧЕРЕЗ real_estate) =====
 export async function withdrawFromHousingAccount(amount) {
     if (isNaN(amount) || amount <= 0) {
         showMessage(`❌ Введите корректную сумму`, '#e74c3c');
         return false;
     }
     
-    if (housingAccount < amount) {
-        showMessage(`❌ Недостаточно средств на счету жилья! Доступно: ${housingAccount}₽`, '#e74c3c');
+    if (!currentHome) {
+        showMessage(`❌ У вас нет активного жилья`, '#e74c3c');
         return false;
     }
     
-    const newMoney = money + amount;
-    setStats(health, hunger, cold, newMoney);
-    housingAccount -= amount;
+    const { db } = await import('./firestore.js');
+    const { doc, updateDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
     
-    updateUI();
-    await saveGameData();
-    
-    showMessage(`💸 Со счёта жилья снято ${amount}₽. Ваши деньги: ${newMoney}₽`, '#4caf50');
-    addLogEntry(`🏠 Снятие со счёта жилья: ${amount}₽`, 'economy');
-    
-    return true;
+    try {
+        // 1. Загружаем текущие данные из real_estate
+        const propertyRef = doc(db, 'real_estate', currentHome);
+        const propertySnap = await getDoc(propertyRef);
+        
+        if (!propertySnap.exists()) {
+            showMessage(`❌ Объект недвижимости не найден`, '#e74c3c');
+            return false;
+        }
+        
+        const propertyData = propertySnap.data();
+        const currentAccount = propertyData.account ?? 20000;
+        
+        // 2. Проверяем, есть ли что снимать
+        if (currentAccount < amount) {
+            showMessage(`❌ Недостаточно средств на счету! Доступно: ${currentAccount}₽`, '#e74c3c');
+            return false;
+        }
+        
+        // 3. Снимаем деньги и обновляем real_estate
+        const newAccount = currentAccount - amount;
+        const newMoney = money + amount;
+        setStats(health, hunger, cold, newMoney);
+        
+        await updateDoc(propertyRef, {
+            account: newAccount,
+            lastTaxPaid: new Date().toISOString()
+        });
+        
+        // 4. Обновляем локальные переменные (для совместимости)
+        housingAccount = newAccount;
+        
+        updateUI();
+        await saveGameData();
+        
+        showMessage(`💸 Со счёта жилья снято ${amount}₽. Ваши деньги: ${newMoney}₽. Баланс: ${newAccount}₽`, '#4caf50');
+        addLogEntry(`🏠 Снятие со счёта жилья: ${amount}₽`, 'economy');
+        
+        return true;
+    } catch (error) {
+        console.error('Ошибка снятия со счёта:', error);
+        showMessage(`❌ Ошибка: ${error.message}`, '#e74c3c');
+        return false;
+    }
 }
 
 // ===== ЕЖЕДНЕВНАЯ ПРОВЕРКА СПИСАНИЯ =====
@@ -868,7 +951,7 @@ export async function checkHousingPayment() {
     return { success: !isEvicted, debt: housingDebt, account: housingAccount };
 }
 
-// ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ (НОВАЯ ВЕРСИЯ) =====
+// ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ =====
 export async function checkAllHousingPayments() {
     const { db } = await import('./firestore.js');
     const { collection, getDocs, doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
@@ -896,7 +979,7 @@ export async function checkAllHousingPayments() {
             
             const dailyTax = propertyData.dailyTax || 0;
             const lastTaxPaid = propertyData.lastTaxPaid;
-            let account = propertyData.account ?? 20000; // если нет счёта — создаём с 20000₽
+            let account = propertyData.account ?? 20000;
             let debt = propertyData.debt || 0;
             
             // Считаем пропущенные дни
