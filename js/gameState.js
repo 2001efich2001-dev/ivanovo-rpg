@@ -868,7 +868,7 @@ export async function checkHousingPayment() {
     return { success: !isEvicted, debt: housingDebt, account: housingAccount };
 }
 
-// ===== ГЛОБАЛЬНАЯ ПРОВЕРКА ВСЕХ ВЛАДЕЛЬЦЕВ (ИСПРАВЛЕНА) =====
+// ===== ГЛОБАЛЬНАЯ ПРОВЕРКА НЕДВИЖИМОСТИ (НОВАЯ ВЕРСИЯ) =====
 export async function checkAllHousingPayments() {
     const { db } = await import('./firestore.js');
     const { collection, getDocs, doc, updateDoc, deleteField } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
@@ -876,55 +876,45 @@ export async function checkAllHousingPayments() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Проверяем, была ли уже проверка сегодня (чтобы не запускать несколько раз)
-    if (lastGlobalHousingCheck) {
-        const lastCheck = new Date(lastGlobalHousingCheck);
-        lastCheck.setHours(0, 0, 0, 0);
-        if (lastCheck.getTime() === today.getTime()) {
-            console.log('🏠 Глобальная проверка уже проводилась сегодня');
-            return;
-        }
-    }
+    console.log('🏠 ========== ЗАПУСК ПРОВЕРКИ НЕДВИЖИМОСТИ ==========');
     
-    console.log('🏠 ========== ЗАПУСК ГЛОБАЛЬНОЙ ПРОВЕРКИ НЕДВИЖИМОСТИ ==========');
-    
-    const usersSnapshot = await getDocs(collection(db, 'users'));
+    // 1. Получаем всю недвижимость
+    const estateSnapshot = await getDocs(collection(db, 'real_estate'));
     let processed = 0;
     let evicted = 0;
     let totalDebt = 0;
     let errors = 0;
     
-    for (const userDoc of usersSnapshot.docs) {
+    for (const propertyDoc of estateSnapshot.docs) {
         try {
-            const userData = userDoc.data();
-            const housing = userData.housing || {};
-            const ownedHomesList = housing.owned || [];
+            const propertyData = propertyDoc.data();
+            const propertyId = propertyDoc.id;
+            const ownerId = propertyData.ownerId;
             
-            if (ownedHomesList.length === 0) continue;
+            // Пропускаем свободные объекты
+            if (!ownerId) continue;
             
-            const currentHomeId = housing.current;
-            const account = housing.account ?? 20000;
-            const debt = housing.debt || 0;
-            const lastCheckRaw = housing.lastHousingCheck;
-            const dailyCost = getDailyCostById(currentHomeId);
+            const dailyTax = propertyData.dailyTax || 0;
+            const lastTaxPaid = propertyData.lastTaxPaid;
+            let account = propertyData.account ?? 20000; // если нет счёта — создаём с 20000₽
+            let debt = propertyData.debt || 0;
             
-            if (!currentHomeId || dailyCost === 0) continue;
-            
+            // Считаем пропущенные дни
             let daysMissed = 1;
-            if (lastCheckRaw) {
-                const lastCheckDate = new Date(lastCheckRaw);
-                lastCheckDate.setHours(0, 0, 0, 0);
-                const diffTime = Math.abs(today.getTime() - lastCheckDate.getTime());
+            if (lastTaxPaid) {
+                const lastDate = new Date(lastTaxPaid);
+                lastDate.setHours(0, 0, 0, 0);
+                const diffTime = Math.abs(today.getTime() - lastDate.getTime());
                 daysMissed = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                 daysMissed = Math.min(daysMissed, 30);
             }
             
-            const totalCost = dailyCost * daysMissed;
+            const totalCost = dailyTax * daysMissed;
             let newAccount = account;
             let newDebt = debt;
-            let isEvictedUser = false;
+            let isEvicted = false;
             
-            console.log(`   👤 ${userDoc.id} (${userData.displayName || 'без имени'}) — ${currentHomeId}, пропущено дней: ${daysMissed}, долг: ${debt}₽`);
+            console.log(`   📍 ${propertyId} (${propertyData.name}) — ${ownerId}, пропущено дней: ${daysMissed}, долг: ${debt}₽`);
             
             if (newAccount >= totalCost) {
                 newAccount -= totalCost;
@@ -935,75 +925,59 @@ export async function checkAllHousingPayments() {
                 newAccount = 0;
                 console.log(`      ⚠️ Не хватает! Долг: ${newDebt}₽`);
                 
-                if (newDebt > dailyCost * 3) {
+                if (newDebt > dailyTax * 3) {
                     console.log(`      💔 ВЫСЕЛЕНИЕ! Долг превысил лимит`);
-                    isEvictedUser = true;
+                    isEvicted = true;
                     evicted++;
                     
-                    const propertyRef = doc(db, 'real_estate', currentHomeId);
-                    await updateDoc(propertyRef, {
+                    // Очищаем владельца
+                    await updateDoc(doc(db, 'real_estate', propertyId), {
                         ownerId: deleteField(),
                         ownerName: deleteField(),
                         purchasedAt: deleteField(),
                         debt: deleteField(),
-                        lastTaxPaid: deleteField()
-                    }).catch(e => console.warn(`         Ошибка очистки ${currentHomeId}:`, e));
-                    
-                    const newOwned = ownedHomesList.filter(id => id !== currentHomeId);
-                    const newCurrent = newOwned.length > 0 ? newOwned[0] : null;
-                    let newCapacity = 0;
-                    if (newCurrent) {
-                        if (newCurrent.startsWith('dorm')) newCapacity = 10;
-                        else if (newCurrent.startsWith('apartment')) newCapacity = 20;
-                        else if (newCurrent.startsWith('house')) newCapacity = 40;
-                    }
-                    
-                    // 👇 ИСПРАВЛЕНО: используем правильный updateDoc
-                    const userRef = doc(db, 'users', userDoc.id);
-                    await updateDoc(userRef, {
-                        'housing.owned': newOwned,
-                        'housing.current': newCurrent,
-                        'housing.storageCapacity': newCapacity,
-                        'housing.account': 20000,
-                        'housing.debt': 0,
-                        'housing.lastHousingCheck': new Date().toISOString()
+                        lastTaxPaid: deleteField(),
+                        account: deleteField()
                     });
+                    
+                    // Удаляем недвижимость из ownedHomes у игрока
+                    const userRef = doc(db, 'users', ownerId);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        const ownedHomes = userData.housing?.owned || [];
+                        const newOwned = ownedHomes.filter(id => id !== propertyId);
+                        const newCurrent = userData.housing?.current === propertyId ? 
+                            (newOwned.length > 0 ? newOwned[0] : null) : 
+                            userData.housing?.current;
+                        
+                        await updateDoc(userRef, {
+                            'housing.owned': newOwned,
+                            'housing.current': newCurrent
+                        });
+                    }
                     continue;
                 }
             }
             
-            // 👇 ИСПРАВЛЕНО: используем правильный updateDoc
-            const userRef = doc(db, 'users', userDoc.id);
-            await updateDoc(userRef, {
-                'housing.account': newAccount,
-                'housing.debt': newDebt,
-                'housing.lastHousingCheck': new Date().toISOString()
+            // Обновляем недвижимость
+            const propertyRef = doc(db, 'real_estate', propertyId);
+            await updateDoc(propertyRef, {
+                account: newAccount,
+                debt: newDebt,
+                lastTaxPaid: new Date().toISOString()
             });
             
             processed++;
             totalDebt += newDebt;
+            
         } catch (error) {
             errors++;
-            console.error(`   ❌ Ошибка обработки игрока ${userDoc.id}:`, error);
+            console.error(`   ❌ Ошибка обработки ${propertyDoc.id}:`, error);
         }
     }
     
-    // Обновляем lastGlobalHousingCheck у текущего пользователя
-    const currentUser = window.auth?.currentUser;
-    if (currentUser) {
-        try {
-            const userRef = doc(db, 'users', currentUser.uid);
-            await updateDoc(userRef, {
-                'housing.lastGlobalHousingCheck': today.toISOString()
-            });
-        } catch (error) {
-            console.warn('⚠️ Не удалось обновить lastGlobalHousingCheck:', error);
-        }
-    }
-    
-    await saveGameData();
-    
-    console.log(`🏠 Глобальная проверка завершена:`);
+    console.log(`🏠 Проверка завершена:`);
     console.log(`   ✅ Обработано: ${processed}`);
     console.log(`   💔 Выселено: ${evicted}`);
     console.log(`   💰 Общий долг: ${totalDebt}₽`);
@@ -1011,6 +985,7 @@ export async function checkAllHousingPayments() {
         console.log(`   ❌ Ошибок: ${errors}`);
     }
 }
+
 
 function getDailyCostById(homeId) {
     if (!homeId) return 0;
