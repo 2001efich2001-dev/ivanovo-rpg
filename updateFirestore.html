@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Добавление роли игрокам</title>
+    <title>Инициализация мандатов</title>
     <style>
         body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #4caf50; color: white; border: none; border-radius: 8px; }
@@ -38,18 +38,18 @@
     </style>
 </head>
 <body>
-    <h2>👤 Добавление поля role игрокам</h2>
-    <p>Скрипт проверит всех игроков и добавит поле <code>role: 'user'</code> всем, у кого оно отсутствует.</p>
+    <h2>🏛️ Инициализация мандатов</h2>
+    <p>Скрипт создаст коллекцию <code>mandates</code> с 20 документами (мандаты с 1 по 20).</p>
+    <p style="color: #ffd966; font-size: 0.9rem;">📝 Коллекция <code>candidates</code> будет создаваться автоматически при выдвижении игроков.</p>
 
     <div style="margin: 15px 0;">
-        <button id="addBtn">🚀 Добавить поле role</button>
+        <button id="initBtn">🚀 Создать мандаты</button>
         <button id="checkBtn" style="background: #2196f3; margin-left: 10px;">🔍 Проверить</button>
+        <button id="clearBtn" style="background: #e74c3c; margin-left: 10px;">🗑️ Очистить</button>
     </div>
 
     <div id="stats" class="stats" style="display: none;">
-        <div>📊 Всего игроков: <span id="totalPlayers">0</span></div>
-        <div>✅ Уже есть role: <span id="hasRole">0</span></div>
-        <div>🔧 Добавлено role: <span id="addedRole">0</span></div>
+        <div>📊 Мандатов: <span id="mandatesCount">0</span> / 20</div>
         <div class="progress-bar">
             <div class="progress-fill" id="progressFill"></div>
         </div>
@@ -59,7 +59,7 @@
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js';
-        import { getFirestore, collection, getDocs, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
+        import { getFirestore, collection, getDocs, doc, setDoc, getDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
         import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 
         const firebaseConfig = {
@@ -77,9 +77,7 @@
 
         const logDiv = document.getElementById('log');
         const statsDiv = document.getElementById('stats');
-        const totalSpan = document.getElementById('totalPlayers');
-        const hasRoleSpan = document.getElementById('hasRole');
-        const addedRoleSpan = document.getElementById('addedRole');
+        const mandatesSpan = document.getElementById('mandatesCount');
         const progressFill = document.getElementById('progressFill');
 
         let isProcessing = false;
@@ -97,130 +95,126 @@
             progressFill.style.width = Math.min(100, percent) + '%';
         }
 
-        function updateStats(total, hasRole, addedRole) {
-            totalSpan.textContent = total;
-            hasRoleSpan.textContent = hasRole;
-            addedRoleSpan.textContent = addedRole;
+        function updateStats(count) {
+            mandatesSpan.textContent = count;
             statsDiv.style.display = 'block';
         }
 
-        async function processPlayers(shouldAdd = false) {
-            if (isProcessing) {
-                addLog('⚠️ Процесс уже запущен, подождите...', 'warning');
-                return;
+        async function createMandates() {
+            addLog('📦 Создание мандатов (1-20)...', 'info');
+            
+            let created = 0;
+            let existing = 0;
+            const total = 20;
+            
+            for (let i = 1; i <= total; i++) {
+                const mandateId = `mandate_${i}`;
+                const mandateRef = doc(db, 'mandates', mandateId);
+                const mandateSnap = await getDoc(mandateRef);
+                
+                if (!mandateSnap.exists()) {
+                    const isPurchasable = i >= 11;
+                    await setDoc(mandateRef, {
+                        id: mandateId,
+                        number: i,
+                        ownerId: null,
+                        ownerName: null,
+                        type: isPurchasable ? 'purchasable' : 'elected',
+                        acquiredAt: null,
+                        expiresAt: null,
+                        isActive: false,
+                        price: 1000000,
+                        createdAt: new Date().toISOString()
+                    });
+                    created++;
+                    addLog(`   ✅ Создан ${mandateId} (${isPurchasable ? '💳 покупной' : '🗳️ выборный'})`, 'success');
+                } else {
+                    existing++;
+                }
+                
+                updateProgress((i / total) * 100);
             }
-
-            isProcessing = true;
-            logDiv.innerHTML = '';
-            statsDiv.style.display = 'none';
-            document.getElementById('addBtn').disabled = true;
-            document.getElementById('checkBtn').disabled = true;
-
-            addLog('🔐 Проверка авторизации...', 'info');
-
-            onAuthStateChanged(auth, async (user) => {
-                if (!user) {
-                    addLog('❌ Авторизуйтесь в игре сначала! Откройте игру и войдите, затем обновите эту страницу.', 'error');
-                    isProcessing = false;
-                    document.getElementById('addBtn').disabled = false;
-                    document.getElementById('checkBtn').disabled = false;
-                    return;
-                }
-
-                addLog(`✅ Авторизован как: ${user.email}`, 'success');
-                addLog(`📦 ${shouldAdd ? '🔧 ДОБАВЛЕНИЕ' : '🔍 ПРОВЕРКА'} поля role...`, 'info');
-
-                try {
-                    const usersRef = collection(db, 'users');
-                    const snapshot = await getDocs(usersRef);
-
-                    if (snapshot.empty) {
-                        addLog('❌ Нет документов в коллекции users', 'error');
-                        isProcessing = false;
-                        document.getElementById('addBtn').disabled = false;
-                        document.getElementById('checkBtn').disabled = false;
-                        return;
-                    }
-
-                    const total = snapshot.size;
-                    let hasRole = 0;
-                    let addedRole = 0;
-                    let processed = 0;
-
-                    addLog(`📊 Найдено документов: ${total}`, 'info');
-                    updateStats(total, 0, 0);
-
-                    for (const docSnap of snapshot.docs) {
-                        const userId = docSnap.id;
-                        const data = docSnap.data();
-                        const userRef = doc(db, 'users', userId);
-
-                        processed++;
-                        updateProgress((processed / total) * 100);
-
-                        // Проверяем наличие поля role
-                        if (data.role !== undefined && data.role !== null) {
-                            hasRole++;
-                            addLog(`✅ ${userId.slice(0, 10)}... уже есть role: ${data.role}`, 'success');
-                        } else {
-                            if (shouldAdd) {
-                                try {
-                                    await updateDoc(userRef, { role: 'user' });
-                                    addedRole++;
-                                    addLog(`🔧 ${userId.slice(0, 10)}... добавлено role: user`, 'success');
-                                } catch (err) {
-                                    addLog(`❌ ${userId.slice(0, 10)}... ошибка: ${err.message}`, 'error');
-                                }
-                            } else {
-                                addLog(`🔍 ${userId.slice(0, 10)}... требует добавления role`, 'warning');
-                            }
-                        }
-
-                        // Обновляем статистику каждые 5 игроков
-                        if (processed % 5 === 0) {
-                            updateStats(total, hasRole, addedRole);
-                        }
-                    }
-
-                    // Финальная статистика
-                    updateStats(total, hasRole, addedRole);
-
-                    addLog(`\n📊 ИТОГО:`, 'info');
-                    addLog(`   ✅ Всего игроков: ${total}`, 'info');
-                    addLog(`   ✅ Уже есть role: ${hasRole}`, 'success');
-                    if (shouldAdd) {
-                        addLog(`   🔧 Добавлено role: ${addedRole}`, 'success');
-                    } else {
-                        addLog(`   ⚠️ Требуют добавления: ${total - hasRole}`, 'warning');
-                    }
-
-                    if (shouldAdd && addedRole > 0) {
-                        addLog(`\n🎉 ГОТОВО! Добавлено поле role ${addedRole} игрокам.`, 'success');
-                    } else if (!shouldAdd && total - hasRole > 0) {
-                        addLog(`\n🔧 Нажми "Добавить поле role", чтобы добавить его всем игрокам.`, 'warning');
-                    } else if (shouldAdd && addedRole === 0) {
-                        addLog(`\n✅ Все игроки уже имеют поле role!`, 'success');
-                    }
-
-                } catch (error) {
-                    addLog(`❌ Ошибка: ${error.message}`, 'error');
-                    console.error(error);
-                }
-
-                isProcessing = false;
-                document.getElementById('addBtn').disabled = false;
-                document.getElementById('checkBtn').disabled = false;
-                updateProgress(100);
-            });
+            
+            addLog(`📊 Мандаты: создано ${created}, уже существовало ${existing}`, 'info');
+            updateStats(created + existing);
+            return { created, existing };
         }
 
-        document.getElementById('checkBtn').addEventListener('click', async () => {
-            await processPlayers(false);
+        async function checkAll() {
+            addLog('🔍 Проверка состояния...', 'info');
+            
+            const mandatesSnapshot = await getDocs(collection(db, 'mandates'));
+            const mandatesCount = mandatesSnapshot.size;
+            
+            // Показываем список
+            let html = '<div style="margin-top: 10px; font-size: 0.9rem;">';
+            for (const docSnap of mandatesSnapshot.docs) {
+                const data = docSnap.data();
+                const status = data.ownerId ? `👤 ${data.ownerName}` : '📭 Свободен';
+                html += `<div>📋 ${docSnap.id} → ${status} (${data.type === 'elected' ? '🗳️' : '💳'})</div>`;
+            }
+            html += '</div>';
+            
+            addLog(`📊 Всего мандатов: ${mandatesCount} / 20`, mandatesCount === 20 ? 'success' : 'warning');
+            updateStats(mandatesCount);
+            
+            return mandatesCount;
+        }
+
+        async function clearAll() {
+            if (!confirm('⚠️ УДАЛИТЬ ВСЕ МАНДАТЫ? Это действие необратимо!')) return;
+            
+            addLog('🗑️ Очистка...', 'warning');
+            
+            const snapshot = await getDocs(collection(db, 'mandates'));
+            let deleted = 0;
+            for (const docSnap of snapshot.docs) {
+                await deleteDoc(docSnap.ref);
+                deleted++;
+            }
+            
+            addLog(`✅ Удалено ${deleted} мандатов`, 'success');
+            updateStats(0);
+        }
+
+        document.getElementById('initBtn').addEventListener('click', async () => {
+            if (isProcessing) return;
+            isProcessing = true;
+            logDiv.innerHTML = '';
+            try {
+                await createMandates();
+            } catch (e) { addLog(`❌ ${e.message}`, 'error'); }
+            isProcessing = false;
         });
 
-        document.getElementById('addBtn').addEventListener('click', async () => {
-            if (confirm('⚠️ ВНИМАНИЕ! Скрипт добавит поле role: "user" всем игрокам, у которых оно отсутствует. Продолжить?')) {
-                await processPlayers(true);
+        document.getElementById('checkBtn').addEventListener('click', async () => {
+            if (isProcessing) return;
+            isProcessing = true;
+            logDiv.innerHTML = '';
+            try {
+                await checkAll();
+            } catch (e) { addLog(`❌ ${e.message}`, 'error'); }
+            isProcessing = false;
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', async () => {
+            if (isProcessing) return;
+            isProcessing = true;
+            logDiv.innerHTML = '';
+            try {
+                await clearAll();
+            } catch (e) { addLog(`❌ ${e.message}`, 'error'); }
+            isProcessing = false;
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                addLog(`✅ Авторизован как: ${user.email}`, 'success');
+                setTimeout(async () => {
+                    try {
+                        await checkAll();
+                    } catch (e) { /* ignore */ }
+                }, 500);
             }
         });
     </script>
