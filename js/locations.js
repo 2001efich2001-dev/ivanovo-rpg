@@ -472,6 +472,16 @@ export const locationsDB = {
                 cy: 380, 
                 r: 50, 
                 actionId: "eat_kfc" 
+            },
+            // ===== НОВАЯ ЗОНА: АДМИНИСТРАЦИЯ =====
+            { 
+                id: "admin_zone", 
+                name: "🏛️ Администрация города", 
+                description: "Управление мандатами и голосование", 
+                cx: 350, 
+                cy: 450, 
+                r: 60, 
+                actionId: "open_administration" 
             }
         ],
         actions: [
@@ -575,6 +585,20 @@ export const locationsDB = {
                 effect: { hunger: 40, health: 10 }, 
                 cost: 40, 
                 risk: 0 
+            },
+            // ===== НОВОЕ ДЕЙСТВИЕ: АДМИНИСТРАЦИЯ =====
+            { 
+                id: "open_administration", 
+                name: "🏛️ Администрация", 
+                desc: "Открыть администрацию города", 
+                effect: {}, 
+                cost: 0, 
+                risk: 0,
+                callback: async () => {
+                    const { openAdministrationModal } = await import('./administrationUI.js');
+                    await openAdministrationModal();
+                    document.getElementById('locationModal').style.display = 'none';
+                }
             }
         ]
     },
