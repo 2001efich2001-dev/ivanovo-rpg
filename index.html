@@ -531,6 +531,83 @@
             </div>
         </div>
     </div>
-
+<!-- ========== МОДАЛЬНОЕ ОКНО АДМИНИСТРАЦИИ ========== -->
+<div id="administrationModal" class="modal">
+    <div class="modal-content" style="max-width: 700px; width: 90%; max-height: 85vh; display: flex; flex-direction: column; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="margin: 0; font-size: 1.2rem;">🏛️ Администрация города</h3>
+            <button class="close-modal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color);">✖️</button>
+        </div>
+        
+        <!-- Вкладки -->
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--card-border); padding-bottom: 8px;">
+            <button class="tab-btn active" data-tab="deputies" style="
+                background: none;
+                border: none;
+                padding: 6px 16px;
+                border-radius: 40px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                transition: 0.2s;
+                font-weight: bold;
+            ">📋 Депутаты</button>
+            <button class="tab-btn" data-tab="candidates" style="
+                background: none;
+                border: none;
+                padding: 6px 16px;
+                border-radius: 40px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                transition: 0.2s;
+                font-weight: bold;
+            ">🗳️ Кандидаты</button>
+            <button class="tab-btn" data-tab="buy" style="
+                background: none;
+                border: none;
+                padding: 6px 16px;
+                border-radius: 40px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                transition: 0.2s;
+                font-weight: bold;
+            ">💰 Купить</button>
+            <button class="tab-btn" data-tab="vote" style="
+                background: none;
+                border: none;
+                padding: 6px 16px;
+                border-radius: 40px;
+                cursor: pointer;
+                font-size: 0.85rem;
+                color: var(--text-secondary);
+                transition: 0.2s;
+                font-weight: bold;
+            ">🗳️ Голосовать</button>
+        </div>
+        
+        <!-- Содержимое вкладок -->
+        <div id="deputiesTab" class="tab-content" style="flex: 1; overflow-y: auto; min-height: 0;">
+            <div style="text-align: center; color: var(--text-secondary); padding: 20px;">Загрузка...</div>
+        </div>
+        
+        <div id="candidatesTab" class="tab-content" style="display: none; flex: 1; overflow-y: auto; min-height: 0;">
+            <div style="text-align: center; color: var(--text-secondary); padding: 20px;">Загрузка...</div>
+        </div>
+        
+        <div id="buyTab" class="tab-content" style="display: none; flex: 1; overflow-y: auto; min-height: 0;">
+            <div style="text-align: center; color: var(--text-secondary); padding: 20px;">Загрузка...</div>
+        </div>
+        
+        <div id="voteTab" class="tab-content" style="display: none; flex: 1; overflow-y: auto; min-height: 0;">
+            <div style="text-align: center; color: var(--text-secondary); padding: 20px;">Загрузка...</div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 16px; flex-shrink: 0;">
+            <button class="close-modal" style="background: var(--reset-bg); color: var(--reset-text); border: none; padding: 8px 24px; border-radius: 40px; cursor: pointer;">Закрыть</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
