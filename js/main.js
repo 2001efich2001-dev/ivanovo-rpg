@@ -1508,6 +1508,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         // ===== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ВЫБОРОВ =====
 import('./electionInitializer.js').then(m => m.initElectionSystem());
+
+    // 👇 ДОБАВИТЬ СИНХРОНИЗАЦИЮ МАНДАТОВ
+    try {
+        const { syncMandatesFromFirestore } = await import('./mandateItems.js');
+        await syncMandatesFromFirestore(user.uid);
+        console.log('✅ Мандаты синхронизированы');
+    } catch (error) {
+        console.error('Ошибка синхронизации мандатов:', error);
+    }
+    
+   
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
