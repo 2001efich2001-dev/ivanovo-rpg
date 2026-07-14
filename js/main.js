@@ -1506,6 +1506,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('🗣️ NPC UI инициализирован');
             }
         });
+        // ===== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ВЫБОРОВ =====
+import('./electionInitializer.js').then(m => m.initElectionSystem());
     }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
