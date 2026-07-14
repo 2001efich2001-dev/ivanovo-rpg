@@ -1,7 +1,8 @@
+
 // js/mandateItems.js
-import { inventory, ownedTitles, currentTitle, setCurrentTitle, money, setStats, updateUI } from './gameState.js';
+import { inventory, ownedTitles, currentTitle, setCurrentTitle, money, setStats, updateUI, addLogEntry } from './gameState.js';
 import { saveGameData, db } from './firestore.js';
-import { showMessage, addLogEntry } from './utils.js';
+import { showMessage } from './utils.js';
 import { itemsDB } from './inventory.js';
 import { doc, updateDoc, getDoc, deleteField } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 
