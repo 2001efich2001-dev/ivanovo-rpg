@@ -3,6 +3,7 @@ import { db } from './firestore.js';
 import { collection, doc, getDocs, getDoc, updateDoc, setDoc, query, where } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js';
 import { saveGameData } from './firestore.js';
 import { showMessage } from './utils.js';
+import { addMandateToInventory, addDeputyTitle, removeDeputyTitle } from './mandateItems.js';
 
 const TOTAL_MANDATES = 20;
 const PURCHASABLE_START = 11;
@@ -79,7 +80,10 @@ export async function assignMandate(number, uid, userName, type = 'elected') {
             isActive: true
         });
         
-        // Добавляем титул (бейджик) игроку
+        // ===== ДОБАВЛЯЕМ МАНДАТ В ИНВЕНТАРЬ =====
+        addMandateToInventory(number, type);
+        
+        // ===== ДОБАВЛЯЕМ ТИТУЛ (С СИНХРОНИЗАЦИЕЙ) =====
         await addDeputyTitle(uid);
         
         console.log(`✅ Мандат №${number} выдан ${userName}`);
@@ -105,6 +109,8 @@ export async function revokeMandate(number) {
             throw new Error(`Мандат №${number} и так свободен`);
         }
         
+        const ownerId = data.ownerId;
+        
         await updateDoc(mandateRef, {
             ownerId: null,
             ownerName: null,
@@ -113,9 +119,9 @@ export async function revokeMandate(number) {
         });
         
         // Проверяем, есть ли у игрока ещё мандаты
-        const playerMandates = await getPlayerMandates(data.ownerId);
+        const playerMandates = await getPlayerMandates(ownerId);
         if (playerMandates.length === 0) {
-            await removeDeputyTitle(data.ownerId);
+            await removeDeputyTitle(ownerId);
         }
         
         console.log(`✅ Мандат №${number} снят`);
@@ -167,7 +173,6 @@ export async function purchaseMandate(number, uid, userName, money) {
 export async function resetAllMandates() {
     try {
         const snapshot = await getDocs(collection(db, 'mandates'));
-        const now = new Date().toISOString();
         
         for (const docSnap of snapshot.docs) {
             const data = docSnap.data();
@@ -194,55 +199,6 @@ export async function resetAllMandates() {
     } catch (error) {
         console.error('Ошибка сброса мандатов:', error);
         throw error;
-    }
-}
-
-// ========== ДОБАВИТЬ ТИТУЛ "ДЕПУТАТ" ==========
-async function addDeputyTitle(uid) {
-    try {
-        const userRef = doc(db, 'users', uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (!userSnap.exists()) return;
-        
-        const data = userSnap.data();
-        const titles = data.titles || {};
-        const owned = titles.owned || [];
-        
-        if (!owned.includes('👑 Депутат')) {
-            owned.push('👑 Депутат');
-            await updateDoc(userRef, {
-                'titles.owned': owned
-            });
-            console.log(`👑 Титул "Депутат" добавлен игроку ${uid}`);
-        }
-    } catch (error) {
-        console.error('Ошибка добавления титула:', error);
-    }
-}
-
-// ========== СНЯТЬ ТИТУЛ "ДЕПУТАТ" ==========
-async function removeDeputyTitle(uid) {
-    try {
-        const userRef = doc(db, 'users', uid);
-        const userSnap = await getDoc(userRef);
-        
-        if (!userSnap.exists()) return;
-        
-        const data = userSnap.data();
-        const titles = data.titles || {};
-        const owned = titles.owned || [];
-        
-        const index = owned.indexOf('👑 Депутат');
-        if (index !== -1) {
-            owned.splice(index, 1);
-            await updateDoc(userRef, {
-                'titles.owned': owned
-            });
-            console.log(`👑 Титул "Депутат" снят у игрока ${uid}`);
-        }
-    } catch (error) {
-        console.error('Ошибка снятия титула:', error);
     }
 }
 
@@ -291,4 +247,129 @@ export async function getDeputyBoard() {
     }
     
     return board;
+}
+
+// ========== ОТКРЫТЬ МОДАЛЬНОЕ ОКНО ПОКУПКИ МАНДАТА ==========
+export async function openMandatePurchase() {
+    const user = window.auth?.currentUser;
+    if (!user) {
+        showMessage('❌ Вы не авторизованы!', '#e74c3c');
+        return;
+    }
+    
+    // Проверяем, есть ли уже мандаты
+    const playerMandates = await getPlayerMandates(user.uid);
+    if (playerMandates.length > 0) {
+        showMessage('❌ У вас уже есть мандаты! Нельзя купить больше одного.', '#e74c3c');
+        return;
+    }
+    
+    // Проверяем, идут ли выборы
+    const { isElectionPeriod } = await import('./elections.js');
+    if (isElectionPeriod()) {
+        showMessage('⚠️ Сейчас идут выборы (1-5 число). Дождитесь их завершения!', '#ffd966');
+        return;
+    }
+    
+    // Получаем доступные мандаты для покупки
+    const allMandates = await getAllMandates();
+    const available = allMandates.filter(m => 
+        !m.ownerId && 
+        m.number >= 11 && 
+        m.number <= 20
+    );
+    
+    if (available.length === 0) {
+        showMessage('❌ Нет доступных мандатов для покупки', '#e74c3c');
+        return;
+    }
+    
+    const gameState = await import('./gameState.js');
+    const currentMoney = gameState.money || 0;
+    
+    if (currentMoney < PURCHASE_PRICE) {
+        showMessage(`❌ Не хватает денег! Нужно ${PURCHASE_PRICE.toLocaleString()}₽, у вас ${currentMoney.toLocaleString()}₽`, '#e74c3c');
+        return;
+    }
+    
+    // Создаем модальное окно
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '10050';
+    
+    let html = `
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>💰 Покупка мандата</h3>
+            <p style="color: var(--text-secondary);">Выберите мандат для покупки:</p>
+            <p style="color: #ffd966;">💰 Ваши деньги: ${currentMoney.toLocaleString()}₽</p>
+            <p style="color: #4caf50;">💳 Цена: ${PURCHASE_PRICE.toLocaleString()}₽</p>
+            <div style="margin: 15px 0; max-height: 300px; overflow-y: auto;">
+    `;
+    
+    for (const mandate of available) {
+        html += `
+            <button class="mandate-buy-option" data-number="${mandate.number}" style="
+                display: block;
+                width: 100%;
+                padding: 12px 16px;
+                margin: 8px 0;
+                background: var(--stat-bg);
+                border: 1px solid var(--card-border);
+                border-radius: 16px;
+                color: var(--text-primary);
+                cursor: pointer;
+                text-align: left;
+                font-size: 1rem;
+                transition: all 0.2s ease;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>📜 Мандат №${mandate.number}</span>
+                    <span style="color: #ffd966;">${PURCHASE_PRICE.toLocaleString()}₽</span>
+                </div>
+            </button>
+        `;
+    }
+    
+    html += `
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button id="cancelPurchaseBtn" class="reset-btn" style="flex: 1;">Отмена</button>
+            </div>
+        </div>
+    `;
+    
+    modal.innerHTML = html;
+    document.body.appendChild(modal);
+    
+    // Обработчики для кнопок покупки
+    modal.querySelectorAll('.mandate-buy-option').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const number = parseInt(btn.dataset.number);
+            try {
+                await purchaseMandate(number, user.uid, user.displayName || 'Игрок', currentMoney);
+                modal.remove();
+                showMessage(`✅ Мандат №${number} успешно куплен!`, '#4caf50');
+                // Обновляем инвентарь
+                const { renderMandatesTab, renderTitlesTab, renderItemsTab } = await import('./inventory.js');
+                renderMandatesTab();
+                renderTitlesTab();
+                renderItemsTab();
+            } catch (error) {
+                showMessage(`❌ Ошибка: ${error.message}`, '#e74c3c');
+            }
+        });
+        
+        btn.addEventListener('mouseenter', (e) => {
+            e.target.style.background = 'var(--card-bg)';
+            e.target.style.borderColor = '#ffd966';
+        });
+        btn.addEventListener('mouseleave', (e) => {
+            e.target.style.background = 'var(--stat-bg)';
+            e.target.style.borderColor = 'var(--card-border)';
+        });
+    });
+    
+    modal.querySelector('#cancelPurchaseBtn').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 }
