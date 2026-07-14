@@ -1560,6 +1560,7 @@ async function equipTitle(title) {
 }
 
 // ========== НОВАЯ ВКЛАДКА МАНДАТОВ ==========
+// ========== ВКЛАДКА МАНДАТОВ ==========
 export function renderMandatesTab() {
     const container = document.getElementById('mandatesTab');
     if (!container) return;
@@ -1572,25 +1573,10 @@ export function renderMandatesTab() {
                 <div style="font-size: 3rem; margin-bottom: 15px;">📜</div>
                 <div style="font-size: 1.2rem; margin-bottom: 10px;">У вас нет мандатов</div>
                 <div style="color: var(--text-secondary);">
-                    Участвуйте в выборах (1-5 числа) или купите мандат за 1,000,000₽
+                    Участвуйте в выборах (1-5 числа) или купите мандат в <strong>Администрации</strong> на Площади Революции
                 </div>
-                <button id="buyMandateBtn" class="action-btn" style="margin-top: 15px; padding: 10px 30px;">
-                    💰 Купить мандат (1,000,000₽)
-                </button>
             </div>
         `;
-        
-        const buyBtn = container.querySelector('#buyMandateBtn');
-        if (buyBtn) {
-            buyBtn.addEventListener('click', async () => {
-                const { openMandatePurchase } = await import('./mandates.js');
-                if (typeof openMandatePurchase === 'function') {
-                    await openMandatePurchase();
-                } else {
-                    showMessage('❌ Система покупки мандатов временно недоступна', '#e74c3c');
-                }
-            });
-        }
         return;
     }
     
@@ -1664,13 +1650,6 @@ export function renderMandatesTab() {
                 await sellMandateToCity(number);
                 renderMandatesTab();
                 renderTitlesTab();
-                // Обновляем другие вкладки
-                const tabs = document.querySelectorAll('.tab-btn');
-                tabs.forEach(tab => {
-                    if (tab.dataset.tab === 'housing') {
-                        setTimeout(() => renderHousingTab(), 100);
-                    }
-                });
             }
         });
     });
