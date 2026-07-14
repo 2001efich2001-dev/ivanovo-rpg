@@ -1,4 +1,3 @@
-
 // js/mandateItems.js
 import { inventory, ownedTitles, currentTitle, setCurrentTitle, money, setStats, updateUI, addLogEntry } from './gameState.js';
 import { saveGameData, db } from './firestore.js';
@@ -194,47 +193,6 @@ export function isDeputyLocal() {
     return inventory.some(item => item.id === 'mandate');
 }
 
-// ========== СИНХРОНИЗИРОВАТЬ МАНДАТЫ ИЗ FIRESTORE ==========
-export async function syncMandatesFromFirestore(uid) {
-    try {
-        const { getPlayerMandates: getFirestoreMandates } = await import('./mandates.js');
-        const firestoreMandates = await getFirestoreMandates(uid);
-        
-        // Удаляем все локальные мандаты
-        const toRemove = [];
-        for (const item of inventory) {
-            if (item.id === 'mandate') {
-                toRemove.push(item);
-            }
-        }
-        for (const item of toRemove) {
-            const index = inventory.indexOf(item);
-            if (index !== -1) inventory.splice(index, 1);
-        }
-        
-        // Добавляем мандаты из Firestore
-        for (const mandate of firestoreMandates) {
-            addMandateToInventory(mandate.number, mandate.type || 'elected');
-        }
-        
-        // Проверяем титул
-        const hasMandates = firestoreMandates.length > 0;
-        const hasTitle = ownedTitles.includes('👑 Депутат');
-        
-        if (hasMandates && !hasTitle) {
-            await addDeputyTitle(uid);
-        } else if (!hasMandates && hasTitle) {
-            await removeDeputyTitle(uid);
-        }
-        
-        console.log(`🔄 Синхронизировано ${firestoreMandates.length} мандатов`);
-        updateUI();
-        return firestoreMandates;
-    } catch (error) {
-        console.error('Ошибка синхронизации мандатов:', error);
-        return [];
-    }
-}
 // ========== СИНХРОНИЗИРОВАТЬ МАНДАТЫ ИЗ FIRESTORE ==========
 export async function syncMandatesFromFirestore(uid) {
     try {
