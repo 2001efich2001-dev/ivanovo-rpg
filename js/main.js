@@ -15,6 +15,7 @@ import { showNewsIfNeeded, initNewsModal } from './news.js';
 import { isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
 import { updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 import { initChat } from './chat.js';
+import { syncMandatesFromFirestore } from './mandateItems.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -1356,157 +1357,167 @@ document.addEventListener('DOMContentLoaded', () => {
         resetTutorialBtn.addEventListener('click', handleResetTutorial);
     }
     
-    async function afterLogin() {
-        const user = window.auth?.currentUser;
-        
-        if (user) {
-            const key = 'trade_needs_refresh_' + user.uid;
-            localStorage.removeItem(key);
-        }
-        
-        window._preventAutoSave = false;
-        
-        // 👇 ПРОВЕРКА БАНА
-        if (user) {
-            try {
-                const userDoc = await getDoc(doc(db, 'users', user.uid));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    const banInfo = checkBanStatus(userData);
-                    
-                    if (banInfo && banInfo.isBanned) {
-                        showBanScreen(banInfo);
-                        // Блокируем игру, но оставляем возможность выйти
-                        // Кнопка выхода всё ещё должна работать
-                        const logoutBtn = document.getElementById('logoutMenuBtn');
-                        if (logoutBtn) {
-                            logoutBtn.style.pointerEvents = 'auto';
-                            logoutBtn.style.opacity = '1';
-                        }
-                        return; // Прерываем вход, не даём играть
-                    }
-                }
-            } catch (err) {
-                console.warn('Ошибка проверки бана:', err);
-            }
-            
-            try {
-                if (userDoc.exists() && userDoc.data().lastUpdated) {
-                    localLastUpdated = new Date(userDoc.data().lastUpdated).getTime();
-                    console.log('📅 Загружена метка времени lastUpdated:', new Date(localLastUpdated).toLocaleTimeString());
-                }
-            } catch (err) {
-                console.warn('Не удалось загрузить lastUpdated:', err);
-            }
-            
-            setupRealTimeUpdates(user.uid);
-            initAchievements();
-            
-            try {
-                const { loadNpcStateFromFirestore } = await import('./npcSystem.js');
-                await loadNpcStateFromFirestore(user.uid);
-                console.log('🗣️ Состояние NPC загружено');
-            } catch (err) {
-                console.warn('Ошибка загрузки состояния NPC:', err);
-            }
-        }
-        
-        renderItemsTab();
-        renderEquipmentTab();
-        recalcColdFromEquipment();
-        initInventoryTabs();
-        renderLocation(currentLocation);
-        updateTimeWeatherUI();
-        startTimeWeatherUpdates();
-        renderLogPanel();
-        updateUI();
-        updatePlayerTitle();
-        updateAvatarDisplay();
-        initChat();
-        
-        // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
-        await updatePlayerStats();
-        setInterval(updatePlayerStats, 60000);
-
-        // ===== ОНЛАЙН =====
-        await updateOnlineStatus();
-        setInterval(updateOnlineStatus, 30000);
-        
-        // ===== ПОДСКАЗКА ПРИ ПЕРВОМ ВХОДЕ =====
-        if (!isTutorialShown('shown_first_enter')) {
-            showTutorialTip('Добро пожаловать в Иваново! 🏙️ Ты — бомж. Твоя цель — выжить и разбогатеть. Начни с того, что попроси подаяние на вокзале.', 6000);
-            markTutorialShown('shown_first_enter');
-            await import('./firestore.js').then(m => m.saveGameData());
-        }
-        
-        if (gameContainer) gameContainer.classList.remove('game-container-hidden');
-        hideSplash();
-        
-        if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
-        
-        setEnergyUpdateCallback(() => { updateUI(); });
-        setInterval(() => { updateEnergy(); }, 120000);
-        
-        if (tradeNotificationInterval) clearInterval(tradeNotificationInterval);
-        tradeNotificationInterval = setInterval(() => {
-            checkNewTradeOffers();
-        }, 30000);
-        checkNewTradeOffers();
-        
-        // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
-        updateBonusIndicator();
-        
-        if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
-        bonusIndicatorInterval = setInterval(() => {
-            updateBonusIndicator();
-        }, 60000);
-        
-        const bonusIndicator = document.getElementById('dailyBonusIndicator');
-        if (bonusIndicator) {
-            bonusIndicator.addEventListener('click', async () => {
-                const dailyBonus = await import('./dailyBonus.js');
-                const canClaim = await dailyBonus.canClaimBonus();
+async function afterLogin() {
+    const user = window.auth?.currentUser;
+    
+    if (user) {
+        const key = 'trade_needs_refresh_' + user.uid;
+        localStorage.removeItem(key);
+    }
+    
+    window._preventAutoSave = false;
+    
+    // 👇 ПРОВЕРКА БАНА
+    if (user) {
+        try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                const banInfo = checkBanStatus(userData);
                 
-                if (canClaim) {
-                    await dailyBonus.claimDailyBonus();
-                    await updateBonusIndicator();
-                    showMessage('🎁 Бонус получен! Загляни завтра снова!', '#4caf50');
-                } else {
-                    const streak = await dailyBonus.getCurrentStreak();
-                    showMessage(`📅 Бонус уже получен сегодня! Серия: ${streak} день(ей) подряд 🔥`, '#ffd966');
+                if (banInfo && banInfo.isBanned) {
+                    showBanScreen(banInfo);
+                    const logoutBtn = document.getElementById('logoutMenuBtn');
+                    if (logoutBtn) {
+                        logoutBtn.style.pointerEvents = 'auto';
+                        logoutBtn.style.opacity = '1';
+                    }
+                    return;
                 }
-            });
+            }
+        } catch (err) {
+            console.warn('Ошибка проверки бана:', err);
         }
         
         try {
-            const gameState = await import('./gameState.js');
-            if (typeof gameState.checkAllHousingPayments === 'function') {
-                await gameState.checkAllHousingPayments();
-                console.log('🏠 Глобальная проверка недвижимости выполнена');
+            if (userDoc.exists() && userDoc.data().lastUpdated) {
+                localLastUpdated = new Date(userDoc.data().lastUpdated).getTime();
+                console.log('📅 Загружена метка времени lastUpdated:', new Date(localLastUpdated).toLocaleTimeString());
             }
         } catch (err) {
-            console.error('Ошибка при глобальной проверке недвижимости:', err);
+            console.warn('Не удалось загрузить lastUpdated:', err);
         }
         
-        await checkHousingPayment();
-        startHousingCheckTimer();
+        // ========== 👇 СИНХРОНИЗАЦИЯ МАНДАТОВ (ПЕРЕМЕЩЕНО СЮДА) ==========
+        try {
+            await syncMandatesFromFirestore(user.uid);
+            console.log('✅ Мандаты синхронизированы из Firestore');
+        } catch (error) {
+            console.error('Ошибка синхронизации мандатов:', error);
+        }
+        // ================================================================
         
-        setupAboutModal();
+        setupRealTimeUpdates(user.uid);
+        initAchievements();
         
-        initNewsModal();
-        setTimeout(() => {
-            showNewsIfNeeded();
-        }, 500);
-        
-        initTradeGuardIndicator();
-        
-        import('./npcSystemUI.js').then(module => {
-            if (module.initNpcUI) {
-                module.initNpcUI();
-                console.log('🗣️ NPC UI инициализирован');
+        try {
+            const { loadNpcStateFromFirestore } = await import('./npcSystem.js');
+            await loadNpcStateFromFirestore(user.uid);
+            console.log('🗣️ Состояние NPC загружено');
+        } catch (err) {
+            console.warn('Ошибка загрузки состояния NPC:', err);
+        }
+    }
+    
+    renderItemsTab();
+    renderEquipmentTab();
+    recalcColdFromEquipment();
+    initInventoryTabs();
+    renderLocation(currentLocation);
+    updateTimeWeatherUI();
+    startTimeWeatherUpdates();
+    renderLogPanel();
+    updateUI();
+    updatePlayerTitle();
+    updateAvatarDisplay();
+    initChat();
+    
+    // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
+    await updatePlayerStats();
+    setInterval(updatePlayerStats, 60000);
+
+    // ===== ОНЛАЙН =====
+    await updateOnlineStatus();
+    setInterval(updateOnlineStatus, 30000);
+    
+    // ===== ПОДСКАЗКА ПРИ ПЕРВОМ ВХОДЕ =====
+    if (!isTutorialShown('shown_first_enter')) {
+        showTutorialTip('Добро пожаловать в Иваново! 🏙️ Ты — бомж. Твоя цель — выжить и разбогатеть. Начни с того, что попроси подаяние на вокзале.', 6000);
+        markTutorialShown('shown_first_enter');
+        await import('./firestore.js').then(m => m.saveGameData());
+    }
+    
+    if (gameContainer) gameContainer.classList.remove('game-container-hidden');
+    hideSplash();
+    
+    if (isMusicEnabled && bgMusic && bgMusic.paused) startMusic();
+    
+    setEnergyUpdateCallback(() => { updateUI(); });
+    setInterval(() => { updateEnergy(); }, 120000);
+    
+    if (tradeNotificationInterval) clearInterval(tradeNotificationInterval);
+    tradeNotificationInterval = setInterval(() => {
+        checkNewTradeOffers();
+    }, 30000);
+    checkNewTradeOffers();
+    
+    // ===== ЕЖЕДНЕВНЫЙ БОНУС =====
+    updateBonusIndicator();
+    
+    if (bonusIndicatorInterval) clearInterval(bonusIndicatorInterval);
+    bonusIndicatorInterval = setInterval(() => {
+        updateBonusIndicator();
+    }, 60000);
+    
+    const bonusIndicator = document.getElementById('dailyBonusIndicator');
+    if (bonusIndicator) {
+        bonusIndicator.addEventListener('click', async () => {
+            const dailyBonus = await import('./dailyBonus.js');
+            const canClaim = await dailyBonus.canClaimBonus();
+            
+            if (canClaim) {
+                await dailyBonus.claimDailyBonus();
+                await updateBonusIndicator();
+                showMessage('🎁 Бонус получен! Загляни завтра снова!', '#4caf50');
+            } else {
+                const streak = await dailyBonus.getCurrentStreak();
+                showMessage(`📅 Бонус уже получен сегодня! Серия: ${streak} день(ей) подряд 🔥`, '#ffd966');
             }
         });
     }
+    
+    try {
+        const gameState = await import('./gameState.js');
+        if (typeof gameState.checkAllHousingPayments === 'function') {
+            await gameState.checkAllHousingPayments();
+            console.log('🏠 Глобальная проверка недвижимости выполнена');
+        }
+    } catch (err) {
+        console.error('Ошибка при глобальной проверке недвижимости:', err);
+    }
+    
+    await checkHousingPayment();
+    startHousingCheckTimer();
+    
+    setupAboutModal();
+    
+    initNewsModal();
+    setTimeout(() => {
+        showNewsIfNeeded();
+    }, 500);
+    
+    initTradeGuardIndicator();
+    
+    import('./npcSystemUI.js').then(module => {
+        if (module.initNpcUI) {
+            module.initNpcUI();
+            console.log('🗣️ NPC UI инициализирован');
+        }
+    });
+    
+    // ===== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ВЫБОРОВ =====
+    import('./electionInitializer.js').then(m => m.initElectionSystem());
+}
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
     setLocationChangeCallback(onLocationChanged);
