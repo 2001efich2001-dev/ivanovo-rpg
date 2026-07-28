@@ -45,7 +45,7 @@ function showNewsModal(newsData) {
         image.src = newsData.image;
         image.alt = newsData.title || 'Новости';
         image.onerror = () => {
-            image.src = 'images/news_default.png';
+            image.src = 'images/news_ldpr.png';
         };
         image.style.display = 'block';
     } else {
