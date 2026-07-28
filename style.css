@@ -1165,7 +1165,7 @@ body {
 
 .news-image {
     width: 100%;
-    max-width: 500px;
+    max-width: 350px;
     height: auto;
     margin: 0 auto 20px;
     border-radius: 24px;
@@ -1218,7 +1218,7 @@ body {
     }
     
     .news-image {
-        max-width: 500px;
+        max-width: 350px;
     }
     
     .news-text {
