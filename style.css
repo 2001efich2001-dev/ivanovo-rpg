@@ -2619,3 +2619,90 @@ body {
         padding: 4px 12px !important;
     }
 }
+/* ========== МОБИЛЬНАЯ ЗАГЛУШКА ========== */
+#mobileBlocker {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #0a0a0a;
+    z-index: 999999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    padding: 30px;
+    text-align: center;
+}
+
+.mobile-blocker-content {
+    max-width: 400px;
+    background: rgba(20, 20, 30, 0.95);
+    border-radius: 32px;
+    padding: 40px 30px;
+    border: 2px solid rgba(255, 217, 102, 0.2);
+    box-shadow: 0 0 60px rgba(255, 217, 102, 0.05);
+}
+
+.mobile-emoji {
+    font-size: 5rem;
+    margin-bottom: 20px;
+}
+
+.mobile-title {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #ffd966;
+    margin-bottom: 12px;
+    text-shadow: 0 0 20px rgba(255, 217, 102, 0.2);
+}
+
+.mobile-text {
+    font-size: 1.1rem;
+    color: #aaa;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.mobile-subtext {
+    font-size: 1rem;
+    color: #666;
+    line-height: 1.5;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 20px;
+}
+
+.mobile-subtext strong {
+    color: #ffd966;
+}
+
+.mobile-hint {
+    margin-top: 25px;
+    padding: 12px 20px;
+    background: rgba(255, 217, 102, 0.08);
+    border-radius: 16px;
+    font-size: 0.8rem;
+    color: #555;
+}
+
+/* ===== ПОКАЗЫВАЕМ ЗАГЛУШКУ НА МОБИЛЬНЫХ ===== */
+@media screen and (max-width: 1024px) {
+    #mobileBlocker {
+        display: flex !important;
+    }
+    
+    /* Скрываем всё остальное */
+    #gameContainer,
+    #authContainer,
+    .global-footer,
+    .modal {
+        display: none !important;
+    }
+    
+    body {
+        overflow: hidden !important;
+        height: 100vh !important;
+        position: fixed !important;
+    }
+}
