@@ -1,107 +1,140 @@
 // js/news.js
 import { showMessage } from './utils.js';
 
-// URL к файлу с новостями
-const NEWS_FILE_URL = 'news.json';
+const NEWS_STORAGE_KEY = 'last_news_shown';
 
-// Хранилище текущих новостей
-let currentNews = null;
-let hasShownThisSession = false;
-
-// Загрузка новостей из JSON файла (с обходом кеша)
-export async function loadNews() {
+export async function showNewsIfNeeded() {
     try {
-        const url = `${NEWS_FILE_URL}?t=${Date.now()}`;
-        console.log('📰 Загрузка новостей из:', url);
-        
-        const response = await fetch(url);
+        const response = await fetch('news.json');
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            console.warn('Новости не найдены');
+            return;
         }
-        const data = await response.json();
-        currentNews = data;
-        console.log('📰 Новости загружены:', currentNews);
-        return currentNews;
+        
+        const newsData = await response.json();
+        const lastShown = localStorage.getItem(NEWS_STORAGE_KEY);
+        const today = new Date().toDateString();
+        
+        // Показываем новости, если сегодня ещё не показывали
+        if (lastShown !== today) {
+            showNewsModal(newsData);
+            localStorage.setItem(NEWS_STORAGE_KEY, today);
+        }
     } catch (error) {
-        console.error('❌ Ошибка загрузки новостей:', error);
-        currentNews = {
-            title: "📢 Добро пожаловать!",
-            image: "images/news_default.png",
-            text: "Добро пожаловать в игру! Здесь будут появляться новости и объявления."
-        };
-        return currentNews;
+        console.error('Ошибка загрузки новостей:', error);
     }
 }
 
-// Показать модальное окно с новостями
-export function showNewsModal(news) {
+function showNewsModal(newsData) {
     const modal = document.getElementById('newsModal');
-    if (!modal) {
-        console.error('❌ Модальное окно новостей не найдено');
+    const title = document.getElementById('newsTitle');
+    const image = document.getElementById('newsImage');
+    const text = document.getElementById('newsText');
+    const closeBtn = document.getElementById('newsCloseBtn');
+    
+    if (!modal || !title || !image || !text) {
+        console.error('Элементы новостей не найдены');
         return;
     }
     
-    const titleEl = document.getElementById('newsTitle');
-    const imageEl = document.getElementById('newsImage');
-    const textEl = document.getElementById('newsText');
+    // Устанавливаем заголовок
+    title.textContent = newsData.title || '📢 НОВОСТИ';
     
-    if (titleEl) titleEl.textContent = news.title || '📢 НОВОСТИ';
-    if (imageEl) {
-        imageEl.src = news.image || 'images/news_default.png';
-        imageEl.alt = news.title || 'Новости';
-        imageEl.onerror = () => {
-            imageEl.src = 'images/news_default.png';
+    // Устанавливаем изображение (с fallback)
+    if (newsData.image) {
+        image.src = newsData.image;
+        image.alt = newsData.title || 'Новости';
+        image.onerror = () => {
+            image.src = 'images/news_default.png';
         };
-    }
-    if (textEl) textEl.textContent = news.text || '';
-    
-    modal.style.display = 'flex';
-    hasShownThisSession = true;
-}
-
-// Закрыть модальное окно
-export function closeNewsModal() {
-    const modal = document.getElementById('newsModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-// Основная функция для показа новостей
-export async function showNewsIfNeeded(force = false) {
-    if (hasShownThisSession && !force) {
-        console.log('📰 Новости уже показаны в этой сессии');
-        return false;
+        image.style.display = 'block';
+    } else {
+        image.style.display = 'none';
     }
     
-    const news = await loadNews();
-    showNewsModal(news);
-    return true;
-}
-
-// Инициализация обработчиков новостного окна
-export function initNewsModal() {
-    const closeBtn = document.getElementById('newsCloseBtn');
-    if (closeBtn) {
-        // Убираем старые обработчики
-        const oldBtn = closeBtn;
-        const newBtn = oldBtn.cloneNode(true);
-        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+    // Обрабатываем текст с ссылками
+    if (newsData.links && newsData.links.length > 0) {
+        // Если есть ссылки, форматируем текст с кнопками
+        let html = newsData.text ? `<p>${escapeHtml(newsData.text)}</p>` : '';
         
-        newBtn.addEventListener('click', () => {
-            console.log('🔘 Кнопка закрытия нажата');
-            closeNewsModal();
-        });
+        html += '<div class="news-links" style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px; align-items: center;">';
+        for (const link of newsData.links) {
+            html += `
+                <a href="${link.url}" target="_blank" rel="noopener noreferrer" 
+                   style="
+                       display: inline-block;
+                       padding: 12px 24px;
+                       background: #1a73e8;
+                       color: #fff;
+                       text-decoration: none;
+                       border-radius: 40px;
+                       font-weight: bold;
+                       font-size: 1rem;
+                       transition: all 0.3s ease;
+                       box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+                       width: 100%;
+                       max-width: 300px;
+                       text-align: center;
+                   "
+                   onmouseenter="this.style.transform='scale(1.02)'; this.style.boxShadow='0 6px 25px rgba(26, 115, 232, 0.5)'"
+                   onmouseleave="this.style.transform='scale(1)'; this.style.boxShadow='0 4px 15px rgba(26, 115, 232, 0.3)'"
+                >
+                    ${link.text}
+                </a>
+            `;
+        }
+        html += '</div>';
+        
+        text.innerHTML = html;
+    } else {
+        // Обычный текст (с поддержкой переносов)
+        text.innerHTML = newsData.text ? escapeHtml(newsData.text).replace(/\n/g, '<br>') : '';
+    }
+    
+    // Показываем модальное окно
+    modal.style.display = 'flex';
+    
+    // Обработчик закрытия
+    if (closeBtn) {
+        closeBtn.onclick = () => {
+            modal.style.display = 'none';
+        };
     }
     
     // Закрытие по клику вне окна
-    const modal = document.getElementById('newsModal');
-    if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                console.log('🔘 Клик вне окна');
-                closeNewsModal();
-            }
-        });
-    }
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
 }
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+export function initNewsModal() {
+    // Инициализация уже сделана в showNewsIfNeeded
+    console.log('📢 Система новостей инициализирована');
+}
+
+// ===== ДЛЯ ТЕСТИРОВАНИЯ: принудительно показать новости =====
+export function forceShowNews() {
+    fetch('news.json')
+        .then(response => response.json())
+        .then(data => {
+            // Очищаем localStorage, чтобы новости точно показались
+            localStorage.removeItem(NEWS_STORAGE_KEY);
+            showNewsModal(data);
+        })
+        .catch(error => console.error('Ошибка принудительного показа новостей:', error));
+}
+
+// Для отладки в консоли
+window.forceShowNews = forceShowNews;
