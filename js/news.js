@@ -3,6 +3,7 @@ import { showMessage } from './utils.js';
 
 const NEWS_STORAGE_KEY = 'last_news_shown';
 
+// ========== ПОКАЗАТЬ НОВОСТИ (ВСЕГДА ПРИ ОБНОВЛЕНИИ) ==========
 export async function showNewsIfNeeded() {
     try {
         const response = await fetch('news.json');
@@ -12,14 +13,10 @@ export async function showNewsIfNeeded() {
         }
         
         const newsData = await response.json();
-        const lastShown = localStorage.getItem(NEWS_STORAGE_KEY);
-        const today = new Date().toDateString();
         
-        // Показываем новости, если сегодня ещё не показывали
-        if (lastShown !== today) {
-            showNewsModal(newsData);
-            localStorage.setItem(NEWS_STORAGE_KEY, today);
-        }
+        // ===== УБРАЛИ ПРОВЕРКУ НА ДАТУ — ПОКАЗЫВАЕМ ВСЕГДА =====
+        showNewsModal(newsData);
+        
     } catch (error) {
         console.error('Ошибка загрузки новостей:', error);
     }
