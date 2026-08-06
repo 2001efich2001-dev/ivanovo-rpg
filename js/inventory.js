@@ -878,7 +878,6 @@ export function renderItemsTab() {
     }
 }
 
-// Функции useItem, equipItem, unequipItem
 async function useItem(itemId) {
     if (window._usingItem) {
         console.log('⚠️ useItem уже выполняется, пропускаем');
@@ -905,7 +904,34 @@ async function useItem(itemId) {
         const mandateNumber = inventory[itemIndex].mandateNumber || '?';
         const type = inventory[itemIndex].type || 'elected';
         const isElected = mandateNumber <= 10;
-        showMessage(`📜 ${itemData.name}\n№${mandateNumber} • ${isElected ? '🏛️ Выборный' : '💰 Покупной'}\n${itemData.description}`, '#ffd966');
+        
+        // 👇 ПРОВЕРЯЕМ, ЕСТЬ ЛИ ТИТУЛ
+        if (!ownedTitles.includes('👑 Депутат')) {
+            // Добавляем титул
+            ownedTitles.push('👑 Депутат');
+            if (!currentTitle) {
+                setCurrentTitle('👑 Депутат');
+            }
+            updateUI();
+            
+            // Сохраняем в Firestore
+            const user = window.auth?.currentUser;
+            if (user) {
+                import('./mandateItems.js').then(m => {
+                    m.addDeputyTitle(user.uid);
+                });
+            }
+            
+            showMessage(`👑 Титул "Депутат" активирован!`, '#4caf50');
+            addLogEntry(`👑 Получен титул "Депутат" за мандат №${mandateNumber}`, 'system');
+            
+            // Обновляем вкладку титулов
+            renderTitlesTab();
+        } else {
+            // Если титул уже есть — просто показываем инфо
+            showMessage(`📜 ${itemData.name}\n№${mandateNumber} • ${isElected ? '🏛️ Выборный' : '💰 Покупной'}\n${itemData.description}`, '#ffd966');
+        }
+        
         window._usingItem = false;
         return;
     }
