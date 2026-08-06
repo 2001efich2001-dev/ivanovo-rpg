@@ -6,25 +6,25 @@ import { saveGameData } from './firestore.js';
 
 // ========== ПРОВЕРКА ПЕРИОДА ВЫБОРОВ ==========
 
-// Выборы проходят с 1 по 5 число каждого месяца
+// Выборы проходят с 3 по 7 число каждого месяца (ВРЕМЕННО ДЛЯ ТЕСТА)
 export function isElectionPeriod() {
     const now = new Date();
     const day = now.getDate();
-    return day >= 1 && day <= 5;
+    return day >= 3 && day <= 7;
 }
 
-// День завершения выборов (6-е число)
+// День завершения выборов (8-е число) (ВРЕМЕННО ДЛЯ ТЕСТА)
 export function isElectionEnd() {
     const now = new Date();
     const day = now.getDate();
-    return day === 6;
+    return day === 8;
 }
 
-// День сброса (1-е число) — сбрасываем голоса и проверяем мандаты
+// День сброса (3-е число) — сбрасываем голоса и проверяем мандаты (ВРЕМЕННО ДЛЯ ТЕСТА)
 export function isResetDay() {
     const now = new Date();
     const day = now.getDate();
-    return day === 1;
+    return day === 3;
 }
 
 // Получить месяц и год выборов (для отображения)
@@ -77,7 +77,7 @@ export async function isCandidate(uid) {
 export async function registerAsCandidate(uid, displayName) {
     // Проверяем, идут ли выборы
     if (!isElectionPeriod()) {
-        throw new Error('Выборы не идут! Ждите 1-5 числа.');
+        throw new Error('Выборы не идут! Ждите 3-7 числа.');
     }
     
     // Проверяем, не зарегистрирован ли уже
@@ -131,7 +131,7 @@ export async function saveSlogan(uid, slogan) {
 export async function voteForCandidate(voterId, voterName, candidateId) {
     // Проверяем, идут ли выборы
     if (!isElectionPeriod()) {
-        throw new Error('Выборы не идут! Голосование доступно только с 1 по 5 число.');
+        throw new Error('Выборы не идут! Голосование доступно только с 3 по 7 число.');
     }
     
     if (voterId === candidateId) {
@@ -212,7 +212,7 @@ export async function getVotedFor(voterId) {
 
 // ========== ЗАВЕРШЕНИЕ ВЫБОРОВ ==========
 
-// Завершить выборы (6-е число)
+// Завершить выборы (8-е число) (ВРЕМЕННО ДЛЯ ТЕСТА)
 export async function finishElections() {
     try {
         const candidates = await getCandidates();
