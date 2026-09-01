@@ -15,7 +15,6 @@ import { showNewsIfNeeded, initNewsModal } from './news.js';
 import { isTradeGuardActive, getPendingTrade } from './tradeGuard.js';
 import { updateProfile } from 'https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js';
 import { initChat } from './chat.js';
-import { syncMandatesFromFirestore } from './mandateItems.js';
 
 // ========== ЗВУКИ И МУЗЫКА ==========
 let audioCtx = null;
@@ -1536,8 +1535,6 @@ async function afterLogin() {
         }
     });
     
-    // ===== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ВЫБОРОВ =====
-    import('./electionInitializer.js').then(m => m.initElectionSystem());
 }
     
     initAuth(authContainer, gameContainer, loginFormDiv, registerFormDiv, playerNickSpan, afterLogin);
