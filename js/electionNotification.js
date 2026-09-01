@@ -10,7 +10,8 @@ import {
     getElectionPeriod,
     finishElections,
     hasVoted,
-    getCandidates
+    getCandidates,
+    clearCandidates
 } from './elections.js';
 import { resetAllMandates, getActiveDeputies } from './mandates.js';
 
@@ -37,6 +38,8 @@ export async function checkElectionsOnLogin() {
         const lastNotified = electionState.lastNotified || '';
         const hasVotedThisPeriod = electionState.votedPeriod === currentPeriod;
         
+        console.log(`🗳️ Проверка выборов: ${currentPeriod}, день ${day}`);
+        
         // ===== 1. ПРОВЕРКА: СБРОС МАНДАТОВ (1-е число) =====
         if (isResetDay()) {
             const lastReset = electionState.lastReset || '';
@@ -58,6 +61,8 @@ export async function checkElectionsOnLogin() {
         
         // ===== 2. ПРОВЕРКА: ПЕРИОД ВЫБОРОВ (1-5 число) =====
         if (isElectionPeriod()) {
+            console.log('🗳️ Идут выборы!');
+            
             // Показываем уведомление о выборах (если ещё не показывали в этом месяце)
             if (lastNotified !== currentPeriod) {
                 await showElectionNotification();
@@ -89,13 +94,32 @@ export async function checkElectionsOnLogin() {
             const lastFinished = electionState.lastFinished || '';
             if (lastFinished !== currentPeriod) {
                 console.log('🏛️ Завершение выборов (6-е число)...');
-                const winners = await finishElections();
-                await updateDoc(userRef, {
-                    'electionState.lastFinished': currentPeriod
-                });
                 
-                // Показываем уведомление о результатах
-                await showElectionResults(winners);
+                // ===== ВЫЗЫВАЕМ ЗАВЕРШЕНИЕ =====
+                try {
+                    const winners = await finishElections();
+                    console.log(`🏛️ Выборы завершены! Выдано ${winners?.length || 0} мандатов.`);
+                    
+                    // Показываем уведомление о результатах
+                    await showElectionResults(winners);
+                    
+                    // Отмечаем, что завершили
+                    await updateDoc(userRef, {
+                        'electionState.lastFinished': currentPeriod
+                    });
+                    
+                } catch (error) {
+                    console.error('❌ Ошибка при завершении выборов:', error);
+                    showMessage('❌ Ошибка при завершении выборов. Проверьте консоль.', '#e74c3c');
+                }
+                
+                // ===== ДОПОЛНИТЕЛЬНАЯ ОЧИСТКА КАНДИДАТОВ =====
+                try {
+                    await clearCandidates();
+                    console.log('🧹 Кандидаты очищены (дополнительная проверка)');
+                } catch (e) {
+                    console.warn('Не удалось очистить кандидатов:', e);
+                }
             }
         }
         
@@ -208,4 +232,18 @@ export async function getElectionStatus() {
         isElectionEnd: isElectionEnd(),
         isResetDay: isResetDay()
     };
+}
+
+// ========== ПРИНУДИТЕЛЬНОЕ ЗАВЕРШЕНИЕ ВЫБОРОВ (ДЛЯ ТЕСТА) ==========
+export async function forceFinishElections() {
+    console.log('🔧 Принудительное завершение выборов (тест)...');
+    try {
+        const winners = await finishElections();
+        await clearCandidates();
+        console.log('✅ Выборы принудительно завершены!');
+        return winners;
+    } catch (error) {
+        console.error('❌ Ошибка принудительного завершения:', error);
+        throw error;
+    }
 }
