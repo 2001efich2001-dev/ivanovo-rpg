@@ -6,25 +6,25 @@ import { saveGameData } from './firestore.js';
 
 // ========== ПРОВЕРКА ПЕРИОДА ВЫБОРОВ ==========
 
-// Выборы проходят с 3 по 7 число каждого месяца (ВРЕМЕННО ДЛЯ ТЕСТА)
+// Выборы проходят с 1 по 5 число каждого месяца
 export function isElectionPeriod() {
     const now = new Date();
     const day = now.getDate();
-    return day >= 3 && day <= 7;
+    return day >= 1 && day <= 5;
 }
 
-// День завершения выборов (8-е число) (ВРЕМЕННО ДЛЯ ТЕСТА)
+// День завершения выборов 
 export function isElectionEnd() {
     const now = new Date();
     const day = now.getDate();
-    return day === 8;
+    return day === 6;
 }
 
-// День сброса (3-е число) — сбрасываем голоса и проверяем мандаты (ВРЕМЕННО ДЛЯ ТЕСТА)
+// День сброса (1-е число) 
 export function isResetDay() {
     const now = new Date();
     const day = now.getDate();
-    return day === 3;
+    return day === 1;
 }
 
 // Получить месяц и год выборов (для отображения)
