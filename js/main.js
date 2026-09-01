@@ -183,34 +183,22 @@ async function handleResetTutorial() {
     showMessage('💡 Все подсказки сброшены! Они появятся снова, когда ты встретишь соответствующую механику.', '#8e44ad');
 }
 
-// ========== СТАТИСТИКА ИГРОКОВ (ФЕЙКОВАЯ ЗАГЛУШКА) ==========
+
+// ========== СТАТИСТИКА ИГРОКОВ (РЕАЛЬНАЯ) ==========
 async function updatePlayerStats() {
     try {
-        // ===== НОВАЯ ФЕЙКОВАЯ СТАТИСТИКА =====
-        const { getFakeStats } = await import('./fakeStats.js');
-        const stats = getFakeStats();
-        
-        // Обновляем UI
-        document.getElementById('totalPlayersCount').textContent = stats.totalPlayers.toLocaleString();
-        document.getElementById('onlineCount').textContent = stats.online;
-        
-        console.log(`📊 FakeStats: ${stats.online} онлайн (${stats.onlinePercent}%) из ${stats.totalPlayers} зарегистрированных`);
-        
-        // ================================================================
-        // ===== РЕАЛЬНАЯ СТАТИСТИКА (закомментирована, можно вернуть) =====
-        // ================================================================
-        /*
         const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
         
-        // Общее количество игроков
+        // ===== ОБЩЕЕ КОЛИЧЕСТВО ИГРОКОВ =====
         const usersSnapshot = await getDocs(collection(db, 'users'));
         const totalPlayers = usersSnapshot.size;
         document.getElementById('totalPlayersCount').textContent = totalPlayers;
         
-        // РЕАЛЬНЫЙ ОНЛАЙН — считаем только тех, кто был активен в последние 2 минуты
+        // ===== РЕАЛЬНЫЙ ОНЛАЙН =====
+        // Считаем только тех, кто был активен в последние 2 минуты
         const onlineSnapshot = await getDocs(collection(db, 'online'));
         const now = Date.now();
-        const TWO_MINUTES = 2 * 60 * 1000; // 2 минуты
+        const TWO_MINUTES = 2 * 60 * 1000;
         
         let onlineCount = 0;
         for (const doc of onlineSnapshot.docs) {
@@ -223,14 +211,11 @@ async function updatePlayerStats() {
         document.getElementById('onlineCount').textContent = onlineCount;
         
         console.log(`📊 Статистика: ${onlineCount} онлайн, ${totalPlayers} всего игроков`);
-        */
-        // ================================================================
-        
     } catch (error) {
         console.error('Ошибка загрузки статистики:', error);
-        // Fallback: показываем заглушку
-        document.getElementById('totalPlayersCount').textContent = '3.8K+';
-        document.getElementById('onlineCount').textContent = '???';
+        // Если ошибка — показываем заглушку
+        document.getElementById('totalPlayersCount').textContent = '?';
+        document.getElementById('onlineCount').textContent = '?';
     }
 }
 
