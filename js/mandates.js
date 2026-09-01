@@ -173,11 +173,14 @@ export async function purchaseMandate(number, uid, userName, money) {
 export async function resetAllMandates() {
     try {
         const snapshot = await getDocs(collection(db, 'mandates'));
+        const { doc: docRef, updateDoc, getDoc } = await import('https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js');
         
         for (const docSnap of snapshot.docs) {
             const data = docSnap.data();
             const oldOwnerId = data.ownerId;
+            const mandateNumber = data.number;
             
+            // ===== 1. Очищаем мандат в коллекции mandates =====
             await updateDoc(docSnap.ref, {
                 ownerId: null,
                 ownerName: null,
@@ -185,16 +188,60 @@ export async function resetAllMandates() {
                 isActive: false
             });
             
-            // Если у игрока больше нет мандатов — снимаем титул
+            // ===== 2. Удаляем мандат из инвентаря игрока =====
             if (oldOwnerId) {
-                const playerMandates = await getPlayerMandates(oldOwnerId);
-                if (playerMandates.length === 0) {
-                    await removeDeputyTitle(oldOwnerId);
+                try {
+                    const userRef = docRef(db, 'users', oldOwnerId);
+                    const userSnap = await getDoc(userRef);
+                    
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        let inventory = userData.inventory || [];
+                        
+                        // Находим и удаляем мандат
+                        const mandateIndex = inventory.findIndex(item => 
+                            item.id === 'mandate' && 
+                            item.mandateNumber === mandateNumber
+                        );
+                        
+                        if (mandateIndex !== -1) {
+                            if (inventory[mandateIndex].count > 1) {
+                                inventory[mandateIndex].count--;
+                            } else {
+                                inventory.splice(mandateIndex, 1);
+                            }
+                            
+                            await updateDoc(userRef, {
+                                inventory: inventory
+                            });
+                            
+                            console.log(`   🗑️ Мандат №${mandateNumber} удалён из инвентаря игрока ${oldOwnerId}`);
+                        }
+                        
+                        // ===== 3. Проверяем, есть ли у игрока ещё мандаты =====
+                        const remainingMandates = inventory.filter(item => item.id === 'mandate');
+                        if (remainingMandates.length === 0) {
+                            // Снимаем титул "Депутат"
+                            let titles = userData.titles || [];
+                            if (Array.isArray(titles)) {
+                                const titleIndex = titles.indexOf('👑 Депутат');
+                                if (titleIndex !== -1) {
+                                    titles.splice(titleIndex, 1);
+                                    await updateDoc(userRef, {
+                                        titles: titles
+                                    });
+                                    console.log(`   👑 Титул "Депутат" снят у игрока ${oldOwnerId}`);
+                                }
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`   ⚠️ Не удалось обновить инвентарь игрока ${oldOwnerId}:`, err);
                 }
             }
         }
         
-        console.log('✅ Все мандаты сброшены');
+        console.log('✅ Все мандаты сброшены и удалены из инвентарей игроков');
         return true;
     } catch (error) {
         console.error('Ошибка сброса мандатов:', error);
