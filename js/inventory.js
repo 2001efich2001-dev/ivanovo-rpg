@@ -4,7 +4,6 @@ import { saveGameData } from './firestore.js';
 import { showMessage, logAction, showTutorialTip } from './utils.js';
 import { renderAchievementsTab, updateAchievementStats } from './achievements.js';
 
-
 // Переменные для пагинации
 let currentPage = 0;
 const ITEMS_PER_PAGE = 20;
@@ -80,19 +79,6 @@ export const itemsDB = {
     avatar_ivanovo: { id: 'avatar_ivanovo', name: '🏙️ Простой ивановец', description: 'Обычный парень из Иваново.', price: 10000, type: 'avatar', image: 'images/avatars/ivanovo.png' },
     avatar_zoomer: { id: 'avatar_zoomer', name: '📱 Зуммер', description: 'Молодой, дерзкий, всегда в телефоне.', price: 100000, type: 'avatar', image: 'images/avatars/zoomer.png' },
     avatar_commerce: { id: 'avatar_commerce', name: '💼 Коммерс', description: 'Деловой человек с большими планами.', price: 1000000, type: 'avatar', image: 'images/avatars/commerce.png' },
-    
-    // ===== НОВЫЙ ПРЕДМЕТ: МАНДАТ =====
-    mandate: { 
-        id: "mandate", 
-        name: "📜 Депутатский мандат", 
-        type: "special", 
-        icon: "📜", 
-        image: "images/items/mandate.png", 
-        effect: {}, 
-        price: 0, 
-        slot: null, 
-        description: "Депутатский мандат. Даёт титул '👑 Депутат' и особые привилегии." 
-    },
     
     // Лутбоксы
     bronze_box: { id: "bronze_box", name: "Бронзовый ящик", type: "lootbox", icon: "📦", image: "images/items/bronze_box.png", effect: {}, price: 1000, slot: null, description: "🎁 Бронзовый ящик. Шанс на легендарку: 5%" },
@@ -788,9 +774,6 @@ export function renderItemsTab() {
             } else if (item.type === 'junk') {
                 itemTypeClass = 'junk';
                 buttonIcon = '🗑️';
-            } else if (item.type === 'special') {
-                itemTypeClass = 'special';
-                buttonIcon = '📜';
             }
             
             html += `
@@ -895,43 +878,6 @@ async function useItem(itemId) {
     }
     const itemData = itemsDB[itemId];
     if (!itemData) {
-        window._usingItem = false;
-        return;
-    }
-    
-    // ===== ОБРАБОТКА ДЛЯ МАНДАТОВ =====
-    if (itemData.type === 'special') {
-        const mandateNumber = inventory[itemIndex].mandateNumber || '?';
-        const type = inventory[itemIndex].type || 'elected';
-        const isElected = mandateNumber <= 10;
-        
-        // 👇 ПРОВЕРЯЕМ, ЕСТЬ ЛИ ТИТУЛ
-        if (!ownedTitles.includes('👑 Депутат')) {
-            // Добавляем титул
-            ownedTitles.push('👑 Депутат');
-            if (!currentTitle) {
-                setCurrentTitle('👑 Депутат');
-            }
-            updateUI();
-            
-            // Сохраняем в Firestore
-            const user = window.auth?.currentUser;
-            if (user) {
-                import('./mandateItems.js').then(m => {
-                    m.addDeputyTitle(user.uid);
-                });
-            }
-            
-            showMessage(`👑 Титул "Депутат" активирован!`, '#4caf50');
-            addLogEntry(`👑 Получен титул "Депутат" за мандат №${mandateNumber}`, 'system');
-            
-            // Обновляем вкладку титулов
-            renderTitlesTab();
-        } else {
-            // Если титул уже есть — просто показываем инфо
-            showMessage(`📜 ${itemData.name}\n№${mandateNumber} • ${isElected ? '🏛️ Выборный' : '💰 Покупной'}\n${itemData.description}`, '#ffd966');
-        }
-        
         window._usingItem = false;
         return;
     }
@@ -1521,7 +1467,8 @@ export async function renderTitlesTab() {
         "🌟 Миллионер": { icon: "💰", desc: "Накопить 1,000,000₽" },
         "🏆 Легенда дартса": { icon: "🎯", desc: "Первым набрать 300 очков в дротики" },
         "🗡️ Повелитель рыб": { icon: "🐟", desc: "Первым поймать рыбу-меч" },
-        "💎 Миллионер": { icon: "💎", desc: "Первым накопить 1,000,000₽" }
+        "💎 Миллионер": { icon: "💎", desc: "Первым накопить 1,000,000₽" },
+        "👑 Депутат": { icon: "👑", desc: "Получить депутатский мандат" }
     };
     
     for (const title of owned) {
@@ -1585,102 +1532,6 @@ async function equipTitle(title) {
     showMessage(`🏷️ Титул "${title}" активирован!`, '#4caf50');
 }
 
-// ========== НОВАЯ ВКЛАДКА МАНДАТОВ ==========
-// ========== ВКЛАДКА МАНДАТОВ ==========
-export function renderMandatesTab() {
-    const container = document.getElementById('mandatesTab');
-    if (!container) return;
-    
-    const mandates = inventory.filter(item => item.id === 'mandate');
-    
-    if (mandates.length === 0) {
-        container.innerHTML = `
-            <div class="empty-inventory" style="text-align: center; padding: 40px 20px;">
-                <div style="font-size: 3rem; margin-bottom: 15px;">📜</div>
-                <div style="font-size: 1.2rem; margin-bottom: 10px;">У вас нет мандатов</div>
-                <div style="color: var(--text-secondary);">
-                    Участвуйте в выборах (1-5 числа) или купите мандат в <strong>Администрации</strong> на Площади Революции
-                </div>
-            </div>
-        `;
-        return;
-    }
-    
-    let html = '<div class="mandates-grid" style="display: flex; flex-direction: column; gap: 12px;">';
-    
-    for (const mandate of mandates) {
-        const number = mandate.mandateNumber || '?';
-        const type = mandate.type || 'elected';
-        const acquired = mandate.acquiredAt ? new Date(mandate.acquiredAt).toLocaleDateString() : 'Неизвестно';
-        const isElected = number <= 10;
-        const canSell = !isElected;
-        
-        html += `
-            <div class="mandate-slot" style="
-                background: var(--stat-bg);
-                border-radius: 24px;
-                padding: 16px 20px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                flex-wrap: wrap;
-                gap: 12px;
-                border-left: 4px solid ${isElected ? '#ffd966' : '#4caf50'};
-            ">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <div style="font-size: 2rem;">📜</div>
-                    <div>
-                        <div style="font-weight: bold; font-size: 1.1rem;">Мандат №${number}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                            ${isElected ? '🏛️ Выборный' : '💰 Покупной'}
-                        </div>
-                        <div style="font-size: 0.75rem; color: var(--text-secondary);">
-                            Получен: ${acquired}
-                        </div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    ${canSell ? `
-                        <button class="mandate-sell-btn action-btn" data-number="${number}" style="
-                            background: #c0392b;
-                            border: none;
-                            padding: 8px 20px;
-                            border-radius: 40px;
-                            color: white;
-                            cursor: pointer;
-                            font-weight: bold;
-                        ">💰 Продать (100,000₽)</button>
-                    ` : `
-                        <span style="
-                            background: #2c3e50;
-                            padding: 8px 20px;
-                            border-radius: 40px;
-                            color: #ffd966;
-                            font-size: 0.85rem;
-                        ">🔒 Не продаётся</span>
-                    `}
-                </div>
-            </div>
-        `;
-    }
-    
-    html += '</div>';
-    container.innerHTML = html;
-    
-    // Обработчики для кнопок продажи
-    container.querySelectorAll('.mandate-sell-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const number = parseInt(btn.dataset.number);
-            if (confirm(`❓ Продать мандат №${number} городу за 100,000₽?\n\nВернуть будет нельзя!`)) {
-                const { sellMandateToCity } = await import('./mandateItems.js');
-                await sellMandateToCity(number);
-                renderMandatesTab();
-                renderTitlesTab();
-            }
-        });
-    });
-}
-
 // ========== ОБНОВЛЁННАЯ initInventoryTabs ==========
 export function initInventoryTabs() {
     const modal = document.getElementById('inventoryModal');
@@ -1692,9 +1543,8 @@ export function initInventoryTabs() {
     const housingTab = document.getElementById('housingTab');
     const titlesTab = document.getElementById('titlesTab');
     const avatarsTab = document.getElementById('avatarsTab');
-    const mandatesTab = document.getElementById('mandatesTab');
     
-    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab || !housingTab || !titlesTab || !avatarsTab || !mandatesTab) return;
+    if (!tabs.length || !itemsTab || !equipmentTab || !achievementsTab || !housingTab || !titlesTab || !avatarsTab) return;
     
     tabs.forEach(tab => { tab.removeEventListener('click', tab._listener); });
     
@@ -1709,7 +1559,6 @@ export function initInventoryTabs() {
         housingTab.style.display = 'none';
         titlesTab.style.display = 'none';
         avatarsTab.style.display = 'none';
-        mandatesTab.style.display = 'none';
         
         if (tab.dataset.tab === 'items') {
             itemsTab.style.display = 'flex';
@@ -1729,9 +1578,6 @@ export function initInventoryTabs() {
         } else if (tab.dataset.tab === 'avatars') {
             avatarsTab.style.display = 'flex';
             renderAvatarsTab();
-        } else if (tab.dataset.tab === 'mandates') {
-            mandatesTab.style.display = 'flex';
-            renderMandatesTab();
         }
     };
     
