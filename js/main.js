@@ -1439,7 +1439,7 @@ async function afterLogin() {
     // 👉 ОБНОВЛЯЕМ СТАТИСТИКУ ПОСЛЕ ВХОДА
     await updatePlayerStats();
     // 👇 ОБНОВЛЯЕМ КАЖДЫЙ ЧАС (для фейковой статистики)
-    setInterval(updatePlayerStats, 60 * 60 * 1000); // раз в час
+    setInterval(updatePlayerStats, 60 * 1000); // раз в час
 
     // ===== ОНЛАЙН =====
     await updateOnlineStatus();
